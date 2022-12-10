@@ -2,7 +2,7 @@ use std::{time::Duration, rc::Rc, cell::RefCell, process::exit};
 
 use dotenv::dotenv;
 
-use automation::{devices::{Devices, IkeaOutlet}, zigbee::Zigbee, mqtt::Notifier};
+use automation::{devices::{Devices, IkeaOutlet, AsStateOnOff}, zigbee::Zigbee, mqtt::Notifier};
 use rumqttc::{MqttOptions, Transport, Client};
 
 fn get_required_env(name: &str) -> String {
@@ -34,11 +34,8 @@ fn main() {
 
     let mut notifier = Notifier::new();
 
-    {
-        let mut temp = devices.borrow_mut();
-        let a = temp.get_device(0);
-        a.unwrap().as_state_on_off().unwrap().set_state(false);
-    }
+    // Update the state of the kettle
+    AsStateOnOff::from(devices.borrow_mut().get_device("kitchen/kettle").unwrap()).unwrap().set_state(false);
 
     notifier.add_listener(Rc::downgrade(&devices));
 

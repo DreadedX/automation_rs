@@ -23,14 +23,6 @@ impl Device for IkeaOutlet {
     fn get_identifier(& self) -> &str {
         &self.zigbee.get_friendly_name()
     }
-
-    fn as_state_on_off(&mut self) -> Option<&mut dyn StateOnOff> {
-        Some(self)
-    }
-
-    fn as_listener(&mut self) -> Option<&mut dyn Listener> {
-        Some(self)
-    }
 }
 
 #[derive(Debug, Serialize, Deserialize)]

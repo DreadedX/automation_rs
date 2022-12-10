@@ -1,36 +1,56 @@
 mod ikea_outlet;
 
+use std::collections::HashMap;
+
 use crate::{mqtt::Listener, state::StateOnOff};
 
 pub use self::ikea_outlet::IkeaOutlet;
 
-pub trait Device {
+pub trait AsListener {
+    fn from(&mut self) -> Option<&mut dyn Listener> {
+        None
+    }
+}
+impl<T: Device + Listener> AsListener for T {
+    fn from(&mut self) -> Option<&mut dyn Listener> {
+        Some(self)
+    }
+}
+
+pub trait AsStateOnOff {
+    fn from(&mut self) -> Option<&mut dyn StateOnOff> {
+        None
+    }
+}
+impl<T: Device + StateOnOff> AsStateOnOff for T {
+    fn from(&mut self) -> Option<&mut dyn StateOnOff> {
+        Some(self)
+    }
+}
+
+pub trait Device: AsListener + AsStateOnOff {
     fn get_identifier(&self) -> &str;
-
-    fn as_state_on_off(&mut self) -> Option<&mut dyn StateOnOff>;
-
-    fn as_listener(&mut self) -> Option<&mut dyn Listener>;
 }
 
 pub struct Devices {
-    devices: Vec<Box<dyn Device>>,
+    devices: HashMap<String, Box<dyn Device>>,
 }
 
 impl Devices {
     pub fn new() -> Self {
-        Self { devices: Vec::new() }
+        Self { devices: HashMap::new() }
     }
 
     pub fn add_device<T: Device + 'static>(&mut self, device: T) {
-        self.devices.push(Box::new(device));
+        self.devices.insert(device.get_identifier().to_owned(), Box::new(device));
     }
 
-    pub fn as_listeners(&mut self) -> Vec<&mut dyn Listener> {
-        self.devices.iter_mut().filter_map(|device| device.as_listener()).collect()
+    pub fn get_listeners(&mut self) -> Vec<&mut dyn Listener> {
+        self.devices.iter_mut().filter_map(|(_, device)| AsListener::from(device.as_mut())).collect()
     }
 
-    pub fn get_device(&mut self, index: usize) -> Option<&mut dyn Device> {
-        if let Some(device) = self.devices.get_mut(index) {
+    pub fn get_device(&mut self, name: &str) -> Option<&mut dyn Device> {
+        if let Some(device) = self.devices.get_mut(name) {
             return Some(device.as_mut());
         }
         return None;
@@ -39,7 +59,7 @@ impl Devices {
 
 impl Listener for Devices {
     fn notify(&mut self, message: &rumqttc::Publish) {
-        self.as_listeners().iter_mut().for_each(|listener| {
+        self.get_listeners().iter_mut().for_each(|listener| {
             listener.notify(message);
         })
     }
