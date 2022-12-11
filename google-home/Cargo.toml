@@ -1,13 +1,17 @@
 [package]
-name = "automation"
+name = "google-home"
 version = "0.1.0"
 edition = "2021"
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
-rumqttc = "0.18"
 serde = { version ="1.0.149", features = ["derive"] }
 serde_json = "1.0.89"
-dotenv = "0.15.0"
-google-home = {path = "./google-home"}
+
+[dependencies.uuid]
+version = "1.2.2"
+features = [
+	"v4",
+	"serde",
+]
