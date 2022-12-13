@@ -1,4 +1,6 @@
 pub mod sync;
+pub mod query;
+pub mod execute;
 
 use serde::Serialize;
 use uuid::Uuid;
@@ -10,35 +12,31 @@ pub struct Response {
     payload: ResponsePayload,
 }
 
+impl Response {
+    fn new(request_id: Uuid, payload: ResponsePayload) -> Self {
+        Self { request_id, payload }
+    }
+}
+
 #[derive(Debug, Serialize)]
 #[serde(untagged)]
 pub enum ResponsePayload {
-    Sync(sync::Payload)
+    Sync(sync::Payload),
+    Query(query::Payload),
+    Execute(execute::Payload),
 }
 
-#[cfg(test)]
-mod tests {
-    use std::str::FromStr;
+#[derive(Debug, Default, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct State {
+    #[serde(skip_serializing_if = "Option::is_none")]
+    on: Option<bool>,
+}
 
-    use crate::{response::sync::Device, types::Type, traits::Trait};
-
-    use super::*;
-
-    #[test]
-    fn serialize_sync_response() {
-        let mut sync_resp = sync::Payload::new("Dreaded_X");
-
-        let mut device = Device::new("kitchen/kettle", "Kettle", Type::Kettle);
-        device.traits.push(Trait::OnOff);
-        device.room_hint = "Kitchen".into();
-        sync_resp.add_device(device);
-
-        let resp = Response{ request_id: Uuid::from_str("ff36a3cc-ec34-11e6-b1a0-64510650abcf").unwrap(), payload: ResponsePayload::Sync(sync_resp) };
-
-        println!("{:?}", resp);
-
-        let json = serde_json::to_string(&resp).unwrap();
-
-        println!("{}", json);
+impl State {
+    fn on(mut self, state: bool) -> Self {
+        self.on = Some(state);
+        self
     }
 }
+
