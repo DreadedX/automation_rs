@@ -7,23 +7,35 @@ use crate::{mqtt::Listener, state::StateOnOff};
 pub use self::ikea_outlet::IkeaOutlet;
 
 pub trait AsListener {
-    fn from(&mut self) -> Option<&mut dyn Listener> {
+    fn cast(&self) -> Option<&dyn Listener> {
+        None
+    }
+    fn cast_mut(&mut self) -> Option<&mut dyn Listener> {
         None
     }
 }
 impl<T: Device + Listener> AsListener for T {
-    fn from(&mut self) -> Option<&mut dyn Listener> {
+    fn cast(&self) -> Option<&dyn Listener> {
+        Some(self)
+    }
+    fn cast_mut(&mut self) -> Option<&mut dyn Listener> {
         Some(self)
     }
 }
 
 pub trait AsStateOnOff {
-    fn from(&mut self) -> Option<&mut dyn StateOnOff> {
+    fn cast(&self) -> Option<&dyn StateOnOff> {
+        None
+    }
+    fn cast_mut(&mut self) -> Option<&mut dyn StateOnOff> {
         None
     }
 }
 impl<T: Device + StateOnOff> AsStateOnOff for T {
-    fn from(&mut self) -> Option<&mut dyn StateOnOff> {
+    fn cast(&self) -> Option<&dyn StateOnOff> {
+        Some(self)
+    }
+    fn cast_mut(&mut self) -> Option<&mut dyn StateOnOff> {
         Some(self)
     }
 }
@@ -46,7 +58,7 @@ impl Devices {
     }
 
     pub fn get_listeners(&mut self) -> Vec<&mut dyn Listener> {
-        self.devices.iter_mut().filter_map(|(_, device)| AsListener::from(device.as_mut())).collect()
+        self.devices.iter_mut().filter_map(|(_, device)| AsListener::cast_mut(device.as_mut())).collect()
     }
 
     pub fn get_device(&mut self, name: &str) -> Option<&mut dyn Device> {

@@ -35,7 +35,7 @@ fn main() {
     let mut notifier = Notifier::new();
 
     // Update the state of the kettle
-    AsStateOnOff::from(devices.borrow_mut().get_device("kitchen/kettle").unwrap()).unwrap().set_state(false);
+    AsStateOnOff::cast_mut(devices.borrow_mut().get_device("kitchen/kettle").unwrap()).unwrap().set_state(false);
 
     notifier.add_listener(Rc::downgrade(&devices));
 
