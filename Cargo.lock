@@ -29,6 +29,7 @@ version = "0.1.0"
 dependencies = [
  "dotenv",
  "google-home",
+ "paste",
  "rumqttc",
  "serde",
  "serde_json",
@@ -491,6 +492,12 @@ name = "openssl-probe"
 version = "0.1.5"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "ff011a302c396a5197692431fc1948019154afc178baf7d8e37367442a4601cf"
+
+[[package]]
+name = "paste"
+version = "1.0.10"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "cf1c2c742266c2f1041c914ba65355a83ae8747b05f208319784083583494b4b"
 
 [[package]]
 name = "pin-project"

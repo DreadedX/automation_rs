@@ -6,39 +6,31 @@ use crate::{mqtt::Listener, state::StateOnOff};
 
 pub use self::ikea_outlet::IkeaOutlet;
 
-pub trait AsListener {
-    fn cast(&self) -> Option<&dyn Listener> {
-        None
-    }
-    fn cast_mut(&mut self) -> Option<&mut dyn Listener> {
-        None
-    }
-}
-impl<T: Device + Listener> AsListener for T {
-    fn cast(&self) -> Option<&dyn Listener> {
-        Some(self)
-    }
-    fn cast_mut(&mut self) -> Option<&mut dyn Listener> {
-        Some(self)
-    }
+macro_rules! add_cast_for {
+    ($i:ident) => {
+        paste::paste! {
+            pub trait [< As $i>] {
+                fn cast(&self) -> Option<&dyn $i> {
+                    None
+                }
+                fn cast_mut(&mut self) -> Option<&mut dyn $i> {
+                    None
+                }
+            }
+            impl<T: $i> [< As $i>] for T {
+                fn cast(&self) -> Option<&dyn $i> {
+                    Some(self)
+                }
+                fn cast_mut(&mut self) -> Option<&mut dyn $i> {
+                    Some(self)
+                }
+            }
+        }
+    };
 }
 
-pub trait AsStateOnOff {
-    fn cast(&self) -> Option<&dyn StateOnOff> {
-        None
-    }
-    fn cast_mut(&mut self) -> Option<&mut dyn StateOnOff> {
-        None
-    }
-}
-impl<T: Device + StateOnOff> AsStateOnOff for T {
-    fn cast(&self) -> Option<&dyn StateOnOff> {
-        Some(self)
-    }
-    fn cast_mut(&mut self) -> Option<&mut dyn StateOnOff> {
-        Some(self)
-    }
-}
+add_cast_for!(Listener);
+add_cast_for!(StateOnOff);
 
 pub trait Device: AsListener + AsStateOnOff {
     fn get_identifier(&self) -> &str;
