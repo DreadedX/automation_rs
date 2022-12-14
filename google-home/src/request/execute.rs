@@ -27,6 +27,10 @@ pub enum CommandType {
     OnOff {
         on: bool
     },
+    #[serde(rename = "action.devices.commands.ActivateScene")]
+    ActivateScene {
+        deactivate: bool
+    }
 }
 
 #[cfg(test)]
@@ -95,7 +99,7 @@ mod tests {
                 assert_eq!(payload.commands[0].execution.len(), 1);
                 match payload.commands[0].execution[0] {
                     CommandType::OnOff{on} => assert_eq!(on, true),
-                    // _ => panic!("Expected OnOff")
+                    _ => panic!("Expected OnOff")
                 }
             },
             _ => panic!("Expected Execute intent")

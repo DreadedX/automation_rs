@@ -7,7 +7,7 @@ use uuid::Uuid;
 
 #[derive(Debug, Deserialize)]
 #[serde(tag = "intent", content = "payload")]
-enum Intent {
+pub enum Intent {
     #[serde(rename = "action.devices.SYNC")]
     Sync,
     #[serde(rename = "action.devices.QUERY")]
@@ -18,7 +18,7 @@ enum Intent {
 
 #[derive(Debug, Deserialize)]
 #[serde(rename_all = "camelCase")]
-struct Request {
+pub struct Request {
     pub request_id: Uuid,
     pub inputs: Vec<Intent>,
 }
