@@ -31,13 +31,5 @@ pub enum ResponsePayload {
 #[derive(Debug, Default, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct State {
-    on: Option<bool>,
+    pub on: Option<bool>,
 }
-
-impl State {
-    fn on(mut self, state: bool) -> Self {
-        self.on = Some(state);
-        self
-    }
-}
-

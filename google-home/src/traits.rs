@@ -31,7 +31,7 @@ pub trait AsOnOff {
         None
     }
 }
-impl<T: GoogleHomeDevice + OnOff> AsOnOff for T {
+impl<'a, T: GoogleHomeDevice<'a> + OnOff> AsOnOff for T {
     fn cast(&self) -> Option<&dyn OnOff> {
         Some(self)
     }
@@ -56,7 +56,7 @@ pub trait AsScene {
         None
     }
 }
-impl<T: GoogleHomeDevice + Scene> AsScene for T {
+impl<'a, T: GoogleHomeDevice<'a> + Scene> AsScene for T {
     fn cast(&self) -> Option<&dyn Scene> {
         Some(self)
     }

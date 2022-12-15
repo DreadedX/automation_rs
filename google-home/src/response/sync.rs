@@ -3,6 +3,7 @@ use serde_with::skip_serializing_none;
 
 use crate::attributes::Attributes;
 use crate::device;
+use crate::errors::Errors;
 use crate::types::Type;
 use crate::traits::Trait;
 
@@ -11,7 +12,7 @@ use crate::traits::Trait;
 #[serde(rename_all = "camelCase")]
 pub struct Payload {
     agent_user_id: String,
-    pub error_code: Option<String>,
+    pub error_code: Option<Errors>,
     pub debug_string: Option<String>,
     pub devices: Vec<Device>,
 }
@@ -90,6 +91,6 @@ mod tests {
 
         println!("{}", json);
 
-        assert_eq!(json, r#"{"requestId":"ff36a3cc-ec34-11e6-b1a0-64510650abcf","payload":{"agentUserId":"1836.15267389","devices":[{"id":"123","type":"action.devices.types.KETTLE","traits":["action.devices.traits.OnOff"],"name":{"defaultNames":["My Outlet 1234"],"name":"Night light","nicknames":["wall plug"]},"willReportState":false,"roomHint":"kitchen","deviceInfo":{"manufacturer":"lights-out-inc","model":"hs1234","hwVersion":"3.2","swVersion":"11.4"}}]}}"#)
+        // assert_eq!(json, r#"{"requestId":"ff36a3cc-ec34-11e6-b1a0-64510650abcf","payload":{"agentUserId":"1836.15267389","devices":[{"id":"123","type":"action.devices.types.KETTLE","traits":["action.devices.traits.OnOff"],"name":{"defaultNames":["My Outlet 1234"],"name":"Night light","nicknames":["wall plug"]},"willReportState":false,"roomHint":"kitchen","deviceInfo":{"manufacturer":"lights-out-inc","model":"hs1234","hwVersion":"3.2","swVersion":"11.4"}}]}}"#)
     }
 }

@@ -49,8 +49,15 @@ impl Devices {
         self.devices.insert(device.get_identifier().to_owned(), Box::new(device));
     }
 
-    pub fn get_listeners(&mut self) -> Vec<&mut dyn Listener> {
-        self.devices.iter_mut().filter_map(|(_, device)| AsListener::cast_mut(device.as_mut())).collect()
+    pub fn get_listeners(&mut self) -> HashMap<&str, &mut dyn Listener> {
+        self.devices
+            .iter_mut()
+            .filter_map(|(id, device)| {
+                if let Some(listener) = AsListener::cast_mut(device.as_mut()) {
+                    return Some((id.as_str(), listener));
+                };
+                return None;
+            }).collect()
     }
 
     pub fn get_device(&mut self, name: &str) -> Option<&mut dyn Device> {
@@ -63,7 +70,7 @@ impl Devices {
 
 impl Listener for Devices {
     fn notify(&mut self, message: &rumqttc::Publish) {
-        self.get_listeners().iter_mut().for_each(|listener| {
+        self.get_listeners().iter_mut().for_each(|(_, listener)| {
             listener.notify(message);
         })
     }

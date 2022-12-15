@@ -7,3 +7,4 @@ pub mod response;
 pub mod types;
 pub mod traits;
 pub mod attributes;
+pub mod errors;

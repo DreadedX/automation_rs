@@ -1,13 +1,13 @@
 use serde::Serialize;
 use serde_with::skip_serializing_none;
 
-use crate::response::State;
+use crate::{response::State, errors::Errors};
 
 #[skip_serializing_none]
 #[derive(Debug, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct Payload {
-    pub error_code: Option<String>,
+    pub error_code: Option<Errors>,
     pub debug_string: Option<String>,
     commands: Vec<Command>,
 }
@@ -26,7 +26,7 @@ impl Payload {
 #[derive(Debug, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct Command {
-    pub error_code: Option<String>,
+    pub error_code: Option<Errors>,
 
     ids: Vec<String>,
     status: Status,
@@ -49,7 +49,7 @@ pub struct States {
     pub online: bool,
 
     #[serde(flatten)]
-    pub state: Option<State>,
+    pub state: State,
 }
 
 #[derive(Debug, Serialize)]
@@ -73,17 +73,18 @@ mod tests {
     fn serialize() {
         let mut execute_resp = Payload::new();
 
-        let state = State::default().on(true);
+        let mut state = State::default();
+        state.on = Some(true);
         let mut command = Command::new(Status::Success);
         command.states = Some(States {
             online: true,
-            state: Some(state)
+            state,
         });
         command.ids.push("123".into());
         execute_resp.add_command(command);
 
         let mut command = Command::new(Status::Error);
-        command.error_code = Some("deviceTurnedOff".into());
+        command.error_code = Some(Errors::DeviceNotFound);
         command.ids.push("456".into());
         execute_resp.add_command(command);
 

@@ -1,4 +1,6 @@
-use crate::{request::{Request, Intent, self}, device::GoogleHomeDeviceFullfillment, response::{sync, ResponsePayload, query, execute, Response}};
+use std::collections::HashMap;
+
+use crate::{request::{Request, Intent, self}, device::Fullfillment, response::{sync, ResponsePayload, query, execute, Response}, errors::Errors};
 
 pub struct GoogleHome {
     user_id: String,
@@ -10,7 +12,7 @@ impl GoogleHome {
         Self { user_id: user_id.into() }
     }
 
-    pub fn handle_request(&self, request: Request, devices: Vec<&mut dyn GoogleHomeDeviceFullfillment>) -> Result<Response, anyhow::Error> {
+    pub fn handle_request(&self, request: Request, devices: &HashMap<String, &mut dyn Fullfillment>) -> Result<Response, anyhow::Error> {
         // @TODO What do we do if we actually get more then one thing in the input array, right now
         // we only respond to the first thing
         let payload = request
@@ -28,18 +30,31 @@ impl GoogleHome {
         }
     }
 
-    fn sync(&self, devices: &Vec<&mut dyn GoogleHomeDeviceFullfillment>) -> sync::Payload {
-        let mut payload = sync::Payload::new(&self.user_id);
-        payload.devices = devices.iter().map(|device| device.sync()).collect::<Vec<_>>();
+    fn sync(&self, devices: &HashMap<String, &mut dyn Fullfillment>) -> sync::Payload {
+        let mut resp_payload = sync::Payload::new(&self.user_id);
+        resp_payload.devices = devices.iter().map(|(_, device)| device.sync()).collect::<Vec<_>>();
 
-        return payload;
+        return resp_payload;
     }
 
-    fn query(&self, payload: request::query::Payload, devices: &Vec<&mut dyn GoogleHomeDeviceFullfillment>) -> query::Payload {
-        return query::Payload::new();
+    fn query(&self, payload: request::query::Payload, devices: &HashMap<String, &mut dyn Fullfillment>) -> query::Payload {
+        let mut resp_payload = query::Payload::new();
+        for request::query::Device{id} in payload.devices {
+            let mut d: query::Device;
+            if let Some(device) = devices.get(&id) {
+                d = device.query();
+            } else {
+                d = query::Device::new(false, query::Status::Error);
+                d.error_code = Some(Errors::DeviceNotFound);
+            }
+            resp_payload.add_device(&id, d)
+        }
+
+        return resp_payload;
+
     }
 
-    fn execute(&self, payload: request::execute::Payload, devices: &Vec<&mut dyn GoogleHomeDeviceFullfillment>) -> execute::Payload {
+    fn execute(&self, payload: request::execute::Payload, devices: &HashMap<String, &mut dyn Fullfillment>) -> execute::Payload {
         return execute::Payload::new();
     }
 }
@@ -59,7 +74,7 @@ mod tests {
         }
     }
 
-    impl GoogleHomeDevice for TestOutlet {
+    impl<'a> GoogleHomeDevice<'a> for TestOutlet {
         fn get_device_type(&self) -> types::Type {
             types::Type::Outlet
         }
@@ -72,12 +87,16 @@ mod tests {
             return name;
         }
 
-        fn get_id(&self) -> &str {
+        fn get_id(&self) -> &'a str {
             return "bedroom/nightstand";
         }
 
-        fn get_room_hint(&self) -> Option<String> {
-            Some("Bedroom".into())
+        fn is_online(&self) -> bool {
+            true
+        }
+
+        fn get_room_hint(&self) -> Option<&'a str> {
+            Some("Bedroom")
         }
 
         fn get_device_info(&self) -> Option<device::Info> {
@@ -112,7 +131,7 @@ mod tests {
         }
     }
 
-    impl GoogleHomeDevice for TestScene {
+    impl<'a> GoogleHomeDevice<'a> for TestScene {
         fn get_device_type(&self) -> types::Type {
             types::Type::Scene
         }
@@ -121,12 +140,16 @@ mod tests {
             device::Name::new("Party")
         }
 
-        fn get_id(&self) -> &str {
+        fn get_id(&self) -> &'a str {
             return "living/party_mode";
         }
 
-        fn get_room_hint(&self) -> Option<String> {
-            Some("Living room".into())
+        fn is_online(&self) -> bool {
+            true
+        }
+
+        fn get_room_hint(&self) -> Option<&'a str> {
+            Some("Living room")
         }
     }
 
@@ -159,9 +182,49 @@ mod tests {
 
         let mut device = TestOutlet::new();
         let mut scene = TestScene::new();
-        let devices: Vec<&mut dyn GoogleHomeDeviceFullfillment> = vec![&mut device, &mut scene];
+        let mut devices: HashMap<String, &mut dyn Fullfillment> = HashMap::new();
+        devices.insert(device.get_id().into(), &mut device);
+        devices.insert(scene.get_id().into(), &mut scene);
 
-        let resp = gh.handle_request(req, devices).unwrap();
+        let resp = gh.handle_request(req, &devices).unwrap();
+
+        let json = serde_json::to_string(&resp).unwrap();
+        println!("{}", json)
+    }
+
+    #[test]
+    fn handle_query() {
+        let json = r#"{
+  "requestId": "ff36a3cc-ec34-11e6-b1a0-64510650abcf",
+  "inputs": [
+    {
+      "intent": "action.devices.QUERY",
+      "payload": {
+        "devices": [
+          {
+            "id": "bedroom/nightstand"
+          },
+          {
+            "id": "living/party_mode"
+          }
+        ]
+      }
+    }
+  ]
+}"#;
+        let req: Request = serde_json::from_str(json).unwrap();
+
+        let gh = GoogleHome {
+            user_id: "Dreaded_X".into(),
+        };
+
+        let mut device = TestOutlet::new();
+        let mut scene = TestScene::new();
+        let mut devices: HashMap<String, &mut dyn Fullfillment> = HashMap::new();
+        devices.insert(device.get_id().into(), &mut device);
+        devices.insert(scene.get_id().into(), &mut scene);
+
+        let resp = gh.handle_request(req, &devices).unwrap();
 
         let json = serde_json::to_string(&resp).unwrap();
         println!("{}", json)

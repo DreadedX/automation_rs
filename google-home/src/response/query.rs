@@ -3,13 +3,13 @@ use std::collections::HashMap;
 use serde::Serialize;
 use serde_with::skip_serializing_none;
 
-use crate::response::State;
+use crate::{response::State, errors::Errors};
 
 #[skip_serializing_none]
 #[derive(Debug, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct Payload {
-    pub error_code: Option<String>,
+    pub error_code: Option<Errors>,
     pub debug_string: Option<String>,
     devices: HashMap<String, Device>,
 }
@@ -39,15 +39,15 @@ pub enum Status {
 pub struct Device {
     online: bool,
     status: Status,
-    pub error_code: Option<String>,
+    pub error_code: Option<Errors>,
 
     #[serde(flatten)]
-    pub state: Option<State>,
+    pub state: State,
 }
 
 impl Device {
     pub fn new(online: bool, status: Status) -> Self {
-        Self { online, status, error_code: None, state: None }
+        Self { online, status, error_code: None, state: State::default() }
     }
 }
 
@@ -62,14 +62,14 @@ mod tests {
     fn serialize() {
         let mut query_resp = Payload::new();
 
-        let state = State::default().on(true);
+        let state = State::default();
         let mut device = Device::new(true, Status::Success);
-        device.state = Some(state);
+        device.state.on = Some(true);
         query_resp.add_device("123", device);
 
-        let state = State::default().on(false);
+        let state = State::default();
         let mut device = Device::new(true, Status::Success);
-        device.state = Some(state);
+        device.state.on = Some(false);
         query_resp.add_device("456", device);
 
         let resp = Response::new(Uuid::from_str("ff36a3cc-ec34-11e6-b1a0-64510650abcf").unwrap(), ResponsePayload::Query(query_resp));

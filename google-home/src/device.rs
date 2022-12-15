@@ -3,16 +3,17 @@ use serde_with::skip_serializing_none;
 
 use crate::{response, types::Type, traits::{AsOnOff, Trait, AsScene}};
 
-pub trait GoogleHomeDevice: AsOnOff + AsScene {
+pub trait GoogleHomeDevice<'a>: AsOnOff + AsScene {
     fn get_device_type(&self) -> Type;
     fn get_device_name(&self) -> Name;
-    fn get_id(&self) -> &str;
+    fn get_id(&self) -> &'a str;
+    fn is_online(&self) -> bool;
 
     // Default values that can optionally be overriden
     fn will_report_state(&self) -> bool {
         false
     }
-    fn get_room_hint(&self) -> Option<String> {
+    fn get_room_hint(&self) -> Option<&'a str> {
         None
     }
     fn get_device_info(&self) -> Option<Info> {
@@ -21,7 +22,7 @@ pub trait GoogleHomeDevice: AsOnOff + AsScene {
 }
 
 // This trait exists just to hide the sync, query and execute function from the user
-pub trait GoogleHomeDeviceFullfillment: GoogleHomeDevice {
+pub trait Fullfillment<'a>: GoogleHomeDevice<'a> {
     fn sync(&self) -> response::sync::Device {
         let name = self.get_device_name();
         let mut device = response::sync::Device::new(&self.get_id(), &name.name, self.get_device_type());
@@ -29,7 +30,9 @@ pub trait GoogleHomeDeviceFullfillment: GoogleHomeDevice {
         device.name = name;
         device.will_report_state = self.will_report_state();
         // notification_supported_by_agent
-        device.room_hint = self.get_room_hint();
+        if let Some(room) = self.get_room_hint() {
+            device.room_hint = Some(room.into());
+        }
         device.device_info = self.get_device_info();
 
         let mut traits = Vec::new();
@@ -54,9 +57,31 @@ pub trait GoogleHomeDeviceFullfillment: GoogleHomeDevice {
 
         return device;
     }
+
+    fn query(&self) -> response::query::Device {
+        let status;
+        let online = self.is_online();
+        if online {
+            status = response::query::Status::Success;
+        } else {
+            status = response::query::Status::Offline;
+        }
+
+        let mut device = response::query::Device::new(online, status);
+
+        // OnOff
+        {
+            if let Some(d) = AsOnOff::cast(self) {
+                // @TODO Handle errors
+                device.state.on = Some(d.is_on().unwrap());
+            }
+        }
+
+        return device;
+    }
 }
 
-impl<T: GoogleHomeDevice> GoogleHomeDeviceFullfillment for T {}
+impl<'a, T: GoogleHomeDevice<'a>> Fullfillment<'a> for T {}
 
 #[derive(Debug, Serialize)]
 #[serde(rename_all = "camelCase")]
