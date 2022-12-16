@@ -1,13 +1,13 @@
 use serde::Serialize;
 use serde_with::skip_serializing_none;
 
-use crate::{response::State, errors::Errors};
+use crate::{response::State, errors::ErrorCode};
 
 #[skip_serializing_none]
 #[derive(Debug, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct Payload {
-    pub error_code: Option<Errors>,
+    pub error_code: Option<ErrorCode>,
     pub debug_string: Option<String>,
     commands: Vec<Command>,
 }
@@ -18,7 +18,9 @@ impl Payload {
     }
 
     pub fn add_command(&mut self, command: Command) {
-        self.commands.push(command);
+        if !command.is_empty() {
+            self.commands.push(command);
+        }
     }
 }
 
@@ -26,7 +28,7 @@ impl Payload {
 #[derive(Debug, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct Command {
-    pub error_code: Option<Errors>,
+    pub error_code: Option<ErrorCode>,
 
     ids: Vec<String>,
     status: Status,
@@ -40,6 +42,10 @@ impl Command {
 
     pub fn add_id(&mut self, id: &str) {
         self.ids.push(id.into());
+    }
+
+    pub fn is_empty(&self) -> bool {
+        self.ids.is_empty()
     }
 }
 
@@ -67,7 +73,7 @@ mod tests {
     use std::str::FromStr;
     use uuid::Uuid;
     use super::*;
-    use crate::response::{Response, ResponsePayload, State};
+    use crate::{response::{Response, ResponsePayload, State}, errors::DeviceError};
 
     #[test]
     fn serialize() {
@@ -84,7 +90,7 @@ mod tests {
         execute_resp.add_command(command);
 
         let mut command = Command::new(Status::Error);
-        command.error_code = Some(Errors::DeviceNotFound);
+        command.error_code = Some(DeviceError::DeviceNotFound.into());
         command.ids.push("456".into());
         execute_resp.add_command(command);
 

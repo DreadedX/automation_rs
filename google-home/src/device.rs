@@ -1,19 +1,19 @@
 use serde::Serialize;
 use serde_with::skip_serializing_none;
 
-use crate::{response, types::Type, traits::{AsOnOff, Trait, AsScene}};
+use crate::{response, types::Type, traits::{AsOnOff, Trait, AsScene}, errors::{DeviceError, ErrorCode}, request::execute::CommandType};
 
-pub trait GoogleHomeDevice<'a>: AsOnOff + AsScene {
+pub trait GoogleHomeDevice: AsOnOff + AsScene {
     fn get_device_type(&self) -> Type;
     fn get_device_name(&self) -> Name;
-    fn get_id(&self) -> &'a str;
+    fn get_id(&self) -> String;
     fn is_online(&self) -> bool;
 
     // Default values that can optionally be overriden
     fn will_report_state(&self) -> bool {
         false
     }
-    fn get_room_hint(&self) -> Option<&'a str> {
+    fn get_room_hint(&self) -> Option<String> {
         None
     }
     fn get_device_info(&self) -> Option<Info> {
@@ -22,7 +22,7 @@ pub trait GoogleHomeDevice<'a>: AsOnOff + AsScene {
 }
 
 // This trait exists just to hide the sync, query and execute function from the user
-pub trait Fullfillment<'a>: GoogleHomeDevice<'a> {
+pub trait Fullfillment: GoogleHomeDevice {
     fn sync(&self) -> response::sync::Device {
         let name = self.get_device_name();
         let mut device = response::sync::Device::new(&self.get_id(), &name.name, self.get_device_type());
@@ -37,20 +37,16 @@ pub trait Fullfillment<'a>: GoogleHomeDevice<'a> {
 
         let mut traits = Vec::new();
         // OnOff
-        {
-            if let Some(d) = AsOnOff::cast(self) {
-                traits.push(Trait::OnOff);
-                device.attributes.command_only_on_off = d.is_command_only();
-                device.attributes.query_only_on_off = d.is_query_only();
-            }
+        if let Some(d) = AsOnOff::cast(self) {
+            traits.push(Trait::OnOff);
+            device.attributes.command_only_on_off = d.is_command_only();
+            device.attributes.query_only_on_off = d.is_query_only();
         }
 
         // Scene
-        {
-            if let Some(d) = AsScene::cast(self) {
-                traits.push(Trait::Scene);
-                device.attributes.scene_reversible = d.is_scene_reversible();
-            }
+        if let Some(d) = AsScene::cast(self) {
+            traits.push(Trait::Scene);
+            device.attributes.scene_reversible = d.is_scene_reversible();
         }
 
         device.traits = traits;
@@ -59,29 +55,45 @@ pub trait Fullfillment<'a>: GoogleHomeDevice<'a> {
     }
 
     fn query(&self) -> response::query::Device {
-        let status;
-        let online = self.is_online();
-        if online {
-            status = response::query::Status::Success;
-        } else {
-            status = response::query::Status::Offline;
+        let mut device = response::query::Device::new();
+        if !self.is_online() {
+            device.set_offline();
         }
 
-        let mut device = response::query::Device::new(online, status);
-
         // OnOff
-        {
-            if let Some(d) = AsOnOff::cast(self) {
-                // @TODO Handle errors
-                device.state.on = Some(d.is_on().unwrap());
+        if let Some(d) = AsOnOff::cast(self) {
+            match d.is_on() {
+                Ok(state) => device.state.on = Some(state),
+                Err(err) => device.set_error(err),
             }
         }
 
         return device;
     }
+
+    fn execute(&mut self, command: &CommandType) -> Result<(), ErrorCode> {
+        match command {
+            CommandType::OnOff { on } => {
+                if let Some(d) = AsOnOff::cast_mut(self) {
+                    d.set_on(*on)?;
+                } else {
+                    return Err(DeviceError::ActionNotAvailable.into());
+                }
+            },
+            CommandType::ActivateScene { deactivate } => {
+                if let Some(d) = AsScene::cast_mut(self) {
+                    d.set_active(!deactivate)?;
+                } else {
+                    return Err(DeviceError::ActionNotAvailable.into());
+                }
+            },
+        }
+
+        return Ok(());
+    }
 }
 
-impl<'a, T: GoogleHomeDevice<'a>> Fullfillment<'a> for T {}
+impl<T: GoogleHomeDevice> Fullfillment for T {}
 
 #[derive(Debug, Serialize)]
 #[serde(rename_all = "camelCase")]

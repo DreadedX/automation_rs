@@ -1,27 +1,29 @@
+use google_home::errors::ErrorCode;
+use google_home::{GoogleHomeDevice, device, types::Type, traits};
 use rumqttc::{Client, Publish};
 use serde::{Deserialize, Serialize};
 
 use crate::devices::Device;
 use crate::mqtt::Listener;
-use crate::state::StateOnOff;
 use crate::zigbee::Zigbee;
 
 pub struct IkeaOutlet {
+    name: String,
     zigbee: Zigbee,
     client: Client,
     last_known_state: bool,
 }
 
 impl IkeaOutlet {
-    pub fn new(zigbee: Zigbee, mut client: Client) -> Self {
+    pub fn new(name: String, zigbee: Zigbee, mut client: Client) -> Self {
         client.subscribe(zigbee.get_topic(), rumqttc::QoS::AtLeastOnce).unwrap();
-        Self{ zigbee, client, last_known_state: false }
+        Self{ name, zigbee, client, last_known_state: false }
     }
 }
 
 impl Device for IkeaOutlet {
-    fn get_identifier(& self) -> &str {
-        &self.zigbee.get_friendly_name()
+    fn get_id(&self) -> String {
+        self.zigbee.get_friendly_name().into()
     }
 }
 
@@ -56,23 +58,42 @@ impl Listener for IkeaOutlet {
     }
 }
 
-impl StateOnOff for IkeaOutlet {
-    // This will send a message over mqtt to update change the state of the device
-    // It does not change the internal state, that gets updated when the device responds
-    fn set_state(&mut self, state: bool) {
+impl GoogleHomeDevice for IkeaOutlet {
+    fn get_device_type(&self) -> Type {
+        Type::Outlet
+    }
+
+    fn get_device_name(&self) -> device::Name {
+        device::Name::new(&self.name)
+    }
+
+    fn get_id(&self) -> String {
+        Device::get_id(self)
+    }
+
+    fn is_online(&self) -> bool {
+        true
+    }
+}
+
+impl traits::OnOff for IkeaOutlet {
+    fn is_on(&self) -> Result<bool, ErrorCode> {
+        Ok(self.last_known_state)
+    }
+
+    fn set_on(&mut self, on: bool) -> Result<(), ErrorCode> {
         let topic = self.zigbee.get_topic().to_owned();
         let message = StateMessage{
-            state: if state {
+            state: if on {
                 "ON".to_owned()
             } else {
                 "OFF".to_owned()
             }
         };
 
+        // @TODO Handle potential error here
         self.client.publish(topic + "/set", rumqttc::QoS::AtLeastOnce, false, serde_json::to_string(&message).unwrap()).unwrap();
-    }
 
-    fn get_state(&self) -> bool {
-        self.last_known_state
+        Ok(())
     }
 }

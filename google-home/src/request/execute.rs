@@ -3,20 +3,20 @@ use serde::Deserialize;
 #[derive(Debug, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct Payload {
-    commands: Vec<Command>,
+    pub commands: Vec<Command>,
 }
 
 #[derive(Debug, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct Command {
-    devices: Vec<Device>,
-    execution: Vec<CommandType>
+    pub devices: Vec<Device>,
+    pub execution: Vec<CommandType>
 }
 
 #[derive(Debug, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct Device {
-    id: String,
+    pub id: String,
     // customData
 }
 

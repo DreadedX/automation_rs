@@ -1,10 +1,15 @@
-pub mod fullfillment;
+#![feature(specialization)]
+mod fullfillment;
 pub mod device;
 
-pub mod request;
-pub mod response;
+mod request;
+mod response;
 
 pub mod types;
 pub mod traits;
-pub mod attributes;
 pub mod errors;
+mod attributes;
+
+pub use fullfillment::GoogleHome;
+pub use device::Fullfillment;
+pub use device::GoogleHomeDevice;

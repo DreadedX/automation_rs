@@ -1,7 +1,37 @@
+use thiserror::Error;
 use serde::Serialize;
 
-#[derive(Debug, Serialize)]
+#[derive(Debug, Hash, PartialEq, Eq, Copy, Clone, Serialize, Error)]
 #[serde(rename_all = "camelCase")]
-pub enum Errors {
-    DeviceNotFound
+pub enum DeviceError {
+    #[error("deviceNotFound")]
+    DeviceNotFound,
+    #[error("actionNotAvailable")]
+    ActionNotAvailable,
+}
+
+#[derive(Debug, Hash, PartialEq, Eq, Copy, Clone, Serialize, Error)]
+#[serde(rename_all = "camelCase")]
+pub enum DeviceException {
+}
+
+#[derive(Debug, Hash, PartialEq, Eq, Clone, Copy, Serialize, Error)]
+#[serde(untagged)]
+pub enum ErrorCode {
+    #[error("{0}")]
+    DeviceError(DeviceError),
+    #[error("{0}")]
+    DeviceException(DeviceException),
+}
+
+impl From<DeviceError> for ErrorCode {
+    fn from(value: DeviceError) -> Self {
+        Self::DeviceError(value)
+    }
+}
+
+impl From<DeviceException> for ErrorCode {
+    fn from(value: DeviceException) -> Self {
+        Self::DeviceException(value)
+    }
 }

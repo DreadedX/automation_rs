@@ -1,43 +1,42 @@
 mod ikea_outlet;
+pub use self::ikea_outlet::IkeaOutlet;
+
+mod test_outlet;
+pub use self::test_outlet::TestOutlet;
 
 use std::collections::HashMap;
 
-use crate::{mqtt::Listener, state::StateOnOff};
+use google_home::{Fullfillment, traits::OnOff};
 
-pub use self::ikea_outlet::IkeaOutlet;
+use crate::mqtt::Listener;
 
-macro_rules! add_cast_for {
-    ($i:ident) => {
-        paste::paste! {
-            pub trait [< As $i>] {
-                fn cast(&self) -> Option<&dyn $i> {
-                    None
-                }
-                fn cast_mut(&mut self) -> Option<&mut dyn $i> {
-                    None
-                }
-            }
-            impl<T: $i> [< As $i>] for T {
-                fn cast(&self) -> Option<&dyn $i> {
-                    Some(self)
-                }
-                fn cast_mut(&mut self) -> Option<&mut dyn $i> {
-                    Some(self)
-                }
-            }
-        }
-    };
-}
+impl_cast::impl_cast!(Device, Listener);
+impl_cast::impl_cast!(Device, Fullfillment);
+impl_cast::impl_cast!(Device, OnOff);
 
-add_cast_for!(Listener);
-add_cast_for!(StateOnOff);
-
-pub trait Device: AsListener + AsStateOnOff {
-    fn get_identifier(&self) -> &str;
+pub trait Device: AsFullfillment + AsListener + AsOnOff {
+    fn get_id(&self) -> String;
 }
 
 pub struct Devices {
     devices: HashMap<String, Box<dyn Device>>,
+}
+
+macro_rules! get_cast {
+    ($trait:ident) => {
+        paste::paste! {
+            pub fn [< as_ $trait:snake s >](&mut self) -> HashMap<String, &mut dyn $trait> {
+                self.devices
+                    .iter_mut()
+                    .filter_map(|(id, device)| {
+                        if let Some(listener) = [< As $trait >]::cast_mut(device.as_mut()) {
+                            return Some((id.clone(), listener));
+                        };
+                        return None;
+                    }).collect()
+            }
+        }
+    };
 }
 
 impl Devices {
@@ -46,19 +45,16 @@ impl Devices {
     }
 
     pub fn add_device<T: Device + 'static>(&mut self, device: T) {
-        self.devices.insert(device.get_identifier().to_owned(), Box::new(device));
+        self.devices.insert(device.get_id(), Box::new(device));
     }
 
-    pub fn get_listeners(&mut self) -> HashMap<&str, &mut dyn Listener> {
-        self.devices
-            .iter_mut()
-            .filter_map(|(id, device)| {
-                if let Some(listener) = AsListener::cast_mut(device.as_mut()) {
-                    return Some((id.as_str(), listener));
-                };
-                return None;
-            }).collect()
-    }
+    get_cast!(Listener);
+    get_cast!(Fullfillment);
+    get_cast!(OnOff);
+
+    // pub fn get_google_devices(&mut self) -> HashMap<&str, &mut dyn GoogleHomeDevice> {
+    //     self.devices
+    // }
 
     pub fn get_device(&mut self, name: &str) -> Option<&mut dyn Device> {
         if let Some(device) = self.devices.get_mut(name) {
@@ -70,7 +66,7 @@ impl Devices {
 
 impl Listener for Devices {
     fn notify(&mut self, message: &rumqttc::Publish) {
-        self.get_listeners().iter_mut().for_each(|(_, listener)| {
+        self.as_listeners().iter_mut().for_each(|(_, listener)| {
             listener.notify(message);
         })
     }

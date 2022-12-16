@@ -3,7 +3,7 @@ use serde_with::skip_serializing_none;
 
 use crate::attributes::Attributes;
 use crate::device;
-use crate::errors::Errors;
+use crate::errors::ErrorCode;
 use crate::types::Type;
 use crate::traits::Trait;
 
@@ -12,7 +12,7 @@ use crate::traits::Trait;
 #[serde(rename_all = "camelCase")]
 pub struct Payload {
     agent_user_id: String,
-    pub error_code: Option<Errors>,
+    pub error_code: Option<ErrorCode>,
     pub debug_string: Option<String>,
     pub devices: Vec<Device>,
 }

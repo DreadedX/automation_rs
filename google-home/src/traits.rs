@@ -1,6 +1,6 @@
 use serde::Serialize;
 
-use crate::device::GoogleHomeDevice;
+use crate::{device::GoogleHomeDevice, errors::ErrorCode};
 
 #[derive(Debug, Serialize)]
 pub enum Trait {
@@ -20,47 +20,16 @@ pub trait OnOff {
     }
 
     // @TODO Implement correct error so we can handle them properly
-    fn is_on(&self) -> Result<bool, anyhow::Error>;
-    fn set_on(&mut self, on: bool) -> Result<(), anyhow::Error>;
+    fn is_on(&self) -> Result<bool, ErrorCode>;
+    fn set_on(&mut self, on: bool) -> Result<(), ErrorCode>;
 }
-pub trait AsOnOff {
-    fn cast(&self) -> Option<&dyn OnOff> {
-        None
-    }
-    fn cast_mut(&mut self) -> Option<&mut dyn OnOff> {
-        None
-    }
-}
-impl<'a, T: GoogleHomeDevice<'a> + OnOff> AsOnOff for T {
-    fn cast(&self) -> Option<&dyn OnOff> {
-        Some(self)
-    }
-    fn cast_mut(&mut self) -> Option<&mut dyn OnOff> {
-        Some(self)
-    }
-}
-
+impl_cast::impl_cast!(GoogleHomeDevice, OnOff);
 
 pub trait Scene {
     fn is_scene_reversible(&self) -> Option<bool> {
         None
     }
 
-    fn set_active(&self, activate: bool) -> Result<(), anyhow::Error>;
+    fn set_active(&self, activate: bool) -> Result<(), ErrorCode>;
 }
-pub trait AsScene {
-    fn cast(&self) -> Option<&dyn Scene> {
-        None
-    }
-    fn cast_mut(&mut self) -> Option<&mut dyn Scene> {
-        None
-    }
-}
-impl<'a, T: GoogleHomeDevice<'a> + Scene> AsScene for T {
-    fn cast(&self) -> Option<&dyn Scene> {
-        Some(self)
-    }
-    fn cast_mut(&mut self) -> Option<&mut dyn Scene> {
-        Some(self)
-    }
-}
+impl_cast::impl_cast!(GoogleHomeDevice, Scene);
