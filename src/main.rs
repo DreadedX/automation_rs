@@ -1,4 +1,4 @@
-use std::{time::Duration, rc::Rc, cell::RefCell, process::exit};
+use std::{time::Duration, sync::{Arc, RwLock}, process::exit, thread};
 
 use dotenv::dotenv;
 
@@ -28,21 +28,28 @@ fn main() {
     let (client, connection) = Client::new(mqttoptions, 10);
 
     // Create device holder
-    let devices = Rc::new(RefCell::new(Devices::new()));
+    let devices = Arc::new(RwLock::new(Devices::new()));
 
     // Create a new device and add it to the holder
-    devices.borrow_mut().add_device(IkeaOutlet::new("Kettle".into(), Zigbee::new("kitchen/kettle", "zigbee2mqtt/kitchen/kettle"), client.clone()));
+    devices.write().unwrap().add_device(IkeaOutlet::new("Kettle".into(), Zigbee::new("kitchen/kettle", "zigbee2mqtt/kitchen/kettle"), client.clone()));
 
-    devices.borrow_mut().add_device(TestOutlet::new());
+    devices.write().unwrap().add_device(TestOutlet::new());
 
     {
-        for (_, d) in devices.borrow_mut().as_on_offs().iter_mut() {
-            d.set_on(true).unwrap();
+        for (_, d) in devices.write().unwrap().as_on_offs().iter_mut() {
+            d.set_on(false).unwrap();
         }
     }
 
-    let gc = GoogleHome::new("Dreaded_X");
+    let ptr = Arc::downgrade(&devices);
+    {
+        let mut notifier = Notifier::new();
+        notifier.add_listener(ptr);
+        notifier.start(connection);
+    }
 
+    // Google Home test
+    let gc = GoogleHome::new("Dreaded_X");
     let json = r#"{
   "requestId": "ff36a3cc-ec34-11e6-b1a0-64510650abcf",
   "inputs": [
@@ -74,18 +81,10 @@ fn main() {
   ]
 }"#;
     let request = serde_json::from_str(json).unwrap();
-    {
-        let mut binding = devices.borrow_mut();
-        let mut ghd = binding.as_fullfillments();
+    let mut binding = devices.write().unwrap();
+    let mut ghd = binding.as_fullfillments();
 
-        let response = gc.handle_request(request, &mut ghd).unwrap();
+    let response = gc.handle_request(request, &mut ghd).unwrap();
 
-        println!("{response:?}");
-    }
-
-    let mut notifier = Notifier::new();
-
-    notifier.add_listener(Rc::downgrade(&devices));
-
-    notifier.start(connection);
+    println!("{response:?}");
 }

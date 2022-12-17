@@ -14,7 +14,7 @@ impl_cast::impl_cast!(Device, Listener);
 impl_cast::impl_cast!(Device, Fullfillment);
 impl_cast::impl_cast!(Device, OnOff);
 
-pub trait Device: AsFullfillment + AsListener + AsOnOff {
+pub trait Device: Sync + Send + AsFullfillment + AsListener + AsOnOff {
     fn get_id(&self) -> String;
 }
 
@@ -51,10 +51,6 @@ impl Devices {
     get_cast!(Listener);
     get_cast!(Fullfillment);
     get_cast!(OnOff);
-
-    // pub fn get_google_devices(&mut self) -> HashMap<&str, &mut dyn GoogleHomeDevice> {
-    //     self.devices
-    // }
 
     pub fn get_device(&mut self, name: &str) -> Option<&mut dyn Device> {
         if let Some(device) = self.devices.get_mut(name) {

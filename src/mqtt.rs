@@ -1,13 +1,13 @@
-use std::{rc::Weak, cell::RefCell};
+use std::sync::{Weak, RwLock};
 
 use rumqttc::{Publish, Connection, Event, Incoming};
 
-pub trait Listener {
+pub trait Listener: Sync + Send {
     fn notify(&mut self, message: &Publish);
 }
 
 pub struct Notifier {
-    listeners: Vec<Weak<RefCell<dyn Listener>>>,
+    listeners: Vec<Weak<RwLock<dyn Listener>>>,
 }
 
 impl Notifier {
@@ -18,7 +18,7 @@ impl Notifier {
     fn notify(&mut self, message: Publish) {
         self.listeners.retain(|listener| {
             if let Some(listener) = listener.upgrade() {
-                listener.borrow_mut().notify(&message);
+                listener.write().unwrap().notify(&message);
                 return true;
             }
 
@@ -26,7 +26,7 @@ impl Notifier {
         })
     }
 
-    pub fn add_listener<T: Listener + 'static>(&mut self, listener: Weak<RefCell<T>>) {
+    pub fn add_listener<T: Listener + 'static>(&mut self, listener: Weak<RwLock<T>>) {
         self.listeners.push(listener);
     }
 
