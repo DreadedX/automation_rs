@@ -70,8 +70,6 @@ pub enum Status {
 
 #[cfg(test)]
 mod tests {
-    use std::str::FromStr;
-    use uuid::Uuid;
     use super::*;
     use crate::{response::{Response, ResponsePayload, State}, errors::DeviceError};
 
@@ -94,7 +92,7 @@ mod tests {
         command.ids.push("456".into());
         execute_resp.add_command(command);
 
-        let resp = Response::new(Uuid::from_str("ff36a3cc-ec34-11e6-b1a0-64510650abcf").unwrap(), ResponsePayload::Execute(execute_resp));
+        let resp = Response::new("ff36a3cc-ec34-11e6-b1a0-64510650abcf".to_owned(), ResponsePayload::Execute(execute_resp));
 
         let json = serde_json::to_string(&resp).unwrap();
 

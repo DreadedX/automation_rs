@@ -61,8 +61,6 @@ impl Device {
 
 #[cfg(test)]
 mod tests {
-    use std::str::FromStr;
-    use uuid::Uuid;
     use super::*;
     use crate::{response::{Response, ResponsePayload}, types::Type, traits::Trait};
 
@@ -85,7 +83,7 @@ mod tests {
 
         sync_resp.add_device(device);
 
-        let resp = Response::new(Uuid::from_str("ff36a3cc-ec34-11e6-b1a0-64510650abcf").unwrap(), ResponsePayload::Sync(sync_resp));
+        let resp = Response::new("ff36a3cc-ec34-11e6-b1a0-64510650abcf".to_owned(), ResponsePayload::Sync(sync_resp));
 
         let json = serde_json::to_string(&resp).unwrap();
 

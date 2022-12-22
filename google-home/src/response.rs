@@ -4,17 +4,16 @@ pub mod execute;
 
 use serde::Serialize;
 use serde_with::skip_serializing_none;
-use uuid::Uuid;
 
 #[derive(Debug, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct Response {
-    request_id: Uuid,
+    request_id: String,
     payload: ResponsePayload,
 }
 
 impl Response {
-    pub fn new(request_id: Uuid, payload: ResponsePayload) -> Self {
+    pub fn new(request_id: String, payload: ResponsePayload) -> Self {
         Self { request_id, payload }
     }
 }

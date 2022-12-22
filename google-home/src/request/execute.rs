@@ -35,8 +35,6 @@ pub enum CommandType {
 
 #[cfg(test)]
 mod tests {
-    use std::str::FromStr;
-    use uuid::Uuid;
     use super::*;
     use crate::request::{Request, Intent};
 
@@ -88,7 +86,7 @@ mod tests {
 
         println!("{:?}", req);
 
-        assert_eq!(req.request_id, Uuid::from_str("ff36a3cc-ec34-11e6-b1a0-64510650abcf").unwrap());
+        assert_eq!(req.request_id, "ff36a3cc-ec34-11e6-b1a0-64510650abcf".to_owned());
         assert_eq!(req.inputs.len(), 1);
         match &req.inputs[0] {
             Intent::Execute(payload) => {

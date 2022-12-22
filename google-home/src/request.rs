@@ -3,7 +3,6 @@ pub mod query;
 pub mod execute;
 
 use serde::Deserialize;
-use uuid::Uuid;
 
 #[derive(Debug, Deserialize)]
 #[serde(tag = "intent", content = "payload")]
@@ -19,6 +18,6 @@ pub enum Intent {
 #[derive(Debug, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct Request {
-    pub request_id: Uuid,
+    pub request_id: String,
     pub inputs: Vec<Intent>,
 }
