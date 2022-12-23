@@ -1,5 +1,4 @@
 use serde::Serialize;
-use serde_with::skip_serializing_none;
 
 use crate::attributes::Attributes;
 use crate::device;
@@ -7,12 +6,13 @@ use crate::errors::ErrorCode;
 use crate::types::Type;
 use crate::traits::Trait;
 
-#[skip_serializing_none]
 #[derive(Debug, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct Payload {
     agent_user_id: String,
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub error_code: Option<ErrorCode>,
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub debug_string: Option<String>,
     pub devices: Vec<Device>,
 }
@@ -27,7 +27,6 @@ impl Payload {
     }
 }
 
-#[skip_serializing_none]
 #[derive(Debug, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct Device {
@@ -37,8 +36,11 @@ pub struct Device {
     pub traits: Vec<Trait>,
     pub name: device::Name,
     pub will_report_state: bool,
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub notification_supported_by_agent: Option<bool>,
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub room_hint: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub device_info: Option<device::Info>,
     pub attributes: Attributes,
 }

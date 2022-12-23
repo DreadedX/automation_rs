@@ -1,6 +1,6 @@
 use std::collections::HashMap;
 
-use crate::{request::{Request, Intent, self}, device::Fullfillment, response::{sync, ResponsePayload, query, execute, Response, self, State}, errors::{DeviceError, ErrorCode}};
+use crate::{request::{Request, Intent, self}, device::GoogleHomeDevice, response::{sync, ResponsePayload, query, execute, Response, self, State}, errors::{DeviceError, ErrorCode}};
 
 pub struct GoogleHome {
     user_id: String,
@@ -12,7 +12,7 @@ impl GoogleHome {
         Self { user_id: user_id.into() }
     }
 
-    pub fn handle_request(&self, request: Request, mut devices: &mut HashMap<String, &mut dyn Fullfillment>) -> Result<Response, anyhow::Error> {
+    pub fn handle_request(&self, request: Request, mut devices: &mut HashMap<String, &mut dyn GoogleHomeDevice>) -> Result<Response, anyhow::Error> {
         // @TODO What do we do if we actually get more then one thing in the input array, right now
         // we only respond to the first thing
         let payload = request
@@ -30,7 +30,7 @@ impl GoogleHome {
         }
     }
 
-    fn sync(&self, devices: &HashMap<String, &mut dyn Fullfillment>) -> sync::Payload {
+    fn sync(&self, devices: &HashMap<String, &mut dyn GoogleHomeDevice>) -> sync::Payload {
         let mut resp_payload = sync::Payload::new(&self.user_id);
         resp_payload.devices = devices
             .iter()
@@ -40,7 +40,7 @@ impl GoogleHome {
         return resp_payload;
     }
 
-    fn query(&self, payload: request::query::Payload, devices: &HashMap<String, &mut dyn Fullfillment>) -> query::Payload {
+    fn query(&self, payload: request::query::Payload, devices: &HashMap<String, &mut dyn GoogleHomeDevice>) -> query::Payload {
         let mut resp_payload = query::Payload::new();
         resp_payload.devices = payload.devices
             .into_iter()
@@ -62,7 +62,7 @@ impl GoogleHome {
 
     }
 
-    fn execute(&self, payload: request::execute::Payload, devices: &mut HashMap<String, &mut dyn Fullfillment>) -> execute::Payload {
+    fn execute(&self, payload: request::execute::Payload, devices: &mut HashMap<String, &mut dyn GoogleHomeDevice>) -> execute::Payload {
         let mut resp_payload = response::execute::Payload::new();
 
         payload.commands
@@ -240,7 +240,7 @@ mod tests {
         let mut nightstand = TestOutlet::new("bedroom/nightstand");
         let mut lamp = TestOutlet::new("living/lamp");
         let mut scene = TestScene::new();
-        let mut devices: HashMap<String, &mut dyn Fullfillment> = HashMap::new();
+        let mut devices: HashMap<String, &mut dyn GoogleHomeDevice> = HashMap::new();
         devices.insert(nightstand.get_id(), &mut nightstand);
         devices.insert(lamp.get_id(), &mut lamp);
         devices.insert(scene.get_id(), &mut scene);
@@ -280,7 +280,7 @@ mod tests {
         let mut nightstand = TestOutlet::new("bedroom/nightstand");
         let mut lamp = TestOutlet::new("living/lamp");
         let mut scene = TestScene::new();
-        let mut devices: HashMap<String, &mut dyn Fullfillment> = HashMap::new();
+        let mut devices: HashMap<String, &mut dyn GoogleHomeDevice> = HashMap::new();
         devices.insert(nightstand.get_id(), &mut nightstand);
         devices.insert(lamp.get_id(), &mut lamp);
         devices.insert(scene.get_id(), &mut scene);
@@ -332,7 +332,7 @@ mod tests {
         let mut nightstand = TestOutlet::new("bedroom/nightstand");
         let mut lamp = TestOutlet::new("living/lamp");
         let mut scene = TestScene::new();
-        let mut devices: HashMap<String, &mut dyn Fullfillment> = HashMap::new();
+        let mut devices: HashMap<String, &mut dyn GoogleHomeDevice> = HashMap::new();
         devices.insert(nightstand.get_id(), &mut nightstand);
         devices.insert(lamp.get_id(), &mut lamp);
         devices.insert(scene.get_id(), &mut scene);

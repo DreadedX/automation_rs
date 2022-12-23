@@ -1,5 +1,4 @@
 use serde::Serialize;
-use serde_with::skip_serializing_none;
 
 use crate::{response, types::Type, traits::{AsOnOff, Trait, AsScene}, errors::{DeviceError, ErrorCode}, request::execute::CommandType};
 
@@ -19,10 +18,9 @@ pub trait GoogleHomeDevice: AsOnOff + AsScene {
     fn get_device_info(&self) -> Option<Info> {
         None
     }
-}
 
-// This trait exists just to hide the sync, query and execute function from the user
-pub trait Fullfillment: GoogleHomeDevice {
+
+
     fn sync(&self) -> response::sync::Device {
         let name = self.get_device_name();
         let mut device = response::sync::Device::new(&self.get_id(), &name.name, self.get_device_type());
@@ -93,8 +91,6 @@ pub trait Fullfillment: GoogleHomeDevice {
     }
 }
 
-impl<T: GoogleHomeDevice> Fullfillment for T {}
-
 #[derive(Debug, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct Name {
@@ -119,13 +115,16 @@ impl Name {
     }
 }
 
-#[skip_serializing_none]
 #[derive(Debug, Default, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct Info {
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub manufacturer: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub model: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub hw_version: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub sw_version: Option<String>,
     // attributes
     // customData

@@ -6,20 +6,22 @@ pub use self::test_outlet::TestOutlet;
 
 use std::collections::HashMap;
 
-use google_home::{Fullfillment, traits::OnOff};
+use google_home::{GoogleHomeDevice, traits::OnOff};
 
 use crate::mqtt::Listener;
 
 impl_cast::impl_cast!(Device, Listener);
-impl_cast::impl_cast!(Device, Fullfillment);
+impl_cast::impl_cast!(Device, GoogleHomeDevice);
 impl_cast::impl_cast!(Device, OnOff);
 
-pub trait Device: Sync + Send + AsFullfillment + AsListener + AsOnOff {
+pub trait Device: AsGoogleHomeDevice + AsListener + AsOnOff {
     fn get_id(&self) -> String;
 }
 
+// @TODO Add an inner type that we can wrap with Arc<RwLock<>> to make this type a little bit nicer
+// to work with
 pub struct Devices {
-    devices: HashMap<String, Box<dyn Device>>,
+    devices: HashMap<String, Box<dyn Device + Sync + Send>>,
 }
 
 macro_rules! get_cast {
@@ -44,12 +46,12 @@ impl Devices {
         Self { devices: HashMap::new() }
     }
 
-    pub fn add_device<T: Device + 'static>(&mut self, device: T) {
+    pub fn add_device<T: Device + Sync + Send + 'static>(&mut self, device: T) {
         self.devices.insert(device.get_id(), Box::new(device));
     }
 
     get_cast!(Listener);
-    get_cast!(Fullfillment);
+    get_cast!(GoogleHomeDevice);
     get_cast!(OnOff);
 
     pub fn get_device(&mut self, name: &str) -> Option<&mut dyn Device> {

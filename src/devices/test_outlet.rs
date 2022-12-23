@@ -1,3 +1,5 @@
+use log::debug;
+
 use google_home::{errors::ErrorCode, traits};
 
 use super::Device;
@@ -24,7 +26,7 @@ impl traits::OnOff for TestOutlet {
     }
 
     fn set_on(&mut self, on: bool) -> Result<(), ErrorCode> {
-        println!("Setting on: {on}");
+        debug!("Setting on: {on}");
         self.on = on;
         Ok(())
     }

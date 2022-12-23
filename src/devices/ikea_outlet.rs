@@ -1,7 +1,10 @@
+use pollster::FutureExt as _;
+
 use google_home::errors::ErrorCode;
 use google_home::{GoogleHomeDevice, device, types::Type, traits};
-use rumqttc::{Client, Publish};
+use rumqttc::{AsyncClient, Publish};
 use serde::{Deserialize, Serialize};
+use log::debug;
 
 use crate::devices::Device;
 use crate::mqtt::Listener;
@@ -10,13 +13,13 @@ use crate::zigbee::Zigbee;
 pub struct IkeaOutlet {
     name: String,
     zigbee: Zigbee,
-    client: Client,
+    client: AsyncClient,
     last_known_state: bool,
 }
 
 impl IkeaOutlet {
-    pub fn new(name: String, zigbee: Zigbee, mut client: Client) -> Self {
-        client.subscribe(zigbee.get_topic(), rumqttc::QoS::AtLeastOnce).unwrap();
+    pub fn new(name: String, zigbee: Zigbee, client: AsyncClient) -> Self {
+        client.subscribe(zigbee.get_topic(), rumqttc::QoS::AtLeastOnce).block_on().unwrap();
         Self{ name, zigbee, client, last_known_state: false }
     }
 }
@@ -51,16 +54,16 @@ impl Listener for IkeaOutlet {
         if message.topic == self.zigbee.get_topic() {
             let state = StateMessage::from(message);
 
-            print!("Updating state: {} => ", self.last_known_state);
-            self.last_known_state = state.state == "ON";
-            println!("{}", self.last_known_state);
+            let new_state = state.state == "ON";
+            debug!("Updating state: {} => {}", self.last_known_state, new_state);
+            self.last_known_state = new_state;
         }
     }
 }
 
 impl GoogleHomeDevice for IkeaOutlet {
     fn get_device_type(&self) -> Type {
-        Type::Outlet
+        Type::Kettle
     }
 
     fn get_device_name(&self) -> device::Name {
@@ -91,8 +94,10 @@ impl traits::OnOff for IkeaOutlet {
             }
         };
 
-        // @TODO Handle potential error here
-        self.client.publish(topic + "/set", rumqttc::QoS::AtLeastOnce, false, serde_json::to_string(&message).unwrap()).unwrap();
+        // @TODO Handle potential errors here
+        // @NOTE We are blocking here, ideally this function would just be async, however that is
+        // currently not really possible
+        self.client.publish(topic + "/set", rumqttc::QoS::AtLeastOnce, false, serde_json::to_string(&message).unwrap()).block_on().unwrap();
 
         Ok(())
     }

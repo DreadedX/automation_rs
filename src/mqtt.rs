@@ -1,13 +1,15 @@
 use std::sync::{Weak, RwLock};
+use log::error;
 
-use rumqttc::{Publish, Connection, Event, Incoming};
+use rumqttc::{Publish, Event, Incoming, EventLoop};
+use log::trace;
 
-pub trait Listener: Sync + Send {
+pub trait Listener {
     fn notify(&mut self, message: &Publish);
 }
 
 pub struct Notifier {
-    listeners: Vec<Weak<RwLock<dyn Listener>>>,
+    listeners: Vec<Weak<RwLock<dyn Listener + Sync + Send>>>,
 }
 
 impl Notifier {
@@ -26,20 +28,21 @@ impl Notifier {
         })
     }
 
-    pub fn add_listener<T: Listener + 'static>(&mut self, listener: Weak<RwLock<T>>) {
+    pub fn add_listener<T: Listener + Sync + Send + 'static>(&mut self, listener: Weak<RwLock<T>>) {
         self.listeners.push(listener);
     }
 
-    pub fn start(&mut self, mut connection: Connection) {
-        for notification in connection.iter() {
+    pub async fn start(&mut self, mut eventloop: EventLoop) {
+        loop {
+            let notification = eventloop.poll().await;
             match notification {
                 Ok(Event::Incoming(Incoming::Publish(p))) => {
-                    println!("{:?}", p);
+                    trace!("{:?}", p);
                     self.notify(p);
                 },
                 Ok(..) => continue,
                 Err(err) => {
-                    eprintln!("{}", err);
+                    error!("{}", err);
                     break
                 },
             }

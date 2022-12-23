@@ -1,13 +1,13 @@
 use serde::Serialize;
-use serde_with::skip_serializing_none;
 
 use crate::{response::State, errors::ErrorCode};
 
-#[skip_serializing_none]
 #[derive(Debug, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct Payload {
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub error_code: Option<ErrorCode>,
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub debug_string: Option<String>,
     commands: Vec<Command>,
 }
@@ -24,14 +24,15 @@ impl Payload {
     }
 }
 
-#[skip_serializing_none]
 #[derive(Debug, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct Command {
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub error_code: Option<ErrorCode>,
 
     ids: Vec<String>,
     status: Status,
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub states: Option<States>,
 }
 

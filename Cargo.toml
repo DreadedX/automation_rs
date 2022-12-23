@@ -13,6 +13,11 @@ dotenv = "0.15.0"
 impl_cast = {path = "./impl_cast"}
 google-home = {path = "./google-home"}
 paste = "1.0.10"
+tokio = { version = "1", features = ["full"] }
+warp = "0.3"
+log = "0.4"
+env_logger = "0.10"
+pollster = "0.2.5"
 
 [profile.release]
 lto=true

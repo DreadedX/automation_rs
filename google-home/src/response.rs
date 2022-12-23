@@ -3,7 +3,6 @@ pub mod query;
 pub mod execute;
 
 use serde::Serialize;
-use serde_with::skip_serializing_none;
 
 #[derive(Debug, Serialize)]
 #[serde(rename_all = "camelCase")]
@@ -26,9 +25,9 @@ pub enum ResponsePayload {
     Execute(execute::Payload),
 }
 
-#[skip_serializing_none]
 #[derive(Debug, Default, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct State {
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub on: Option<bool>,
 }

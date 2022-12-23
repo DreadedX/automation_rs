@@ -1,15 +1,15 @@
 use std::collections::HashMap;
 
 use serde::Serialize;
-use serde_with::skip_serializing_none;
 
 use crate::{response::State, errors::ErrorCode};
 
-#[skip_serializing_none]
 #[derive(Debug, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct Payload {
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub error_code: Option<ErrorCode>,
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub debug_string: Option<String>,
     pub devices: HashMap<String, Device>,
 }
@@ -33,12 +33,12 @@ pub enum Status {
     Error,
 }
 
-#[skip_serializing_none]
 #[derive(Debug, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct Device {
     online: bool,
     status: Status,
+    #[serde(skip_serializing_if = "Option::is_none")]
     error_code: Option<ErrorCode>,
 
     #[serde(flatten)]

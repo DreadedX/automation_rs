@@ -11,5 +11,5 @@ pub mod errors;
 mod attributes;
 
 pub use fullfillment::GoogleHome;
-pub use device::Fullfillment;
+pub use request::Request;
 pub use device::GoogleHomeDevice;
