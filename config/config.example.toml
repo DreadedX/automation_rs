@@ -1,0 +1,5 @@
+[mqtt]
+host="example.com"
+port=1234
+username="username"
+password="password"
