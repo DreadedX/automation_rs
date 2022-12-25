@@ -1,0 +1,4 @@
+[mqtt]
+host="olympus.vpn.huizinga.dev"
+port=8883
+username="mqtt"
