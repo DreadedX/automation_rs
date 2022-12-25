@@ -33,7 +33,6 @@ dependencies = [
  "impl_cast",
  "log",
  "paste",
- "pollster",
  "rumqttc",
  "serde",
  "serde_json",

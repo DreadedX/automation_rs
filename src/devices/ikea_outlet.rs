@@ -1,5 +1,3 @@
-use pollster::FutureExt as _;
-
 use google_home::errors::ErrorCode;
 use google_home::{GoogleHomeDevice, device, types::Type, traits};
 use rumqttc::{AsyncClient, Publish};
@@ -19,7 +17,13 @@ pub struct IkeaOutlet {
 
 impl IkeaOutlet {
     pub fn new(name: String, zigbee: Zigbee, client: AsyncClient) -> Self {
-        client.subscribe(zigbee.get_topic(), rumqttc::QoS::AtLeastOnce).block_on().unwrap();
+        let c = client.clone();
+        let topic = zigbee.get_topic().to_owned();
+        // @TODO Handle potential errors here
+        tokio::spawn(async move {
+            c.subscribe(topic, rumqttc::QoS::AtLeastOnce).await.unwrap();
+        });
+
         Self{ name, zigbee, client, last_known_state: false }
     }
 }
@@ -97,7 +101,10 @@ impl traits::OnOff for IkeaOutlet {
         // @TODO Handle potential errors here
         // @NOTE We are blocking here, ideally this function would just be async, however that is
         // currently not really possible
-        self.client.publish(topic + "/set", rumqttc::QoS::AtLeastOnce, false, serde_json::to_string(&message).unwrap()).block_on().unwrap();
+        let client = self.client.clone();
+        tokio::spawn(async move {
+            client.publish(topic + "/set", rumqttc::QoS::AtLeastOnce, false, serde_json::to_string(&message).unwrap()).await.unwrap();
+        });
 
         Ok(())
     }
