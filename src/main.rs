@@ -1,8 +1,6 @@
-mod config;
-
 use std::{time::Duration, sync::{Arc, RwLock}, process, net::SocketAddr};
 
-use config::Config;
+use automation::config::{Config, Device};
 use dotenv::dotenv;
 use warp::Filter;
 use rumqttc::{MqttOptions, Transport, AsyncClient};
@@ -59,9 +57,9 @@ async fn main() {
         debug!("Adding device {identifier}");
 
         let device: automation::devices::DeviceBox = match device_config {
-            config::Device::IkeaOutlet { info, zigbee, kettle } => {
+            Device::IkeaOutlet { info, zigbee, kettle } => {
                 trace!("\tIkeaOutlet [{} in {:?}]", info.name, info.room);
-                Box::new(IkeaOutlet::new(identifier, info.name, info.room, kettle.is_some(), zigbee.topic, client.clone()))
+                Box::new(IkeaOutlet::new(identifier, info, zigbee, kettle, client.clone()))
             },
         };
 

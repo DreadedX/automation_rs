@@ -38,7 +38,7 @@ pub struct ZigbeeDeviceConfig {
 
 #[derive(Debug, Deserialize)]
 pub struct KettleConfig {
-    // @TODO Add options for the kettle
+    pub timeout: Option<u64>, // Timeout in seconds
 }
 
 #[derive(Debug, Deserialize)]

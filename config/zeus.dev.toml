@@ -11,7 +11,7 @@ username="Dreaded_X"
 type = "IkeaOutlet"
 info = { name = "Kettle", room = "Kitchen" }
 zigbee = { topic = "zigbee2mqtt/kitchen/kettle" }
-kettle = {} # This is for future config
+kettle = { timeout = 5 }
 
 [devices.living_workbench]
 type = "IkeaOutlet"
