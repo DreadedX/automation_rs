@@ -6,31 +6,35 @@ use log::debug;
 
 use crate::devices::Device;
 use crate::mqtt::Listener;
-use crate::zigbee::Zigbee;
 
 pub struct IkeaOutlet {
+    identifier: String,
     name: String,
-    zigbee: Zigbee,
+    room: Option<String>,
+    topic: String,
+
+    kettle: bool,
+
     client: AsyncClient,
     last_known_state: bool,
 }
 
 impl IkeaOutlet {
-    pub fn new(name: String, zigbee: Zigbee, client: AsyncClient) -> Self {
+    pub fn new(identifier: String, name: String, room: Option<String>, kettle: bool, topic: String, client: AsyncClient) -> Self {
         let c = client.clone();
-        let topic = zigbee.get_topic().to_owned();
+        let t = topic.clone();
         // @TODO Handle potential errors here
         tokio::spawn(async move {
-            c.subscribe(topic, rumqttc::QoS::AtLeastOnce).await.unwrap();
+            c.subscribe(t, rumqttc::QoS::AtLeastOnce).await.unwrap();
         });
 
-        Self{ name, zigbee, client, last_known_state: false }
+        Self{ identifier, name, room, kettle, topic, client, last_known_state: false }
     }
 }
 
 impl Device for IkeaOutlet {
     fn get_id(&self) -> String {
-        self.zigbee.get_friendly_name().into()
+        self.identifier.clone()
     }
 }
 
@@ -55,7 +59,7 @@ impl From<&Publish> for StateMessage {
 impl Listener for IkeaOutlet {
     fn notify(&mut self, message: &Publish) {
         // Update the internal state based on what the device has reported
-        if message.topic == self.zigbee.get_topic() {
+        if message.topic == self.topic {
             let state = StateMessage::from(message);
 
             let new_state = state.state == "ON";
@@ -67,7 +71,11 @@ impl Listener for IkeaOutlet {
 
 impl GoogleHomeDevice for IkeaOutlet {
     fn get_device_type(&self) -> Type {
-        Type::Kettle
+        if self.kettle {
+            Type::Kettle
+        } else {
+            Type::Outlet
+        }
     }
 
     fn get_device_name(&self) -> device::Name {
@@ -81,6 +89,10 @@ impl GoogleHomeDevice for IkeaOutlet {
     fn is_online(&self) -> bool {
         true
     }
+
+    fn get_room_hint(&self) -> Option<String> {
+        self.room.clone()
+    }
 }
 
 impl traits::OnOff for IkeaOutlet {
@@ -89,7 +101,6 @@ impl traits::OnOff for IkeaOutlet {
     }
 
     fn set_on(&mut self, on: bool) -> Result<(), ErrorCode> {
-        let topic = self.zigbee.get_topic().to_owned();
         let message = StateMessage{
             state: if on {
                 "ON".to_owned()
@@ -99,9 +110,8 @@ impl traits::OnOff for IkeaOutlet {
         };
 
         // @TODO Handle potential errors here
-        // @NOTE We are blocking here, ideally this function would just be async, however that is
-        // currently not really possible
         let client = self.client.clone();
+        let topic = self.topic.to_owned();
         tokio::spawn(async move {
             client.publish(topic + "/set", rumqttc::QoS::AtLeastOnce, false, serde_json::to_string(&message).unwrap()).await.unwrap();
         });

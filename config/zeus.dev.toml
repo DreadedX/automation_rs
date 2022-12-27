@@ -2,3 +2,18 @@
 host="olympus.lan.huizinga.dev"
 port=8883
 username="mqtt"
+
+[fullfillment]
+port=7878
+username="Dreaded_X"
+
+[devices.kitchen_kettle]
+type = "IkeaOutlet"
+info = { name = "Kettle", room = "Kitchen" }
+zigbee = { topic = "zigbee2mqtt/kitchen/kettle" }
+kettle = {} # This is for future config
+
+[devices.living_workbench]
+type = "IkeaOutlet"
+info = { name = "Workbench", room = "Living Room" }
+zigbee = { topic = "zigbee2mqtt/living/workbench" }

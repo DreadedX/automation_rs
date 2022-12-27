@@ -1,9 +1,6 @@
 mod ikea_outlet;
 pub use self::ikea_outlet::IkeaOutlet;
 
-mod test_outlet;
-pub use self::test_outlet::TestOutlet;
-
 use std::collections::HashMap;
 
 use google_home::{GoogleHomeDevice, traits::OnOff};
@@ -21,7 +18,7 @@ pub trait Device: AsGoogleHomeDevice + AsListener + AsOnOff {
 // @TODO Add an inner type that we can wrap with Arc<RwLock<>> to make this type a little bit nicer
 // to work with
 pub struct Devices {
-    devices: HashMap<String, Box<dyn Device + Sync + Send>>,
+    devices: HashMap<String, DeviceBox>,
 }
 
 macro_rules! get_cast {
@@ -41,13 +38,15 @@ macro_rules! get_cast {
     };
 }
 
+pub type DeviceBox = Box<dyn Device + Sync + Send>;
+
 impl Devices {
     pub fn new() -> Self {
         Self { devices: HashMap::new() }
     }
 
-    pub fn add_device<T: Device + Sync + Send + 'static>(&mut self, device: T) {
-        self.devices.insert(device.get_id(), Box::new(device));
+    pub fn add_device(&mut self, device: DeviceBox) {
+        self.devices.insert(device.get_id(), device);
     }
 
     get_cast!(Listener);

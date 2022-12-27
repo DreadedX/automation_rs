@@ -7,9 +7,9 @@ use dotenv::dotenv;
 use warp::Filter;
 use rumqttc::{MqttOptions, Transport, AsyncClient};
 use env_logger::Builder;
-use log::{error, info, LevelFilter};
+use log::{error, info, debug, trace, LevelFilter};
 
-use automation::{devices::{Devices, IkeaOutlet, TestOutlet}, zigbee::Zigbee, mqtt::Notifier};
+use automation::{devices::{Devices, IkeaOutlet}, mqtt::Notifier};
 use google_home::{GoogleHome, Request};
 
 #[tokio::main]
@@ -27,6 +27,8 @@ async fn main() {
         error!("Failed to load config: {err}");
         process::exit(1);
     });
+
+    debug!("Config: {config:#?}");
 
     info!("Starting automation_rs...");
 
@@ -51,10 +53,20 @@ async fn main() {
         todo!("Error in MQTT (most likely lost connection to mqtt server), we need to handle these errors!");
     });
 
-    // @TODO Load these from a config
-    // Create a new device and add it to the holder
-    devices.write().unwrap().add_device(IkeaOutlet::new("Kettle".into(), Zigbee::new("kitchen/kettle", "zigbee2mqtt/kitchen/kettle"), client.clone()));
-    devices.write().unwrap().add_device(TestOutlet::new());
+    // Create devices based on config
+    // @TODO Move out of main (config? or maybe devices?)
+    for (identifier, device_config) in config.devices {
+        debug!("Adding device {identifier}");
+
+        let device: automation::devices::DeviceBox = match device_config {
+            config::Device::IkeaOutlet { info, zigbee, kettle } => {
+                trace!("\tIkeaOutlet [{} in {:?}]", info.name, info.room);
+                Box::new(IkeaOutlet::new(identifier, info.name, info.room, kettle.is_some(), zigbee.topic, client.clone()))
+            },
+        };
+
+        devices.write().unwrap().add_device(device);
+    }
 
     // Google Home fullfillments
     let fullfillment_google_home = warp::path("google_home")
@@ -63,7 +75,7 @@ async fn main() {
         .map(move |request: Request| {
             // @TODO Verify that we are actually logged in
             // Might also be smart to get the username from here
-            let gc = GoogleHome::new("Dreaded_X");
+            let gc = GoogleHome::new(&config.fullfillment.username);
             let result = gc.handle_request(request, &mut devices.write().unwrap().as_google_home_devices()).unwrap();
 
             warp::reply::json(&result)
@@ -76,7 +88,7 @@ async fn main() {
     let routes = fullfillment;
 
     // Start the web server
-    let addr: SocketAddr = ([127, 0, 0, 1], 7878).into();
+    let addr: SocketAddr = ([127, 0, 0, 1], config.fullfillment.port).into();
     info!("Server started on http://{addr}");
     warp::serve(routes)
         .run(addr)
