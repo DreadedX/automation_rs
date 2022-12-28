@@ -16,11 +16,10 @@ pub struct WakeOnLAN {
 
 impl WakeOnLAN {
     pub fn new(identifier: String, info: InfoConfig, mqtt: MqttDeviceConfig, mac_address: String, client: AsyncClient) -> Self {
-        let c = client.clone();
         let t = mqtt.topic.clone();
         // @TODO Handle potential errors here
         tokio::spawn(async move {
-            c.subscribe(t, rumqttc::QoS::AtLeastOnce).await.unwrap();
+            client.subscribe(t, rumqttc::QoS::AtLeastOnce).await.unwrap();
         });
 
         Self { identifier, info, mqtt, mac_address }
@@ -42,12 +41,8 @@ impl TryFrom<&Publish> for StateMessage {
     type Error = anyhow::Error;
 
     fn try_from(message: &Publish) -> Result<Self, Self::Error> {
-        match serde_json::from_slice(&message.payload) {
-            Ok(message) => Ok(message),
-            Err(..) => {
-                Err(anyhow::anyhow!("Invalid message payload received: {:?}", message.payload))
-            }
-        }
+        serde_json::from_slice(&message.payload)
+            .or(Err(anyhow::anyhow!("Invalid message payload received: {:?}", message.payload)))
     }
 }
 

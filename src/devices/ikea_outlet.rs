@@ -10,6 +10,7 @@ use tokio::task::JoinHandle;
 use crate::config::{KettleConfig, InfoConfig, MqttDeviceConfig};
 use crate::devices::Device;
 use crate::mqtt::Listener;
+use crate::presence::OnPresence;
 
 pub struct IkeaOutlet {
     identifier: String,
@@ -63,12 +64,8 @@ impl TryFrom<&Publish> for StateMessage {
     type Error = anyhow::Error;
 
     fn try_from(message: &Publish) -> Result<Self, Self::Error> {
-        match serde_json::from_slice(&message.payload) {
-            Ok(message) => Ok(message),
-            Err(..) => {
-                Err(anyhow::anyhow!("Invalid message payload received: {:?}", message.payload))
-            }
-        }
+        serde_json::from_slice(&message.payload)
+            .or(Err(anyhow::anyhow!("Invalid message payload received: {:?}", message.payload)))
     }
 }
 
@@ -130,6 +127,19 @@ impl Listener for IkeaOutlet {
                     set_on(client, topic, false).await;
                 })
                 );
+        }
+    }
+}
+
+impl OnPresence for IkeaOutlet {
+    fn on_presence(&mut self, presence: bool) {
+        // Turn off the outlet when we leave the house
+        if !presence {
+            let client = self.client.clone();
+            let topic = self.mqtt.topic.clone();
+            tokio::spawn(async move {
+            set_on(client, topic, false).await;
+            });
         }
     }
 }

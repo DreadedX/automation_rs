@@ -10,6 +10,7 @@ use crate::devices::{DeviceBox, IkeaOutlet, WakeOnLAN};
 pub struct Config {
     pub mqtt: MQTTConfig,
     pub fullfillment: FullfillmentConfig,
+    pub presence: MqttDeviceConfig,
     #[serde(default)]
     pub devices: HashMap<String, Device>
 }

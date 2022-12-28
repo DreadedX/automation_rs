@@ -3,7 +3,7 @@ use std::{time::Duration, sync::{Arc, RwLock}, process, net::SocketAddr};
 
 use axum::{Router, Json, routing::post, http::StatusCode};
 
-use automation::config::Config;
+use automation::{config::Config, presence::Presence};
 use dotenv::dotenv;
 use rumqttc::{MqttOptions, Transport, AsyncClient};
 use env_logger::Builder;
@@ -18,7 +18,7 @@ async fn main() {
 
     // Setup logger
     Builder::new()
-        .filter_module("automation", LevelFilter::Info)
+        .filter_module("automation", LevelFilter::Trace)
         .parse_default_env()
         .init();
 
@@ -43,7 +43,14 @@ async fn main() {
     // Create a notifier and start it in a seperate task
     let (client, eventloop) = AsyncClient::new(mqttoptions, 10);
     let mut notifier = Notifier::new(eventloop);
+
     notifier.add_listener(Arc::downgrade(&devices));
+
+    let mut presence = Presence::new(config.presence, client.clone());
+    presence.add_listener(Arc::downgrade(&devices));
+    let presence = Arc::new(RwLock::new(presence));
+    notifier.add_listener(Arc::downgrade(&presence));
+
     notifier.start();
 
     // Create devices based on config

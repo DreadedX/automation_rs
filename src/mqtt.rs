@@ -21,10 +21,14 @@ impl Notifier {
     }
 
     fn notify(&mut self, message: Publish) {
+        trace!("Listener count: {}", self.listeners.len());
+
         self.listeners.retain(|listener| {
             if let Some(listener) = listener.upgrade() {
                 listener.write().unwrap().notify(&message);
                 return true;
+            } else {
+                trace!("Removing listener...");
             }
 
             return false;
