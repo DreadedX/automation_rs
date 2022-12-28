@@ -1,8 +1,10 @@
+#![feature(async_closure)]
 use std::{time::Duration, sync::{Arc, RwLock}, process, net::SocketAddr};
+
+use axum::{Router, Json, routing::post, http::StatusCode};
 
 use automation::config::Config;
 use dotenv::dotenv;
-use warp::Filter;
 use rumqttc::{MqttOptions, Transport, AsyncClient};
 use env_logger::Builder;
 use log::{error, info, debug, LevelFilter};
@@ -56,29 +58,26 @@ async fn main() {
             devices.write().unwrap().add_device(device);
         });
 
-    // Google Home fullfillments
-    let fullfillment_google_home = warp::path("google_home")
-        .and(warp::post())
-        .and(warp::body::json())
-        .map(move |request: Request| {
+    // Fullfillments
+    let fullfillment = Router::new()
+        .route("/google_home", post(async move |Json(payload): Json<Request>| {
             // @TODO Verify that we are actually logged in
             // Might also be smart to get the username from here
             let gc = GoogleHome::new(&config.fullfillment.username);
-            let result = gc.handle_request(request, &mut devices.write().unwrap().as_google_home_devices()).unwrap();
+            let result = gc.handle_request(payload, &mut devices.write().unwrap().as_google_home_devices()).unwrap();
 
-            warp::reply::json(&result)
-        });
+            (StatusCode::OK, Json(result))
+        }));
 
-    // Combine all fullfillments together
-    let fullfillment = warp::path("fullfillment").and(fullfillment_google_home);
-
-    // Combine all routes together
-    let routes = fullfillment;
+    // Combine together all the routes
+    let app = Router::new()
+        .nest("/fullfillment", fullfillment);
 
     // Start the web server
     let addr: SocketAddr = ([127, 0, 0, 1], config.fullfillment.port).into();
     info!("Server started on http://{addr}");
-    warp::serve(routes)
-        .run(addr)
-        .await;
+    axum::Server::bind(&addr)
+        .serve(app.into_make_service())
+        .await
+        .unwrap();
 }
