@@ -1,6 +1,9 @@
 mod ikea_outlet;
 pub use self::ikea_outlet::IkeaOutlet;
 
+mod wake_on_lan;
+pub use self::wake_on_lan::WakeOnLAN;
+
 use std::collections::HashMap;
 
 use google_home::{GoogleHomeDevice, traits::OnOff};

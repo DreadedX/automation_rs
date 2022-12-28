@@ -7,7 +7,7 @@ use rumqttc::{MqttOptions, Transport, AsyncClient};
 use env_logger::Builder;
 use log::{error, info, debug, trace, LevelFilter};
 
-use automation::{devices::{Devices, IkeaOutlet}, mqtt::Notifier};
+use automation::{devices::{Devices, IkeaOutlet, WakeOnLAN}, mqtt::Notifier};
 use google_home::{GoogleHome, Request};
 
 #[tokio::main]
@@ -57,9 +57,13 @@ async fn main() {
         debug!("Adding device {identifier}");
 
         let device: automation::devices::DeviceBox = match device_config {
-            Device::IkeaOutlet { info, zigbee, kettle } => {
+            Device::IkeaOutlet { info, mqtt, kettle } => {
                 trace!("\tIkeaOutlet [{} in {:?}]", info.name, info.room);
-                Box::new(IkeaOutlet::new(identifier, info, zigbee, kettle, client.clone()))
+                Box::new(IkeaOutlet::new(identifier, info, mqtt, kettle, client.clone()))
+            },
+            Device::WakeOnLAN { info, mqtt, mac_address } => {
+                trace!("\tWakeOnLan [{} in {:?}]", info.name, info.room);
+                Box::new(WakeOnLAN::new(identifier, info, mqtt, mac_address, client.clone()))
             },
         };
 

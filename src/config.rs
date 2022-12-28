@@ -32,7 +32,7 @@ pub struct InfoConfig {
 }
 
 #[derive(Debug, Deserialize)]
-pub struct ZigbeeDeviceConfig {
+pub struct MqttDeviceConfig {
     pub topic: String,
 }
 
@@ -46,9 +46,14 @@ pub struct KettleConfig {
 pub enum Device {
     IkeaOutlet {
         info: InfoConfig,
-        zigbee: ZigbeeDeviceConfig,
+        mqtt: MqttDeviceConfig,
         kettle: Option<KettleConfig>,
     },
+    WakeOnLAN {
+        info: InfoConfig,
+        mqtt: MqttDeviceConfig,
+        mac_address: String,
+    }
 }
 
 impl Config {

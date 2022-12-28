@@ -10,10 +10,16 @@ username="Dreaded_X"
 [devices.kitchen_kettle]
 type = "IkeaOutlet"
 info = { name = "Kettle", room = "Kitchen" }
-zigbee = { topic = "zigbee2mqtt/kitchen/kettle" }
+mqtt = { topic = "zigbee2mqtt/kitchen/kettle" }
 kettle = { timeout = 5 }
 
 [devices.living_workbench]
 type = "IkeaOutlet"
 info = { name = "Workbench", room = "Living Room" }
-zigbee = { topic = "zigbee2mqtt/living/workbench" }
+mqtt = { topic = "zigbee2mqtt/living/workbench" }
+
+[devices.living_zeus]
+type = "WakeOnLAN"
+info = { name = "Zeus", room = "Living Room" }
+mqtt = { topic = "automation/appliance/living_room/zeus" }
+mac_address = "30:9c:23:60:9c:13"
