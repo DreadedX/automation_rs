@@ -1,7 +1,10 @@
 use std::{fs, error::Error, collections::HashMap};
 
-use log::debug;
+use log::{debug, trace};
+use rumqttc::AsyncClient;
 use serde::Deserialize;
+
+use crate::devices::{DeviceBox, IkeaOutlet, WakeOnLAN};
 
 #[derive(Debug, Deserialize)]
 pub struct Config {
@@ -65,5 +68,20 @@ impl Config {
         config.mqtt.password = Some(std::env::var("MQTT_PASSWORD").or(config.mqtt.password.ok_or("MQTT password needs to be set in either config or the environment!"))?);
 
         Ok(config)
+    }
+}
+
+impl Device {
+    pub fn into(self, identifier: String, client: AsyncClient) -> DeviceBox {
+        match self {
+            Device::IkeaOutlet { info, mqtt, kettle } => {
+                trace!("\tIkeaOutlet [{} in {:?}]", info.name, info.room);
+                Box::new(IkeaOutlet::new(identifier, info, mqtt, kettle, client))
+            },
+            Device::WakeOnLAN { info, mqtt, mac_address } => {
+                trace!("\tWakeOnLan [{} in {:?}]", info.name, info.room);
+                Box::new(WakeOnLAN::new(identifier, info, mqtt, mac_address, client))
+            },
+        }
     }
 }

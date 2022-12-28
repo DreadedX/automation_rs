@@ -1,13 +1,13 @@
 use std::{time::Duration, sync::{Arc, RwLock}, process, net::SocketAddr};
 
-use automation::config::{Config, Device};
+use automation::config::Config;
 use dotenv::dotenv;
 use warp::Filter;
 use rumqttc::{MqttOptions, Transport, AsyncClient};
 use env_logger::Builder;
-use log::{error, info, debug, trace, LevelFilter};
+use log::{error, info, debug, LevelFilter};
 
-use automation::{devices::{Devices, IkeaOutlet, WakeOnLAN}, mqtt::Notifier};
+use automation::{devices::Devices, mqtt::Notifier};
 use google_home::{GoogleHome, Request};
 
 #[tokio::main]
@@ -26,8 +26,6 @@ async fn main() {
         process::exit(1);
     });
 
-    debug!("Config: {config:#?}");
-
     info!("Starting automation_rs...");
 
     // Create device holder
@@ -40,35 +38,23 @@ async fn main() {
     mqttoptions.set_keep_alive(Duration::from_secs(5));
     mqttoptions.set_transport(Transport::tls_with_default_config());
 
-    // Create a notifier and move it to a new thread
-    // @TODO Maybe rename this to make it clear it has to do with mqtt
-    let mut notifier = Notifier::new();
+    // Create a notifier and start it in a seperate task
     let (client, eventloop) = AsyncClient::new(mqttoptions, 10);
+    let mut notifier = Notifier::new(eventloop);
     notifier.add_listener(Arc::downgrade(&devices));
-    tokio::spawn(async move {
-        info!("Connecting to MQTT broker");
-        notifier.start(eventloop).await;
-        todo!("Error in MQTT (most likely lost connection to mqtt server), we need to handle these errors!");
-    });
+    notifier.start();
 
     // Create devices based on config
     // @TODO Move out of main (config? or maybe devices?)
-    for (identifier, device_config) in config.devices {
-        debug!("Adding device {identifier}");
-
-        let device: automation::devices::DeviceBox = match device_config {
-            Device::IkeaOutlet { info, mqtt, kettle } => {
-                trace!("\tIkeaOutlet [{} in {:?}]", info.name, info.room);
-                Box::new(IkeaOutlet::new(identifier, info, mqtt, kettle, client.clone()))
-            },
-            Device::WakeOnLAN { info, mqtt, mac_address } => {
-                trace!("\tWakeOnLan [{} in {:?}]", info.name, info.room);
-                Box::new(WakeOnLAN::new(identifier, info, mqtt, mac_address, client.clone()))
-            },
-        };
-
-        devices.write().unwrap().add_device(device);
-    }
+    config.devices
+        .into_iter()
+        .map(|(identifier, device_config)| {
+            device_config.into(identifier, client.clone())
+        })
+        .for_each(|device| {
+            debug!("Adding device {}", device.get_id());
+            devices.write().unwrap().add_device(device);
+        });
 
     // Google Home fullfillments
     let fullfillment_google_home = warp::path("google_home")
