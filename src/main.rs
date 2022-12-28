@@ -9,7 +9,7 @@ use rumqttc::{MqttOptions, Transport, AsyncClient};
 use env_logger::Builder;
 use log::{error, info, debug, LevelFilter};
 
-use automation::{devices::Devices, mqtt::Notifier};
+use automation::{devices::Devices, mqtt::Mqtt};
 use google_home::{GoogleHome, Request};
 
 #[tokio::main]
@@ -30,31 +30,33 @@ async fn main() {
 
     info!("Starting automation_rs...");
 
-    // Create device holder
-    // @TODO Make this nices to work with, we devices.rs
-    let devices = Arc::new(RwLock::new(Devices::new()));
-
-    // Setup MQTT
+    // Configure MQTT
     let mut mqttoptions = MqttOptions::new("rust-test", config.mqtt.host, config.mqtt.port);
     mqttoptions.set_credentials(config.mqtt.username, config.mqtt.password.unwrap());
     mqttoptions.set_keep_alive(Duration::from_secs(5));
     mqttoptions.set_transport(Transport::tls_with_default_config());
 
-    // Create a notifier and start it in a seperate task
+    // Create a mqtt client and wrap the eventloop
     let (client, eventloop) = AsyncClient::new(mqttoptions, 10);
-    let mut notifier = Notifier::new(eventloop);
+    let mut mqtt = Mqtt::new(eventloop);
 
-    notifier.add_listener(Arc::downgrade(&devices));
+    // Create device holder and register it as listener for mqtt
+    let devices = Arc::new(RwLock::new(Devices::new()));
+    mqtt.add_listener(Arc::downgrade(&devices));
 
+    // Setup presence system
     let mut presence = Presence::new(config.presence, client.clone());
+    // Register devices as presence listener
     presence.add_listener(Arc::downgrade(&devices));
+
+    // Register presence as mqtt listener
     let presence = Arc::new(RwLock::new(presence));
-    notifier.add_listener(Arc::downgrade(&presence));
+    mqtt.add_listener(Arc::downgrade(&presence));
 
-    notifier.start();
+    // Start mqtt, this spawns a seperate async task
+    mqtt.start();
 
-    // Create devices based on config
-    // @TODO Move out of main (config? or maybe devices?)
+    // Turn the config into actual devices and add them
     config.devices
         .into_iter()
         .map(|(identifier, device_config)| {
@@ -65,7 +67,7 @@ async fn main() {
             devices.write().unwrap().add_device(device);
         });
 
-    // Fullfillments
+    // Create google home fullfillment route
     let fullfillment = Router::new()
         .route("/google_home", post(async move |Json(payload): Json<Request>| {
             // @TODO Verify that we are actually logged in

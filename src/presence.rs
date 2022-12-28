@@ -4,7 +4,7 @@ use log::{debug, warn, trace};
 use rumqttc::{AsyncClient, Publish};
 use serde::{Serialize, Deserialize};
 
-use crate::{mqtt::Listener, config::MqttDeviceConfig};
+use crate::{mqtt::OnMqtt, config::MqttDeviceConfig};
 
 pub trait OnPresence {
     fn on_presence(&mut self, presence: bool);
@@ -47,8 +47,8 @@ impl TryFrom<&Publish> for StateMessage {
     }
 }
 
-impl Listener for Presence {
-    fn notify(&mut self, message: &rumqttc::Publish) {
+impl OnMqtt for Presence {
+    fn on_mqtt(&mut self, message: &rumqttc::Publish) {
         if message.topic.starts_with(&(self.mqtt.topic.clone() + "/")) {
             let device_name = message.topic.rsplit_once("/").unwrap().1;
 

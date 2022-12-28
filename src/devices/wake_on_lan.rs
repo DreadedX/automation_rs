@@ -3,7 +3,7 @@ use log::{debug, warn};
 use rumqttc::{AsyncClient, Publish};
 use serde::Deserialize;
 
-use crate::{config::{InfoConfig, MqttDeviceConfig}, mqtt::Listener};
+use crate::{config::{InfoConfig, MqttDeviceConfig}, mqtt::OnMqtt};
 
 use super::Device;
 
@@ -46,8 +46,8 @@ impl TryFrom<&Publish> for StateMessage {
     }
 }
 
-impl Listener for WakeOnLAN {
-    fn notify(&mut self, message: &Publish) {
+impl OnMqtt for WakeOnLAN {
+    fn on_mqtt(&mut self, message: &Publish) {
 
         if message.topic != self.mqtt.topic {
             return;

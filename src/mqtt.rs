@@ -5,17 +5,17 @@ use rumqttc::{Publish, Event, Incoming, EventLoop};
 use log::trace;
 use tokio::task::JoinHandle;
 
-pub trait Listener {
-    fn notify(&mut self, message: &Publish);
+pub trait OnMqtt {
+    fn on_mqtt(&mut self, message: &Publish);
 }
 
 // @TODO Maybe rename this to make it clear it has to do with mqtt
-pub struct Notifier {
-    listeners: Vec<Weak<RwLock<dyn Listener + Sync + Send>>>,
+pub struct Mqtt {
+    listeners: Vec<Weak<RwLock<dyn OnMqtt + Sync + Send>>>,
     eventloop: EventLoop,
 }
 
-impl Notifier {
+impl Mqtt {
     pub fn new(eventloop: EventLoop) -> Self {
         return Self { listeners: Vec::new(), eventloop }
     }
@@ -25,7 +25,7 @@ impl Notifier {
 
         self.listeners.retain(|listener| {
             if let Some(listener) = listener.upgrade() {
-                listener.write().unwrap().notify(&message);
+                listener.write().unwrap().on_mqtt(&message);
                 return true;
             } else {
                 trace!("Removing listener...");
@@ -35,7 +35,7 @@ impl Notifier {
         })
     }
 
-    pub fn add_listener<T: Listener + Sync + Send + 'static>(&mut self, listener: Weak<RwLock<T>>) {
+    pub fn add_listener<T: OnMqtt + Sync + Send + 'static>(&mut self, listener: Weak<RwLock<T>>) {
         self.listeners.push(listener);
     }
 

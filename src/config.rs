@@ -8,7 +8,7 @@ use crate::devices::{DeviceBox, IkeaOutlet, WakeOnLAN};
 
 #[derive(Debug, Deserialize)]
 pub struct Config {
-    pub mqtt: MQTTConfig,
+    pub mqtt: MqttConfig,
     pub fullfillment: FullfillmentConfig,
     pub presence: MqttDeviceConfig,
     #[serde(default)]
@@ -16,7 +16,7 @@ pub struct Config {
 }
 
 #[derive(Debug, Deserialize)]
-pub struct MQTTConfig {
+pub struct MqttConfig {
     pub host: String,
     pub port: u16,
     pub username: String,

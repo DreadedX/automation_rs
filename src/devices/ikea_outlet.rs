@@ -9,7 +9,7 @@ use tokio::task::JoinHandle;
 
 use crate::config::{KettleConfig, InfoConfig, MqttDeviceConfig};
 use crate::devices::Device;
-use crate::mqtt::Listener;
+use crate::mqtt::OnMqtt;
 use crate::presence::OnPresence;
 
 pub struct IkeaOutlet {
@@ -69,8 +69,8 @@ impl TryFrom<&Publish> for StateMessage {
     }
 }
 
-impl Listener for IkeaOutlet {
-    fn notify(&mut self, message: &Publish) {
+impl OnMqtt for IkeaOutlet {
+    fn on_mqtt(&mut self, message: &Publish) {
         // Update the internal state based on what the device has reported
         if message.topic != self.mqtt.topic {
             return;

@@ -9,14 +9,14 @@ use std::collections::HashMap;
 use google_home::{GoogleHomeDevice, traits::OnOff};
 use log::trace;
 
-use crate::{mqtt::Listener, presence::OnPresence};
+use crate::{mqtt::OnMqtt, presence::OnPresence};
 
-impl_cast::impl_cast!(Device, Listener);
+impl_cast::impl_cast!(Device, OnMqtt);
 impl_cast::impl_cast!(Device, OnPresence);
 impl_cast::impl_cast!(Device, GoogleHomeDevice);
 impl_cast::impl_cast!(Device, OnOff);
 
-pub trait Device: AsGoogleHomeDevice + AsListener + AsOnPresence + AsOnOff {
+pub trait Device: AsGoogleHomeDevice + AsOnMqtt + AsOnPresence + AsOnOff {
     fn get_id(&self) -> String;
 }
 
@@ -54,7 +54,7 @@ impl Devices {
         self.devices.insert(device.get_id(), device);
     }
 
-    get_cast!(Listener);
+    get_cast!(OnMqtt);
     get_cast!(OnPresence);
     get_cast!(GoogleHomeDevice);
     get_cast!(OnOff);
@@ -67,10 +67,12 @@ impl Devices {
     }
 }
 
-impl Listener for Devices {
-    fn notify(&mut self, message: &rumqttc::Publish) {
-        self.as_listeners().iter_mut().for_each(|(_, listener)| {
-            listener.notify(message);
+impl OnMqtt for Devices {
+    fn on_mqtt(&mut self, message: &rumqttc::Publish) {
+        trace!("OnMqtt for devices");
+        self.as_on_mqtts().iter_mut().for_each(|(id, listener)| {
+            trace!("OnMqtt: {id}");
+            listener.on_mqtt(message);
         })
     }
 }
@@ -78,8 +80,8 @@ impl Listener for Devices {
 impl OnPresence for Devices {
     fn on_presence(&mut self, presence: bool) {
         trace!("OnPresence for devices");
-        self.as_on_presences().iter_mut().for_each(|(name, device)| {
-            trace!("OnPresence: {name}");
+        self.as_on_presences().iter_mut().for_each(|(id, device)| {
+            trace!("OnPresence: {id}");
             device.on_presence(presence);
         })
     }
