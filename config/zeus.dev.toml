@@ -4,11 +4,10 @@ port=8883
 username="mqtt"
 
 [fullfillment]
-port=7878
 username="Dreaded_X"
 
 [presence]
-topic = "automation/presence"
+topic = "automation_dev/presence"
 
 [devices.kitchen_kettle]
 type = "IkeaOutlet"

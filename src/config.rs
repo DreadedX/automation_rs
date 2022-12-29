@@ -6,10 +6,14 @@ use serde::Deserialize;
 
 use crate::devices::{DeviceBox, IkeaOutlet, WakeOnLAN};
 
+// @TODO Configure more defaults
+
 #[derive(Debug, Deserialize)]
 pub struct Config {
     pub mqtt: MqttConfig,
     pub fullfillment: FullfillmentConfig,
+    #[serde(default)]
+    pub ntfy: NtfyConfig,
     pub presence: MqttDeviceConfig,
     #[serde(default)]
     pub devices: HashMap<String, Device>
@@ -25,8 +29,30 @@ pub struct MqttConfig {
 
 #[derive(Debug, Deserialize)]
 pub struct FullfillmentConfig {
+    #[serde(default = "default_fullfillment_port")]
     pub port: u16,
     pub username: String,
+}
+
+fn default_fullfillment_port() -> u16 {
+    7878
+}
+
+#[derive(Debug, Deserialize)]
+pub struct NtfyConfig {
+    #[serde(default = "default_ntfy_url")]
+    pub url: String,
+    pub topic: Option<String>,
+}
+
+fn default_ntfy_url() -> String {
+    "https://ntfy.sh".into()
+}
+
+impl Default for NtfyConfig {
+    fn default() -> Self {
+        Self { url: default_ntfy_url(), topic: None }
+    }
 }
 
 #[derive(Debug, Deserialize)]
@@ -66,7 +92,8 @@ impl Config {
         let file = fs::read_to_string(filename)?;
         let mut config: Self = toml::from_str(&file)?;
 
-        config.mqtt.password = Some(std::env::var("MQTT_PASSWORD").or(config.mqtt.password.ok_or("MQTT password needs to be set in either config or the environment!"))?);
+        config.mqtt.password = Some(std::env::var("MQTT_PASSWORD").or(config.mqtt.password.ok_or("MQTT password needs to be set in either config [mqtt.password] or the environment [MQTT_PASSWORD]"))?);
+        config.ntfy.topic = Some(std::env::var("NTFY_TOPIC").or(config.ntfy.topic.ok_or("ntfy.sh topic needs to be set in either config [ntfy.url] or the environment [NTFY_TOPIC]!"))?);
 
         Ok(config)
     }

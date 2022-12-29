@@ -3,7 +3,7 @@ use std::{time::Duration, sync::{Arc, RwLock}, process, net::SocketAddr};
 
 use axum::{Router, Json, routing::post, http::StatusCode};
 
-use automation::{config::Config, presence::Presence};
+use automation::{config::Config, presence::Presence, ntfy::Ntfy};
 use dotenv::dotenv;
 use rumqttc::{MqttOptions, Transport, AsyncClient};
 use env_logger::Builder;
@@ -49,9 +49,13 @@ async fn main() {
     // Register devices as presence listener
     presence.add_listener(Arc::downgrade(&devices));
 
+    let ntfy = Arc::new(RwLock::new(Ntfy::new(config.ntfy)));
+    presence.add_listener(Arc::downgrade(&ntfy));
+
     // Register presence as mqtt listener
     let presence = Arc::new(RwLock::new(presence));
     mqtt.add_listener(Arc::downgrade(&presence));
+
 
     // Start mqtt, this spawns a seperate async task
     mqtt.start();

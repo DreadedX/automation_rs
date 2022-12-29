@@ -24,6 +24,7 @@ dotenv = "0.15.0"
 anyhow = "1.0.68"
 reqwest = "0.11.13"
 axum = "0.6.1"
+serde_repr = "0.1.10"
 
 [profile.release]
 lto=true
