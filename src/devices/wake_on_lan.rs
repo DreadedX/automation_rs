@@ -1,5 +1,5 @@
 use google_home::{GoogleHomeDevice, types::Type, device, traits::{self, Scene}, errors::{ErrorCode, DeviceError}};
-use log::{debug, warn};
+use tracing::{debug, warn};
 use rumqttc::{AsyncClient, Publish};
 use serde::Deserialize;
 
@@ -56,7 +56,7 @@ impl OnMqtt for WakeOnLAN {
         let payload = match StateMessage::try_from(message) {
             Ok(state) => state,
             Err(err) => {
-                warn!("Failed to parse message: {err}");
+                warn!(id = self.identifier, "Failed to parse message: {err}");
                 return;
             }
         };
@@ -96,23 +96,24 @@ impl traits::Scene for WakeOnLAN {
             // @TODO In the future send the wake on lan package directly, this is kind of annoying
             // if we are inside of docker, so for now just call a webhook that does it for us
             let mac_address = self.mac_address.clone();
+            let id = self.identifier.clone();
             tokio::spawn(async move {
-                debug!("Activating Computer: {}", mac_address);
+                debug!(id, "Activating Computer: {}", mac_address);
                 let req = match reqwest::get(format!("http://10.0.0.2:9000/start-pc?mac={mac_address}")).await {
                     Ok(req) => req,
                     Err(err) => {
-                        warn!("Failed to call webhook: {err}");
+                        warn!(id, "Failed to call webhook: {err}");
                         return;
                     }
                 };
                 if req.status() != 200 {
-                    warn!("Failed to call webhook: {}", req.status());
+                    warn!(id, "Failed to call webhook: {}", req.status());
                 }
             });
 
             Ok(())
         } else {
-            debug!("Trying to deactive computer, this is not currently supported");
+            debug!(id = self.identifier, "Trying to deactive computer, this is not currently supported");
             // We do not support deactivating this scene
             Err(ErrorCode::DeviceError(DeviceError::ActionNotAvailable))
         }

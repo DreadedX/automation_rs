@@ -1,8 +1,7 @@
 use std::sync::{Weak, RwLock};
-use log::{error, debug};
+use tracing::{error, debug, trace, span, Level};
 
 use rumqttc::{Publish, Event, Incoming, EventLoop};
-use log::trace;
 use tokio::task::JoinHandle;
 
 pub trait OnMqtt {
@@ -21,8 +20,6 @@ impl Mqtt {
     }
 
     fn notify(&mut self, message: Publish) {
-        trace!("Listener count: {}", self.listeners.len());
-
         self.listeners.retain(|listener| {
             if let Some(listener) = listener.upgrade() {
                 listener.write().unwrap().on_mqtt(&message);
@@ -46,7 +43,8 @@ impl Mqtt {
                 let notification = self.eventloop.poll().await;
                 match notification {
                     Ok(Event::Incoming(Incoming::Publish(p))) => {
-                        trace!("{:?}", p);
+                        // Could cause problems in async
+                        let _span = span!(Level::TRACE, "mqtt_message").entered();
                         self.notify(p);
                     },
                     Ok(..) => continue,

@@ -1,6 +1,6 @@
 use std::collections::HashMap;
 
-use log::{warn, error};
+use tracing::{warn, error};
 use reqwest::StatusCode;
 use serde::Serialize;
 use serde_repr::*;

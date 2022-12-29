@@ -6,20 +6,22 @@ use axum::{Router, Json, routing::post, http::StatusCode};
 use automation::{config::Config, presence::Presence, ntfy::Ntfy};
 use dotenv::dotenv;
 use rumqttc::{MqttOptions, Transport, AsyncClient};
-use env_logger::Builder;
-use log::{error, info, debug, LevelFilter};
+use tracing::{error, info, metadata::LevelFilter};
 
 use automation::{devices::Devices, mqtt::Mqtt};
 use google_home::{GoogleHome, Request};
+use tracing_subscriber::EnvFilter;
 
 #[tokio::main]
 async fn main() {
     dotenv().ok();
 
-    // Setup logger
-    Builder::new()
-        .filter_module("automation", LevelFilter::Trace)
-        .parse_default_env()
+    let filter = EnvFilter::builder()
+        .with_default_directive(LevelFilter::INFO.into())
+        .from_env_lossy();
+
+    tracing_subscriber::fmt()
+        .with_env_filter(filter)
         .init();
 
     let config = std::env::var("AUTOMATION_CONFIG").unwrap_or("./config/config.toml".to_owned());
@@ -67,7 +69,6 @@ async fn main() {
             device_config.into(identifier, client.clone())
         })
         .for_each(|device| {
-            debug!("Adding device {}", device.get_id());
             devices.write().unwrap().add_device(device);
         });
 

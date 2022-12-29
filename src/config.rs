@@ -1,6 +1,6 @@
 use std::{fs, error::Error, collections::HashMap};
 
-use log::{debug, trace};
+use tracing::{debug, trace};
 use rumqttc::AsyncClient;
 use serde::Deserialize;
 
@@ -103,11 +103,11 @@ impl Device {
     pub fn into(self, identifier: String, client: AsyncClient) -> DeviceBox {
         match self {
             Device::IkeaOutlet { info, mqtt, kettle } => {
-                trace!("\tIkeaOutlet [{} in {:?}]", info.name, info.room);
+                trace!(id = identifier, "IkeaOutlet [{} in {:?}]", info.name, info.room);
                 Box::new(IkeaOutlet::new(identifier, info, mqtt, kettle, client))
             },
             Device::WakeOnLAN { info, mqtt, mac_address } => {
-                trace!("\tWakeOnLan [{} in {:?}]", info.name, info.room);
+                trace!(id = identifier, "WakeOnLan [{} in {:?}]", info.name, info.room);
                 Box::new(WakeOnLAN::new(identifier, info, mqtt, mac_address, client))
             },
         }

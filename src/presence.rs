@@ -1,6 +1,6 @@
 use std::{sync::{Weak, RwLock}, collections::HashMap};
 
-use log::{debug, warn, trace};
+use tracing::{debug, warn, trace, span, Level};
 use rumqttc::{AsyncClient, Publish};
 use serde::{Serialize, Deserialize};
 
@@ -75,7 +75,8 @@ impl OnMqtt for Presence {
                 debug!("Overall presence updated: {overall_presence}");
                 self.overall_presence = overall_presence;
 
-                trace!("Listener count: {}", self.listeners.len());
+                // This has problems in async
+                let _span = span!(Level::TRACE, "presence_update").entered();
 
                 self.listeners.retain(|listener| {
                     if let Some(listener) = listener.upgrade() {

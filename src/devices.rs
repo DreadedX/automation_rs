@@ -7,7 +7,7 @@ pub use self::wake_on_lan::WakeOnLAN;
 use std::collections::HashMap;
 
 use google_home::{GoogleHomeDevice, traits::OnOff};
-use log::trace;
+use tracing::{trace, debug, span, Level};
 
 use crate::{mqtt::OnMqtt, presence::OnPresence};
 
@@ -51,6 +51,7 @@ impl Devices {
     }
 
     pub fn add_device(&mut self, device: DeviceBox) {
+        debug!(id = device.get_id(), "Adding device");
         self.devices.insert(device.get_id(), device);
     }
 
@@ -69,9 +70,9 @@ impl Devices {
 
 impl OnMqtt for Devices {
     fn on_mqtt(&mut self, message: &rumqttc::Publish) {
-        trace!("OnMqtt for devices");
         self.as_on_mqtts().iter_mut().for_each(|(id, listener)| {
-            trace!("OnMqtt: {id}");
+            let _span = span!(Level::TRACE, "on_mqtt").entered();
+            trace!(id, "Handling");
             listener.on_mqtt(message);
         })
     }
@@ -79,9 +80,9 @@ impl OnMqtt for Devices {
 
 impl OnPresence for Devices {
     fn on_presence(&mut self, presence: bool) {
-        trace!("OnPresence for devices");
         self.as_on_presences().iter_mut().for_each(|(id, device)| {
-            trace!("OnPresence: {id}");
+            let _span = span!(Level::TRACE, "on_presence").entered();
+            trace!(id, "Handling");
             device.on_presence(presence);
         })
     }

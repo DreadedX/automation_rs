@@ -4,7 +4,7 @@ use google_home::errors::ErrorCode;
 use google_home::{GoogleHomeDevice, device, types::Type, traits};
 use rumqttc::{AsyncClient, Publish};
 use serde::{Deserialize, Serialize};
-use log::{debug, trace, warn};
+use tracing::{debug, trace, warn};
 use tokio::task::JoinHandle;
 
 use crate::config::{KettleConfig, InfoConfig, MqttDeviceConfig};
@@ -79,7 +79,7 @@ impl OnMqtt for IkeaOutlet {
         let new_state = match StateMessage::try_from(message) {
             Ok(state) => state,
             Err(err) => {
-                warn!("Failed to parse message: {err}");
+                warn!(id = self.identifier, "Failed to parse message: {err}");
                 return;
             }
         }.state == "ON";
@@ -94,7 +94,7 @@ impl OnMqtt for IkeaOutlet {
             handle.abort();
         }
 
-        trace!("Updating state: {} => {}", self.last_known_state, new_state);
+        debug!(id = self.identifier, "Updating state to {new_state}");
         self.last_known_state = new_state;
 
         // If this is a kettle start a timeout for turning it of again
@@ -107,7 +107,7 @@ impl OnMqtt for IkeaOutlet {
             let timeout = match kettle.timeout.clone() {
                 Some(timeout) => timeout,
                 None => {
-                    trace!("Outlet is a kettle without timeout");
+                    trace!(id = self.identifier, "Outlet is a kettle without timeout");
                     return;
                 },
             };
@@ -117,16 +117,17 @@ impl OnMqtt for IkeaOutlet {
             // get dropped
             let client = self.client.clone();
             let topic = self.mqtt.topic.clone();
+            let id = self.identifier.clone();
             self.handle = Some(
                 tokio::spawn(async move {
-                    debug!("Starting timeout ({timeout}s) for kettle...");
+                    debug!(id, "Starting timeout ({timeout}s) for kettle...");
                     tokio::time::sleep(Duration::from_secs(timeout)).await;
                     // @TODO We need to call set_on(false) in order to turn the device off
                     // again, how are we going to do this?
-                    debug!("Turning kettle off!");
+                    debug!(id, "Turning kettle off!");
                     set_on(client, topic, false).await;
                 })
-                );
+            );
         }
     }
 }
@@ -135,10 +136,11 @@ impl OnPresence for IkeaOutlet {
     fn on_presence(&mut self, presence: bool) {
         // Turn off the outlet when we leave the house
         if !presence {
+            debug!(id = self.identifier, "Turning device off");
             let client = self.client.clone();
             let topic = self.mqtt.topic.clone();
             tokio::spawn(async move {
-            set_on(client, topic, false).await;
+                set_on(client, topic, false).await;
             });
         }
     }
