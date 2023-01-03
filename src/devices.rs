@@ -12,14 +12,15 @@ use std::collections::HashMap;
 use google_home::{GoogleHomeDevice, traits::OnOff};
 use tracing::{trace, debug, span, Level};
 
-use crate::{mqtt::OnMqtt, presence::OnPresence};
+use crate::{mqtt::OnMqtt, presence::OnPresence, light_sensor::OnDarkness};
 
 impl_cast::impl_cast!(Device, OnMqtt);
 impl_cast::impl_cast!(Device, OnPresence);
+impl_cast::impl_cast!(Device, OnDarkness);
 impl_cast::impl_cast!(Device, GoogleHomeDevice);
 impl_cast::impl_cast!(Device, OnOff);
 
-pub trait Device: AsGoogleHomeDevice + AsOnMqtt + AsOnPresence + AsOnOff {
+pub trait Device: AsGoogleHomeDevice + AsOnMqtt + AsOnPresence + AsOnDarkness + AsOnOff {
     fn get_id(&self) -> String;
 }
 
@@ -60,6 +61,7 @@ impl Devices {
 
     get_cast!(OnMqtt);
     get_cast!(OnPresence);
+    get_cast!(OnDarkness);
     get_cast!(GoogleHomeDevice);
     get_cast!(OnOff);
 
@@ -87,6 +89,16 @@ impl OnPresence for Devices {
             let _span = span!(Level::TRACE, "on_presence").entered();
             trace!(id, "Handling");
             device.on_presence(presence);
+        })
+    }
+}
+
+impl OnDarkness for Devices {
+    fn on_darkness(&mut self, dark: bool) {
+        self.as_on_darknesss().iter_mut().for_each(|(id, device)| {
+            let _span = span!(Level::TRACE, "on_darkness").entered();
+            trace!(id, "Handling");
+            device.on_darkness(dark);
         })
     }
 }

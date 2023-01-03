@@ -15,6 +15,7 @@ pub struct Config {
     #[serde(default)]
     pub ntfy: NtfyConfig,
     pub presence: MqttDeviceConfig,
+    pub light_sensor: LightSensorConfig,
     #[serde(default)]
     pub devices: HashMap<String, Device>
 }
@@ -56,6 +57,14 @@ impl Default for NtfyConfig {
 }
 
 #[derive(Debug, Deserialize)]
+pub struct LightSensorConfig {
+    #[serde(flatten)]
+    pub mqtt: MqttDeviceConfig,
+    pub min: isize,
+    pub max: isize,
+}
+
+#[derive(Debug, Deserialize)]
 pub struct InfoConfig {
     pub name: String,
     pub room: Option<String>,
@@ -75,16 +84,21 @@ pub struct KettleConfig {
 #[serde(tag = "type")]
 pub enum Device {
     IkeaOutlet {
+        #[serde(flatten)]
         info: InfoConfig,
+        #[serde(flatten)]
         mqtt: MqttDeviceConfig,
         kettle: Option<KettleConfig>,
     },
     WakeOnLAN {
+        #[serde(flatten)]
         info: InfoConfig,
+        #[serde(flatten)]
         mqtt: MqttDeviceConfig,
         mac_address: String,
     },
     AudioSetup {
+        #[serde(flatten)]
         mqtt: MqttDeviceConfig,
         mixer: [u8; 4],
         speakers: [u8; 4],

@@ -16,9 +16,8 @@ pub struct WakeOnLAN {
 
 impl WakeOnLAN {
     pub fn new(identifier: String, info: InfoConfig, mqtt: MqttDeviceConfig, mac_address: String, client: AsyncClient) -> Self {
-        let t = mqtt.topic.clone();
         // @TODO Handle potential errors here
-        client.subscribe(t, rumqttc::QoS::AtLeastOnce).block_on().unwrap();
+        client.subscribe(mqtt.topic.clone(), rumqttc::QoS::AtLeastOnce).block_on().unwrap();
 
         Self { identifier, info, mqtt, mac_address }
     }
@@ -32,7 +31,6 @@ impl Device for WakeOnLAN {
 
 impl OnMqtt for WakeOnLAN {
     fn on_mqtt(&mut self, message: &Publish) {
-
         if message.topic != self.mqtt.topic {
             return;
         }

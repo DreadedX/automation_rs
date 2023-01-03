@@ -25,10 +25,8 @@ pub struct IkeaOutlet {
 
 impl IkeaOutlet {
     pub fn new(identifier: String, info: InfoConfig, mqtt: MqttDeviceConfig, kettle: Option<KettleConfig>, client: AsyncClient) -> Self {
-        let c = client.clone();
-        let t = mqtt.topic.clone();
         // @TODO Handle potential errors here
-        c.subscribe(t, rumqttc::QoS::AtLeastOnce).block_on().unwrap();
+        client.subscribe(mqtt.topic.clone(), rumqttc::QoS::AtLeastOnce).block_on().unwrap();
 
         Self{ identifier, info, mqtt, kettle, client, last_known_state: false, handle: None }
     }
@@ -115,9 +113,7 @@ impl OnPresence for IkeaOutlet {
         // Turn off the outlet when we leave the house
         if !presence {
             debug!(id = self.identifier, "Turning device off");
-            let client = self.client.clone();
-            let topic = self.mqtt.topic.clone();
-            set_on(client, topic, false).block_on();
+            set_on(self.client.clone(), self.mqtt.topic.clone(), false).block_on();
         }
     }
 }
@@ -159,9 +155,7 @@ impl traits::OnOff for IkeaOutlet {
     }
 
     fn set_on(&mut self, on: bool) -> Result<(), ErrorCode> {
-        let client = self.client.clone();
-        let topic = self.mqtt.topic.clone();
-        set_on(client, topic, on).block_on();
+        set_on(self.client.clone(), self.mqtt.topic.clone(), on).block_on();
 
         Ok(())
     }

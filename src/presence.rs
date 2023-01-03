@@ -1,11 +1,10 @@
 use std::{sync::{Weak, RwLock}, collections::HashMap};
 
 use tracing::{debug, warn, span, Level};
-use rumqttc::{AsyncClient, Publish};
-use serde::{Serialize, Deserialize};
+use rumqttc::AsyncClient;
 use pollster::FutureExt as _;
 
-use crate::{mqtt::OnMqtt, config::MqttDeviceConfig};
+use crate::{mqtt::{OnMqtt, PresenceMessage}, config::MqttDeviceConfig};
 
 pub trait OnPresence {
     fn on_presence(&mut self, presence: bool);
@@ -41,20 +40,6 @@ impl Presence {
     }
 }
 
-#[derive(Debug, Serialize, Deserialize)]
-struct StateMessage {
-    state: bool
-}
-
-impl TryFrom<&Publish> for StateMessage {
-    type Error = anyhow::Error;
-
-    fn try_from(message: &Publish) -> Result<Self, Self::Error> {
-        serde_json::from_slice(&message.payload)
-            .or(Err(anyhow::anyhow!("Invalid message payload received: {:?}", message.payload)))
-    }
-}
-
 impl OnMqtt for Presence {
     fn on_mqtt(&mut self, message: &rumqttc::Publish) {
         if message.topic.starts_with(&(self.mqtt.topic.clone() + "/")) {
@@ -66,16 +51,16 @@ impl OnMqtt for Presence {
                 self.devices.remove(device_name);
                 return;
             } else {
-                let state = match StateMessage::try_from(message) {
-                    Ok(state) => state,
+                let present = match PresenceMessage::try_from(message) {
+                    Ok(state) => state.present(),
                     Err(err) => {
                         warn!("Failed to parse message: {err}");
                         return;
                     }
                 };
 
-                debug!("State of device [{device_name}] has changed: {}", state.state);
-                self.devices.insert(device_name.to_owned(), state.state);
+                debug!("State of device [{device_name}] has changed: {}", present);
+                self.devices.insert(device_name.to_owned(), present);
             }
 
             let overall_presence = self.devices.iter().any(|(_, v)| *v);
