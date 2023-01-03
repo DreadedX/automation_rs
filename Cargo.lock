@@ -31,10 +31,12 @@ version = "0.1.0"
 dependencies = [
  "anyhow",
  "axum",
+ "bytes",
  "dotenv",
  "google-home",
  "impl_cast",
  "paste",
+ "pollster",
  "reqwest",
  "rumqttc",
  "serde",

@@ -6,8 +6,12 @@ use serde::Serialize;
 pub enum DeviceError {
     #[error("deviceNotFound")]
     DeviceNotFound,
+    #[error("deviceOffline")]
+    DeviceOffline,
     #[error("actionNotAvailable")]
     ActionNotAvailable,
+    #[error("transientError")]
+    TransientError,
 }
 
 #[derive(Debug, Hash, PartialEq, Eq, Copy, Clone, Serialize, Error)]

@@ -4,6 +4,7 @@ use tracing::{warn, error};
 use reqwest::StatusCode;
 use serde::Serialize;
 use serde_repr::*;
+use pollster::FutureExt as _;
 
 use crate::{presence::OnPresence, config::NtfyConfig};
 
@@ -122,16 +123,14 @@ impl OnPresence for Ntfy {
             .body(serde_json::to_string(&notification).unwrap());
 
         // Send the notification
-        tokio::spawn(async move {
-            let res = req.send().await;
-            if let Err(err) = res {
-                error!("Something went wrong while sending the notifcation: {err}");
-            } else if let Ok(res) = res {
-                let status = res.status();
-                if status != StatusCode::OK {
-                    warn!("Received status {status} when sending notification");
-                }
+        let res = req.send().block_on();
+        if let Err(err) = res {
+            error!("Something went wrong while sending the notifcation: {err}");
+        } else if let Ok(res) = res {
+            let status = res.status();
+            if status != StatusCode::OK {
+                warn!("Received status {status} when sending notification");
             }
-        });
+        }
     }
 }

@@ -8,7 +8,7 @@ use dotenv::dotenv;
 use rumqttc::{MqttOptions, Transport, AsyncClient};
 use tracing::{error, info, metadata::LevelFilter};
 
-use automation::{devices::Devices, mqtt::Mqtt};
+use automation::{devices::{Devices}, mqtt::Mqtt};
 use google_home::{GoogleHome, Request};
 use tracing_subscriber::EnvFilter;
 
@@ -58,7 +58,6 @@ async fn main() {
     let presence = Arc::new(RwLock::new(presence));
     mqtt.add_listener(Arc::downgrade(&presence));
 
-
     // Start mqtt, this spawns a seperate async task
     mqtt.start();
 
@@ -66,6 +65,8 @@ async fn main() {
     config.devices
         .into_iter()
         .map(|(identifier, device_config)| {
+            // This can technically block, but this only happens during start-up, so should not be
+            // a problem
             device_config.into(identifier, client.clone())
         })
         .for_each(|device| {
@@ -75,12 +76,15 @@ async fn main() {
     // Create google home fullfillment route
     let fullfillment = Router::new()
         .route("/google_home", post(async move |Json(payload): Json<Request>| {
-            // @TODO Verify that we are actually logged in
-            // Might also be smart to get the username from here
-            let gc = GoogleHome::new(&config.fullfillment.username);
-            let result = gc.handle_request(payload, &mut devices.write().unwrap().as_google_home_devices()).unwrap();
+            // Handle request might block, so we need to spawn a blocking task
+            tokio::task::spawn_blocking(move || {
+                // @TODO Verify that we are actually logged in
+                // Might also be smart to get the username from here
+                let gc = GoogleHome::new(&config.fullfillment.username);
+                let result = gc.handle_request(payload, &mut devices.write().unwrap().as_google_home_devices()).unwrap();
 
-            (StatusCode::OK, Json(result))
+                return (StatusCode::OK, Json(result));
+            }).await.unwrap()
         }));
 
     // Combine together all the routes

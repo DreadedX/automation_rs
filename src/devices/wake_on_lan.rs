@@ -1,9 +1,9 @@
 use google_home::{GoogleHomeDevice, types::Type, device, traits::{self, Scene}, errors::{ErrorCode, DeviceError}};
 use tracing::{debug, warn};
 use rumqttc::{AsyncClient, Publish};
-use serde::Deserialize;
+use pollster::FutureExt as _;
 
-use crate::{config::{InfoConfig, MqttDeviceConfig}, mqtt::OnMqtt};
+use crate::{config::{InfoConfig, MqttDeviceConfig}, mqtt::{OnMqtt, ActivateMessage}};
 
 use super::Device;
 
@@ -18,9 +18,7 @@ impl WakeOnLAN {
     pub fn new(identifier: String, info: InfoConfig, mqtt: MqttDeviceConfig, mac_address: String, client: AsyncClient) -> Self {
         let t = mqtt.topic.clone();
         // @TODO Handle potential errors here
-        tokio::spawn(async move {
-            client.subscribe(t, rumqttc::QoS::AtLeastOnce).await.unwrap();
-        });
+        client.subscribe(t, rumqttc::QoS::AtLeastOnce).block_on().unwrap();
 
         Self { identifier, info, mqtt, mac_address }
     }
@@ -32,20 +30,6 @@ impl Device for WakeOnLAN {
     }
 }
 
-#[derive(Debug, Deserialize)]
-struct StateMessage {
-    activate: bool
-}
-
-impl TryFrom<&Publish> for StateMessage {
-    type Error = anyhow::Error;
-
-    fn try_from(message: &Publish) -> Result<Self, Self::Error> {
-        serde_json::from_slice(&message.payload)
-            .or(Err(anyhow::anyhow!("Invalid message payload received: {:?}", message.payload)))
-    }
-}
-
 impl OnMqtt for WakeOnLAN {
     fn on_mqtt(&mut self, message: &Publish) {
 
@@ -53,15 +37,15 @@ impl OnMqtt for WakeOnLAN {
             return;
         }
 
-        let payload = match StateMessage::try_from(message) {
-            Ok(state) => state,
+        let activate = match ActivateMessage::try_from(message) {
+            Ok(message) => message.activate(),
             Err(err) => {
                 warn!(id = self.identifier, "Failed to parse message: {err}");
                 return;
             }
         };
 
-        self.set_active(payload.activate).ok();
+        self.set_active(activate).ok();
     }
 }
 
@@ -97,19 +81,20 @@ impl traits::Scene for WakeOnLAN {
             // if we are inside of docker, so for now just call a webhook that does it for us
             let mac_address = self.mac_address.clone();
             let id = self.identifier.clone();
-            tokio::spawn(async move {
-                debug!(id, "Activating Computer: {}", mac_address);
-                let req = match reqwest::get(format!("http://10.0.0.2:9000/start-pc?mac={mac_address}")).await {
-                    Ok(req) => req,
-                    Err(err) => {
-                        warn!(id, "Failed to call webhook: {err}");
-                        return;
-                    }
-                };
-                if req.status() != 200 {
-                    warn!(id, "Failed to call webhook: {}", req.status());
+
+            debug!(id, "Activating Computer: {}", mac_address);
+            let req = match reqwest::get(format!("http://10.0.0.2:9000/start-pc?mac={mac_address}")).block_on() {
+                Ok(req) => req,
+                Err(err) => {
+                    warn!(id, "Failed to call webhook: {err}");
+                    // @TODO Handle error
+                    return Ok(());
                 }
-            });
+            };
+
+            if req.status() != 200 {
+                warn!(id, "Failed to call webhook: {}", req.status());
+            }
 
             Ok(())
         } else {

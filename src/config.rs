@@ -4,7 +4,7 @@ use tracing::{debug, trace};
 use rumqttc::AsyncClient;
 use serde::Deserialize;
 
-use crate::devices::{DeviceBox, IkeaOutlet, WakeOnLAN};
+use crate::devices::{DeviceBox, IkeaOutlet, WakeOnLAN, AudioSetup};
 
 // @TODO Configure more defaults
 
@@ -83,6 +83,11 @@ pub enum Device {
         info: InfoConfig,
         mqtt: MqttDeviceConfig,
         mac_address: String,
+    },
+    AudioSetup {
+        mqtt: MqttDeviceConfig,
+        mixer: [u8; 4],
+        speakers: [u8; 4],
     }
 }
 
@@ -109,6 +114,10 @@ impl Device {
             Device::WakeOnLAN { info, mqtt, mac_address } => {
                 trace!(id = identifier, "WakeOnLan [{} in {:?}]", info.name, info.room);
                 Box::new(WakeOnLAN::new(identifier, info, mqtt, mac_address, client))
+            },
+            Device::AudioSetup { mqtt, mixer, speakers } => {
+                trace!(id = identifier, "AudioSetup [{}]", identifier);
+                Box::new(AudioSetup::new(identifier, mqtt, mixer, speakers, client))
             },
         }
     }

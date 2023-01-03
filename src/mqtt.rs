@@ -1,5 +1,6 @@
 use std::sync::{Weak, RwLock};
-use tracing::{error, debug, trace, span, Level};
+use serde::{Serialize, Deserialize};
+use tracing::{error, debug, span, Level};
 
 use rumqttc::{Publish, Event, Incoming, EventLoop};
 use tokio::task::JoinHandle;
@@ -19,16 +20,12 @@ impl Mqtt {
         return Self { listeners: Vec::new(), eventloop }
     }
 
-    fn notify(&mut self, message: Publish) {
-        self.listeners.retain(|listener| {
+    fn notify(message: Publish, listeners: Vec<Weak<RwLock<dyn OnMqtt + Sync + Send>>>) {
+        let _span = span!(Level::TRACE, "mqtt_message").entered();
+        listeners.into_iter().for_each(|listener| {
             if let Some(listener) = listener.upgrade() {
                 listener.write().unwrap().on_mqtt(&message);
-                return true;
-            } else {
-                trace!("Removing listener...");
             }
-
-            return false;
         })
     }
 
@@ -43,9 +40,15 @@ impl Mqtt {
                 let notification = self.eventloop.poll().await;
                 match notification {
                     Ok(Event::Incoming(Incoming::Publish(p))) => {
-                        // Could cause problems in async
-                        let _span = span!(Level::TRACE, "mqtt_message").entered();
-                        self.notify(p);
+                        // Remove non-existing listeners
+                        self.listeners.retain(|listener| listener.strong_count() > 0);
+                        // Clone the listeners
+                        let listeners = self.listeners.clone();
+
+                        // Notify might block, so we spawn a blocking task
+                        tokio::task::spawn_blocking(move || {
+                            Mqtt::notify(p, listeners);
+                        });
                     },
                     Ok(..) => continue,
                     Err(err) => {
@@ -57,5 +60,79 @@ impl Mqtt {
 
             todo!("Error in MQTT (most likely lost connection to mqtt server), we need to handle these errors!");
         })
+    }
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+pub struct OnOffMessage {
+    state: String
+}
+
+impl OnOffMessage {
+    pub fn new(state: bool) -> Self {
+        Self { state: if state {"ON"} else {"OFF"}.into() }
+    }
+
+    pub fn state(&self) -> bool {
+        self.state == "ON"
+    }
+}
+
+impl TryFrom<&Publish> for OnOffMessage {
+    type Error = anyhow::Error;
+
+    fn try_from(message: &Publish) -> Result<Self, Self::Error> {
+        serde_json::from_slice(&message.payload)
+            .or(Err(anyhow::anyhow!("Invalid message payload received: {:?}", message.payload)))
+    }
+}
+
+#[derive(Debug, Deserialize)]
+pub struct ActivateMessage {
+    activate: bool
+}
+
+impl ActivateMessage {
+    pub fn activate(&self) -> bool {
+        self.activate
+    }
+}
+
+impl TryFrom<&Publish> for ActivateMessage {
+    type Error = anyhow::Error;
+
+    fn try_from(message: &Publish) -> Result<Self, Self::Error> {
+        serde_json::from_slice(&message.payload)
+            .or(Err(anyhow::anyhow!("Invalid message payload received: {:?}", message.payload)))
+    }
+}
+
+#[derive(Debug, Deserialize, Copy, Clone)]
+#[serde(rename_all = "snake_case")]
+pub enum RemoteAction {
+    On,
+    Off,
+    BrightnessMoveUp,
+    BrightnessMoveDown,
+    BrightnessStop,
+}
+
+#[derive(Debug, Deserialize)]
+pub struct RemoteMessage {
+    action: RemoteAction
+}
+
+impl RemoteMessage {
+    pub fn action(&self) -> RemoteAction {
+        self.action
+    }
+}
+
+impl TryFrom<&Publish> for RemoteMessage {
+    type Error = anyhow::Error;
+
+    fn try_from(message: &Publish) -> Result<Self, Self::Error> {
+        serde_json::from_slice(&message.payload)
+            .or(Err(anyhow::anyhow!("Invalid message payload received: {:?}", message.payload)))
     }
 }

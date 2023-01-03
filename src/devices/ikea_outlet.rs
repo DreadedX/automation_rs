@@ -3,13 +3,13 @@ use std::time::Duration;
 use google_home::errors::ErrorCode;
 use google_home::{GoogleHomeDevice, device, types::Type, traits};
 use rumqttc::{AsyncClient, Publish};
-use serde::{Deserialize, Serialize};
 use tracing::{debug, trace, warn};
 use tokio::task::JoinHandle;
+use pollster::FutureExt as _;
 
 use crate::config::{KettleConfig, InfoConfig, MqttDeviceConfig};
 use crate::devices::Device;
-use crate::mqtt::OnMqtt;
+use crate::mqtt::{OnMqtt, OnOffMessage};
 use crate::presence::OnPresence;
 
 pub struct IkeaOutlet {
@@ -28,22 +28,14 @@ impl IkeaOutlet {
         let c = client.clone();
         let t = mqtt.topic.clone();
         // @TODO Handle potential errors here
-        tokio::spawn(async move {
-            c.subscribe(t, rumqttc::QoS::AtLeastOnce).await.unwrap();
-        });
+        c.subscribe(t, rumqttc::QoS::AtLeastOnce).block_on().unwrap();
 
         Self{ identifier, info, mqtt, kettle, client, last_known_state: false, handle: None }
     }
 }
 
 async fn set_on(client: AsyncClient, topic: String, on: bool) {
-    let message = StateMessage{
-        state: if on {
-            "ON".to_owned()
-        } else {
-            "OFF".to_owned()
-        }
-    };
+    let message = OnOffMessage::new(on);
 
     // @TODO Handle potential errors here
     client.publish(topic + "/set", rumqttc::QoS::AtLeastOnce, false, serde_json::to_string(&message).unwrap()).await.unwrap();
@@ -55,20 +47,6 @@ impl Device for IkeaOutlet {
     }
 }
 
-#[derive(Debug, Serialize, Deserialize)]
-struct StateMessage {
-    state: String
-}
-
-impl TryFrom<&Publish> for StateMessage {
-    type Error = anyhow::Error;
-
-    fn try_from(message: &Publish) -> Result<Self, Self::Error> {
-        serde_json::from_slice(&message.payload)
-            .or(Err(anyhow::anyhow!("Invalid message payload received: {:?}", message.payload)))
-    }
-}
-
 impl OnMqtt for IkeaOutlet {
     fn on_mqtt(&mut self, message: &Publish) {
         // Update the internal state based on what the device has reported
@@ -76,16 +54,16 @@ impl OnMqtt for IkeaOutlet {
             return;
         }
 
-        let new_state = match StateMessage::try_from(message) {
-            Ok(state) => state,
+        let state = match OnOffMessage::try_from(message) {
+            Ok(state) => state.state(),
             Err(err) => {
                 warn!(id = self.identifier, "Failed to parse message: {err}");
                 return;
             }
-        }.state == "ON";
+        };
 
         // No need to do anything if the state has not changed
-        if new_state == self.last_known_state {
+        if state == self.last_known_state {
             return;
         }
 
@@ -94,11 +72,11 @@ impl OnMqtt for IkeaOutlet {
             handle.abort();
         }
 
-        debug!(id = self.identifier, "Updating state to {new_state}");
-        self.last_known_state = new_state;
+        debug!(id = self.identifier, "Updating state to {state}");
+        self.last_known_state = state;
 
         // If this is a kettle start a timeout for turning it of again
-        if new_state {
+        if state {
             let kettle = match &self.kettle {
                 Some(kettle) => kettle,
                 None => return,
@@ -139,9 +117,7 @@ impl OnPresence for IkeaOutlet {
             debug!(id = self.identifier, "Turning device off");
             let client = self.client.clone();
             let topic = self.mqtt.topic.clone();
-            tokio::spawn(async move {
-                set_on(client, topic, false).await;
-            });
+            set_on(client, topic, false).block_on();
         }
     }
 }
@@ -185,9 +161,7 @@ impl traits::OnOff for IkeaOutlet {
     fn set_on(&mut self, on: bool) -> Result<(), ErrorCode> {
         let client = self.client.clone();
         let topic = self.mqtt.topic.clone();
-        tokio::spawn(async move {
-            set_on(client, topic, on).await;
-        });
+        set_on(client, topic, on).block_on();
 
         Ok(())
     }

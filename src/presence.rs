@@ -1,8 +1,9 @@
 use std::{sync::{Weak, RwLock}, collections::HashMap};
 
-use tracing::{debug, warn, trace, span, Level};
+use tracing::{debug, warn, span, Level};
 use rumqttc::{AsyncClient, Publish};
 use serde::{Serialize, Deserialize};
+use pollster::FutureExt as _;
 
 use crate::{mqtt::OnMqtt, config::MqttDeviceConfig};
 
@@ -21,15 +22,22 @@ impl Presence {
     pub fn new(mqtt: MqttDeviceConfig, client: AsyncClient) -> Self {
         // @TODO Handle potential errors here
         let topic = mqtt.topic.clone() + "/+";
-        tokio::spawn(async move {
-            client.subscribe(topic, rumqttc::QoS::AtLeastOnce).await.unwrap();
-        });
+        client.subscribe(topic, rumqttc::QoS::AtLeastOnce).block_on().unwrap();
 
         Self { listeners: Vec::new(), devices: HashMap::new(), overall_presence: false, mqtt }
     }
 
     pub fn add_listener<T: OnPresence + Sync + Send + 'static>(&mut self, listener: Weak<RwLock<T>>) {
         self.listeners.push(listener);
+    }
+
+    pub fn notify(presence: bool, listeners: Vec<Weak<RwLock<dyn OnPresence + Sync + Send>>>) {
+        let _span = span!(Level::TRACE, "presence_update").entered();
+        listeners.into_iter().for_each(|listener| {
+            if let Some(listener) = listener.upgrade() {
+                listener.write().unwrap().on_presence(presence);
+            }
+        })
     }
 }
 
@@ -75,19 +83,15 @@ impl OnMqtt for Presence {
                 debug!("Overall presence updated: {overall_presence}");
                 self.overall_presence = overall_presence;
 
-                // This has problems in async
-                let _span = span!(Level::TRACE, "presence_update").entered();
+                // Remove non-existing listeners
+                self.listeners.retain(|listener| listener.strong_count() > 0);
+                // Clone the listeners
+                let listeners = self.listeners.clone();
 
-                self.listeners.retain(|listener| {
-                    if let Some(listener) = listener.upgrade() {
-                        listener.write().unwrap().on_presence(overall_presence);
-                        return true;
-                    } else {
-                        trace!("Removing listener...");
-                    }
-
-                    return false;
-                })
+                // Notify might block, so we spawn a blocking task
+                tokio::task::spawn_blocking(move || {
+                    Presence::notify(overall_presence, listeners);
+                });
             }
         }
     }
