@@ -9,6 +9,11 @@ username="Dreaded_X"
 [presence]
 topic = "automation_dev/presence"
 
+[hue_bridge]
+ip = "10.0.0.146"
+login = "yPZs07rEirWOKkDhAO6ggCMT9T4Xb-FJYnqnTOLF"
+flags = { presence = 41, darkness = 43 }
+
 [light_sensor]
 topic = "zigbee2mqtt_dev/living/light"
 min = 23_000

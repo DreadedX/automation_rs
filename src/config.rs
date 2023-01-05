@@ -16,6 +16,7 @@ pub struct Config {
     pub ntfy: NtfyConfig,
     pub presence: MqttDeviceConfig,
     pub light_sensor: LightSensorConfig,
+    pub hue_bridge: HueBridgeConfig,
     #[serde(default)]
     pub devices: HashMap<String, Device>
 }
@@ -62,6 +63,19 @@ pub struct LightSensorConfig {
     pub mqtt: MqttDeviceConfig,
     pub min: isize,
     pub max: isize,
+}
+
+#[derive(Debug, Deserialize)]
+pub struct Flags {
+    pub presence: isize,
+    pub darkness: isize,
+}
+
+#[derive(Debug, Deserialize)]
+pub struct HueBridgeConfig {
+    pub ip: Ipv4Addr,
+    pub login: String,
+    pub flags: Flags,
 }
 
 #[derive(Debug, Deserialize)]

@@ -3,12 +3,12 @@ use std::{time::Duration, sync::{Arc, RwLock}, process, net::SocketAddr};
 
 use axum::{Router, Json, routing::post, http::StatusCode};
 
-use automation::{config::Config, presence::Presence, ntfy::Ntfy, light_sensor::{self, LightSensor}};
+use automation::{config::Config, presence::Presence, ntfy::Ntfy, light_sensor::{self, LightSensor}, hue_bridge::HueBridge};
 use dotenv::dotenv;
 use rumqttc::{MqttOptions, Transport, AsyncClient};
 use tracing::{error, info, metadata::LevelFilter};
 
-use automation::{devices::{Devices}, mqtt::Mqtt};
+use automation::{devices::Devices, mqtt::Mqtt};
 use google_home::{GoogleHome, Request};
 use tracing_subscriber::EnvFilter;
 
@@ -54,12 +54,16 @@ async fn main() {
     let ntfy = Arc::new(RwLock::new(Ntfy::new(config.ntfy)));
     presence.add_listener(Arc::downgrade(&ntfy));
 
+    let hue_bridge = Arc::new(RwLock::new(HueBridge::new(config.hue_bridge)));
+    presence.add_listener(Arc::downgrade(&hue_bridge));
+
     // Register presence as mqtt listener
     let presence = Arc::new(RwLock::new(presence));
     mqtt.add_listener(Arc::downgrade(&presence));
 
     let mut light_sensor = LightSensor::new(config.light_sensor, client.clone());
     light_sensor.add_listener(Arc::downgrade(&devices));
+    light_sensor.add_listener(Arc::downgrade(&hue_bridge));
 
     let light_sensor = Arc::new(RwLock::new(light_sensor));
     mqtt.add_listener(Arc::downgrade(&light_sensor));
