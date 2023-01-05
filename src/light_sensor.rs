@@ -2,7 +2,7 @@ use std::sync::{Weak, RwLock};
 
 use pollster::FutureExt as _;
 use rumqttc::AsyncClient;
-use tracing::{span, Level, log::{warn, trace}, debug};
+use tracing::{span, Level, log::{error, trace}, debug};
 
 use crate::{config::{MqttDeviceConfig, LightSensorConfig}, mqtt::{OnMqtt, BrightnessMessage}};
 
@@ -49,7 +49,7 @@ impl OnMqtt for LightSensor {
         let illuminance = match BrightnessMessage::try_from(message) {
             Ok(state) => state.illuminance(),
             Err(err) => {
-                warn!("Failed to parse message: {err}");
+                error!("Failed to parse message: {err}");
                 return;
             }
         };

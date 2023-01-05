@@ -128,7 +128,7 @@ impl OnPresence for Ntfy {
             error!("Something went wrong while sending the notifcation: {err}");
         } else if let Ok(res) = res {
             let status = res.status();
-            if status != StatusCode::OK {
+            if !status.is_success() {
                 warn!("Received status {status} when sending notification");
             }
         }

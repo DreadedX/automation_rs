@@ -1,6 +1,6 @@
 use std::{sync::{Weak, RwLock}, collections::HashMap};
 
-use tracing::{debug, warn, span, Level};
+use tracing::{debug, span, Level, error};
 use rumqttc::AsyncClient;
 use pollster::FutureExt as _;
 
@@ -54,7 +54,7 @@ impl OnMqtt for Presence {
                 let present = match PresenceMessage::try_from(message) {
                     Ok(state) => state.present(),
                     Err(err) => {
-                        warn!("Failed to parse message: {err}");
+                        error!("Failed to parse message: {err}");
                         return;
                     }
                 };

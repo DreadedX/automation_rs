@@ -6,7 +6,7 @@ use google_home::errors::{ErrorCode, DeviceError};
 use google_home::traits::{self, OnOff};
 use rumqttc::AsyncClient;
 use serde::{Deserialize, Serialize};
-use tracing::warn;
+use tracing::{error, warn};
 use pollster::FutureExt as _;
 
 use crate::config::MqttDeviceConfig;
@@ -232,7 +232,7 @@ impl OnMqtt for AudioSetup {
         let action = match RemoteMessage::try_from(message) {
             Ok(message) => message.action(),
             Err(err) => {
-                warn!(id = self.identifier, "Failed to parse message: {err}");
+                error!(id = self.identifier, "Failed to parse message: {err}");
                 return;
             }
         };

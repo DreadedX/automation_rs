@@ -3,7 +3,7 @@ use std::time::Duration;
 use google_home::errors::ErrorCode;
 use google_home::{GoogleHomeDevice, device, types::Type, traits};
 use rumqttc::{AsyncClient, Publish};
-use tracing::{debug, trace, warn};
+use tracing::{debug, trace, error};
 use tokio::task::JoinHandle;
 use pollster::FutureExt as _;
 
@@ -55,7 +55,7 @@ impl OnMqtt for IkeaOutlet {
         let state = match OnOffMessage::try_from(message) {
             Ok(state) => state.state(),
             Err(err) => {
-                warn!(id = self.identifier, "Failed to parse message: {err}");
+                error!(id = self.identifier, "Failed to parse message: {err}");
                 return;
             }
         };
