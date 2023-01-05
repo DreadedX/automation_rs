@@ -81,7 +81,7 @@ impl OnMqtt for IkeaOutlet {
             };
 
             let timeout = match kettle.timeout.clone() {
-                Some(timeout) => timeout,
+                Some(timeout) => Duration::from_secs(timeout),
                 None => {
                     trace!(id = self.identifier, "Outlet is a kettle without timeout");
                     return;
@@ -96,8 +96,8 @@ impl OnMqtt for IkeaOutlet {
             let id = self.identifier.clone();
             self.handle = Some(
                 tokio::spawn(async move {
-                    debug!(id, "Starting timeout ({timeout}s) for kettle...");
-                    tokio::time::sleep(Duration::from_secs(timeout)).await;
+                    debug!(id, "Starting timeout ({timeout:?}) for kettle...");
+                    tokio::time::sleep(timeout).await;
                     // @TODO We need to call set_on(false) in order to turn the device off
                     // again, how are we going to do this?
                     debug!(id, "Turning kettle off!");
