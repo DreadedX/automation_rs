@@ -1,4 +1,4 @@
-use std::{fs, error::Error, collections::HashMap};
+use std::{fs, error::Error, collections::HashMap, net::Ipv4Addr};
 
 use tracing::{debug, trace};
 use rumqttc::AsyncClient;
@@ -100,8 +100,8 @@ pub enum Device {
     AudioSetup {
         #[serde(flatten)]
         mqtt: MqttDeviceConfig,
-        mixer: [u8; 4],
-        speakers: [u8; 4],
+        mixer: Ipv4Addr,
+        speakers: Ipv4Addr,
     }
 }
 

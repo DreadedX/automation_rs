@@ -10,7 +10,7 @@ username="Dreaded_X"
 topic = "automation_dev/presence"
 
 [light_sensor]
-topic = "zigbee2mqtt/living/light"
+topic = "zigbee2mqtt_dev/living/light"
 min = 23_000
 max = 25_000
 
@@ -37,5 +37,5 @@ mac_address = "30:9c:23:60:9c:13"
 [devices.audio]
 type = "AudioSetup"
 topic = "zigbee2mqtt/living/remote"
-mixer = [10, 0, 0, 49]
-speakers = [10, 0, 0, 182]
+mixer = "10.0.0.49"
+speakers = "10.0.0.182"

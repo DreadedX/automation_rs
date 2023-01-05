@@ -1,5 +1,5 @@
 use std::io::{Write, Read};
-use std::net::{TcpStream, SocketAddr};
+use std::net::{TcpStream, SocketAddr, Ipv4Addr};
 
 use bytes::{BufMut, Buf};
 use google_home::errors::{ErrorCode, DeviceError};
@@ -19,25 +19,12 @@ struct TPLinkOutlet {
 }
 
 impl TPLinkOutlet {
-    pub fn new(ip: [u8; 4]) -> Self {
+    pub fn new(ip: Ipv4Addr) -> Self {
         // @TODO Get the current state of the outlet
         Self { addr: (ip, 9999).into() }
     }
-
-    pub fn encrypt(data: bytes::Bytes) -> bytes::Bytes {
-        let mut key: u8 = 171;
-        let mut encrypted = bytes::BytesMut::with_capacity(data.len() + 4);
-
-        encrypted.put_u32(data.len() as u32);
-
-        for c in data {
-            key = key ^ c;
-            encrypted.put_u8(key);
-        }
-
-        return encrypted.freeze();
-    }
 }
+
 #[derive(Debug, Serialize)]
 struct RequestRelayState {
     state: isize,
@@ -79,7 +66,6 @@ impl Request {
             }
         }
     }
-
 
     fn encrypt(&self) -> bytes::Bytes {
         let data: bytes::Bytes = serde_json::to_string(self).unwrap().into();
@@ -221,7 +207,7 @@ pub struct AudioSetup {
 }
 
 impl AudioSetup {
-    pub fn new(identifier: String, mqtt: MqttDeviceConfig, mixer_ip: [u8; 4], speakers_ip: [u8; 4], client: AsyncClient) -> Self {
+    pub fn new(identifier: String, mqtt: MqttDeviceConfig, mixer_ip: Ipv4Addr, speakers_ip: Ipv4Addr, client: AsyncClient) -> Self {
         let mixer = TPLinkOutlet::new(mixer_ip);
         let speakers = TPLinkOutlet::new(speakers_ip);
 
