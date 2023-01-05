@@ -4,7 +4,7 @@ use tracing::{debug, trace};
 use rumqttc::AsyncClient;
 use serde::Deserialize;
 
-use crate::devices::{DeviceBox, IkeaOutlet, WakeOnLAN, AudioSetup};
+use crate::devices::{DeviceBox, IkeaOutlet, WakeOnLAN, AudioSetup, ContactSensor};
 
 // @TODO Configure more defaults
 
@@ -95,6 +95,15 @@ pub struct KettleConfig {
 }
 
 #[derive(Debug, Deserialize)]
+pub struct PresenceDeviceConfig {
+    #[serde(flatten)]
+    pub mqtt: MqttDeviceConfig,
+    // @TODO Maybe make this an option? That way if no timeout is set it will immediately turn the
+    // device off again?
+    pub timeout: u64 // Timeout in seconds
+}
+
+#[derive(Debug, Deserialize)]
 #[serde(tag = "type")]
 pub enum Device {
     IkeaOutlet {
@@ -116,6 +125,11 @@ pub enum Device {
         mqtt: MqttDeviceConfig,
         mixer: Ipv4Addr,
         speakers: Ipv4Addr,
+    },
+    ContactSensor {
+        #[serde(flatten)]
+        mqtt: MqttDeviceConfig,
+        presence: Option<PresenceDeviceConfig>,
     }
 }
 
@@ -146,6 +160,10 @@ impl Device {
             Device::AudioSetup { mqtt, mixer, speakers } => {
                 trace!(id = identifier, "AudioSetup [{}]", identifier);
                 Box::new(AudioSetup::new(identifier, mqtt, mixer, speakers, client))
+            },
+            Device::ContactSensor { mqtt, presence } => {
+                trace!(id = identifier, "ContactSensor [{}]", identifier);
+                Box::new(ContactSensor::new(identifier, mqtt, presence, client))
             },
         }
     }

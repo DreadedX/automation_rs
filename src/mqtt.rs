@@ -137,12 +137,16 @@ impl TryFrom<&Publish> for RemoteMessage {
     }
 }
 
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Deserialize, Serialize)]
 pub struct PresenceMessage {
     state: bool
 }
 
 impl PresenceMessage {
+    pub fn new(state: bool) -> Self {
+        Self { state }
+    }
+
     pub fn present(&self) -> bool {
         self.state
     }
@@ -169,6 +173,26 @@ impl BrightnessMessage {
 }
 
 impl TryFrom<&Publish> for BrightnessMessage {
+    type Error = anyhow::Error;
+
+    fn try_from(message: &Publish) -> Result<Self, Self::Error> {
+        serde_json::from_slice(&message.payload)
+            .or(Err(anyhow::anyhow!("Invalid message payload received: {:?}", message.payload)))
+    }
+}
+
+#[derive(Debug, Deserialize)]
+pub struct ContactMessage {
+    contact: bool,
+}
+
+impl ContactMessage {
+    pub fn is_closed(&self) -> bool {
+        self.contact
+    }
+}
+
+impl TryFrom<&Publish> for ContactMessage {
     type Error = anyhow::Error;
 
     fn try_from(message: &Publish) -> Result<Self, Self::Error> {

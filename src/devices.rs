@@ -7,6 +7,9 @@ pub use self::wake_on_lan::WakeOnLAN;
 mod audio_setup;
 pub use self::audio_setup::AudioSetup;
 
+mod contact_sensor;
+pub use self::contact_sensor::ContactSensor;
+
 use std::collections::HashMap;
 
 use google_home::{GoogleHomeDevice, traits::OnOff};
