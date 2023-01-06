@@ -28,7 +28,7 @@ pub struct OpenIDConfig {
     pub base_url: String
 }
 
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Clone, Deserialize)]
 pub struct MqttConfig {
     pub host: String,
     pub port: u16,
@@ -96,32 +96,43 @@ pub struct HueBridgeConfig {
     pub flags: Flags,
 }
 
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Clone, Deserialize)]
 pub struct InfoConfig {
     pub name: String,
     pub room: Option<String>,
 }
 
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Clone, Deserialize)]
 pub struct MqttDeviceConfig {
     pub topic: String,
 }
 
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Clone, Deserialize)]
 pub struct KettleConfig {
     pub timeout: Option<u64>, // Timeout in seconds
 }
 
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Clone, Deserialize)]
 pub struct PresenceDeviceConfig {
     #[serde(flatten)]
-    pub mqtt: MqttDeviceConfig,
+    pub mqtt: Option<MqttDeviceConfig>,
     // @TODO Maybe make this an option? That way if no timeout is set it will immediately turn the
     // device off again?
     pub timeout: u64 // Timeout in seconds
 }
 
-#[derive(Debug, Deserialize)]
+impl PresenceDeviceConfig {
+    /// Set the mqtt topic to an appropriate value if it is not already set
+    fn generate_topic(&mut self, identifier: &str, config: &Config) {
+        if self.mqtt.is_none() {
+            let topic = config.presence.topic.clone() + "/" + identifier;
+            trace!("Setting presence mqtt topic: {topic}");
+            self.mqtt = Some(MqttDeviceConfig { topic });
+        }
+    }
+}
+
+#[derive(Debug, Clone, Deserialize)]
 #[serde(tag = "type")]
 pub enum Device {
     IkeaOutlet {
@@ -182,7 +193,7 @@ impl Config {
 }
 
 impl Device {
-    pub fn into(self, identifier: String, client: AsyncClient) -> DeviceBox {
+    pub fn into(self, identifier: String, config: &Config, client: AsyncClient) -> DeviceBox {
         match self {
             Device::IkeaOutlet { info, mqtt, kettle } => {
                 trace!(id = identifier, "IkeaOutlet [{} in {:?}]", info.name, info.room);
@@ -196,8 +207,11 @@ impl Device {
                 trace!(id = identifier, "AudioSetup [{}]", identifier);
                 Box::new(AudioSetup::new(identifier, mqtt, mixer, speakers, client))
             },
-            Device::ContactSensor { mqtt, presence } => {
+            Device::ContactSensor { mqtt, mut presence } => {
                 trace!(id = identifier, "ContactSensor [{}]", identifier);
+                if let Some(presence) = &mut presence {
+                    presence.generate_topic(&identifier, &config);
+                }
                 Box::new(ContactSensor::new(identifier, mqtt, presence, client))
             },
         }

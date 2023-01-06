@@ -3,7 +3,7 @@ use std::time::Duration;
 use pollster::FutureExt;
 use rumqttc::AsyncClient;
 use tokio::task::JoinHandle;
-use tracing::{error, debug};
+use tracing::{error, debug, warn};
 
 use crate::{config::{MqttDeviceConfig, PresenceDeviceConfig}, mqtt::{OnMqtt, ContactMessage, PresenceMessage}};
 
@@ -68,17 +68,25 @@ impl OnMqtt for ContactSensor {
             None => return,
         };
 
+        let topic = match &presence.mqtt {
+            Some(mqtt) => mqtt.topic.clone(),
+            None => {
+                warn!("Contact sensors is configured as a presence sensor, but no mqtt topic is specified");
+                return;
+            }
+        };
+
         if !is_closed {
             // Activate presence and stop any timeout once we open the door
             if let Some(handle) = self.handle.take() {
                 handle.abort();
             }
 
-            self.client.publish(presence.mqtt.topic.clone(), rumqttc::QoS::AtLeastOnce, false, serde_json::to_string(&PresenceMessage::new(true)).unwrap()).block_on().unwrap();
+
+            self.client.publish(topic, rumqttc::QoS::AtLeastOnce, false, serde_json::to_string(&PresenceMessage::new(true)).unwrap()).block_on().unwrap();
         } else {
             // Once the door is closed again we start a timeout for removing the presence
             let client = self.client.clone();
-            let topic = presence.mqtt.topic.clone();
             let id = self.identifier.clone();
             let timeout = Duration::from_secs(presence.timeout);
             self.handle = Some(

@@ -44,8 +44,9 @@ async fn main() {
     info!("Starting automation_rs...");
 
     // Configure MQTT
-    let mut mqttoptions = MqttOptions::new("rust-test", config.mqtt.host, config.mqtt.port);
-    mqttoptions.set_credentials(config.mqtt.username, config.mqtt.password);
+    let mqtt = config.mqtt.clone();
+    let mut mqttoptions = MqttOptions::new("rust-test", mqtt.host, mqtt.port);
+    mqttoptions.set_credentials(mqtt.username, mqtt.password);
     mqttoptions.set_keep_alive(Duration::from_secs(5));
     mqttoptions.set_transport(Transport::tls_with_default_config());
 
@@ -56,6 +57,18 @@ async fn main() {
     // Create device holder and register it as listener for mqtt
     let devices = Arc::new(RwLock::new(Devices::new()));
     mqtt.add_listener(Arc::downgrade(&devices));
+
+    // Turn the config into actual devices and add them
+    config.devices.clone()
+        .into_iter()
+        .map(|(identifier, device_config)| {
+            // This can technically block, but this only happens during start-up, so should not be
+            // a problem
+            device_config.into(identifier, &config, client.clone())
+        })
+        .for_each(|device| {
+            devices.write().unwrap().add_device(device);
+        });
 
     // Setup presence system
     let mut presence = Presence::new(config.presence, client.clone());
@@ -81,18 +94,6 @@ async fn main() {
 
     // Start mqtt, this spawns a seperate async task
     mqtt.start();
-
-    // Turn the config into actual devices and add them
-    config.devices
-        .into_iter()
-        .map(|(identifier, device_config)| {
-            // This can technically block, but this only happens during start-up, so should not be
-            // a problem
-            device_config.into(identifier, client.clone())
-        })
-        .for_each(|device| {
-            devices.write().unwrap().add_device(device);
-        });
 
     // Create google home fullfillment route
     let fullfillment = Router::new()

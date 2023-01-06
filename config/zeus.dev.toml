@@ -52,5 +52,4 @@ speakers = "10.0.0.182"
 [devices.hallway_frontdoor]
 type = "ContactSensor"
 topic = "zigbee2mqtt/hallway/frontdoor"
-# @TODO This should be automatically constructed from the identifier and presence topic
-presence = { topic = "automation_dev/presence/frontdoor", timeout = 10 }
+presence = { timeout = 10 }
