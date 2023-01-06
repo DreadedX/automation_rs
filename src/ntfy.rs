@@ -89,7 +89,7 @@ impl Notification {
 
 impl Ntfy {
     pub fn new(config: NtfyConfig) -> Self {
-        Self { base_url: config.url, topic: config.topic.unwrap() }
+        Self { base_url: config.url, topic: config.topic }
     }
 }
 

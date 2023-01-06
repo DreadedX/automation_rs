@@ -1,6 +1,7 @@
 use std::{fs, error::Error, collections::HashMap, net::{Ipv4Addr, SocketAddr}};
 
-use tracing::{debug, trace};
+use regex::{Regex, Captures};
+use tracing::{debug, trace, warn};
 use rumqttc::AsyncClient;
 use serde::Deserialize;
 
@@ -14,7 +15,6 @@ pub struct Config {
     pub mqtt: MqttConfig,
     #[serde(default)]
     pub fullfillment: FullfillmentConfig,
-    #[serde(default)]
     pub ntfy: NtfyConfig,
     pub presence: MqttDeviceConfig,
     pub light_sensor: LightSensorConfig,
@@ -33,7 +33,7 @@ pub struct MqttConfig {
     pub host: String,
     pub port: u16,
     pub username: String,
-    pub password: Option<String>,
+    pub password: String,
 }
 
 #[derive(Debug, Deserialize)]
@@ -68,17 +68,11 @@ fn default_fullfillment_port() -> u16 {
 pub struct NtfyConfig {
     #[serde(default = "default_ntfy_url")]
     pub url: String,
-    pub topic: Option<String>,
+    pub topic: String,
 }
 
 fn default_ntfy_url() -> String {
     "https://ntfy.sh".into()
-}
-
-impl Default for NtfyConfig {
-    fn default() -> Self {
-        Self { url: default_ntfy_url(), topic: None }
-    }
 }
 
 #[derive(Debug, Deserialize)]
@@ -161,11 +155,23 @@ impl Config {
     pub fn build(filename: &str) -> Result<Self, Box<dyn Error>> {
         debug!("Loading config: {filename}");
         let file = fs::read_to_string(filename)?;
-        let mut config: Self = toml::from_str(&file)?;
 
-        config.mqtt.password = Some(std::env::var("MQTT_PASSWORD").or(config.mqtt.password.ok_or("MQTT password needs to be set in either config [mqtt.password] or the environment [MQTT_PASSWORD]"))?);
-        config.ntfy.topic = Some(std::env::var("NTFY_TOPIC").or(config.ntfy.topic.ok_or("ntfy.sh topic needs to be set in either config [ntfy.url] or the environment [NTFY_TOPIC]!"))?);
+        // Substitute in environment variables
+        let re = Regex::new(r"\$\{(.*)\}").unwrap();
+        let file = re.replace_all(&file, |caps: &Captures| {
+            let key = caps.get(1).unwrap().as_str();
+            debug!("Substituting '{key}' in config");
+            match std::env::var(key) {
+                Ok(value) => value,
+                Err(_) => {
+                    // @TODO Would be nice if we could propagate this error upwards
+                    warn!("Environment variable '{key}' is not set, using empty string as default");
+                    "".to_string()
+                }
+            }
+        });
 
+        let config = toml::from_str(&file)?;
         Ok(config)
     }
 }

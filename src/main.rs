@@ -1,5 +1,5 @@
 #![feature(async_closure)]
-use std::{time::Duration, sync::{Arc, RwLock}, process, net::SocketAddr};
+use std::{time::Duration, sync::{Arc, RwLock}, process};
 
 use axum::{Router, Json, routing::post, http::StatusCode, extract::FromRef};
 
@@ -45,7 +45,7 @@ async fn main() {
 
     // Configure MQTT
     let mut mqttoptions = MqttOptions::new("rust-test", config.mqtt.host, config.mqtt.port);
-    mqttoptions.set_credentials(config.mqtt.username, config.mqtt.password.unwrap());
+    mqttoptions.set_credentials(config.mqtt.username, config.mqtt.password);
     mqttoptions.set_keep_alive(Duration::from_secs(5));
     mqttoptions.set_transport(Transport::tls_with_default_config());
 

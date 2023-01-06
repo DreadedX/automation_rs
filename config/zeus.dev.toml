@@ -5,6 +5,10 @@ base_url = "https://login.huizinga.dev/api/oidc"
 host="olympus.lan.huizinga.dev"
 port=8883
 username="mqtt"
+password="${MQTT_PASSWORD}"
+
+[ntfy]
+topic = "${NTFY_TOPIC}"
 
 [presence]
 topic = "automation_dev/presence"
