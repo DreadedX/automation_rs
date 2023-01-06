@@ -44,8 +44,8 @@ impl OnMqtt for Presence {
             return;
         }
 
-        // @TODO More robust mechanism for splitting
-        let device_name = message.topic.rsplit_once("/").unwrap().1;
+        let offset = self.mqtt.topic.find('+').or(self.mqtt.topic.find('#')).unwrap();
+        let device_name = &message.topic[offset..];
 
         if message.payload.len() == 0 {
             // Remove the device from the map
