@@ -2,7 +2,7 @@ use std::{fs, error::Error, collections::HashMap, net::{Ipv4Addr, SocketAddr}};
 
 use regex::{Regex, Captures};
 use tracing::{debug, trace, error};
-use rumqttc::AsyncClient;
+use rumqttc::{AsyncClient, has_wildcards};
 use serde::Deserialize;
 
 use crate::devices::{DeviceBox, IkeaOutlet, WakeOnLAN, AudioSetup, ContactSensor};
@@ -125,7 +125,7 @@ impl PresenceDeviceConfig {
     /// Set the mqtt topic to an appropriate value if it is not already set
     fn generate_topic(&mut self, identifier: &str, config: &Config) {
         if self.mqtt.is_none() {
-            let topic = config.presence.topic.clone() + "/" + identifier;
+            let topic = config.presence.topic.replace('+', identifier).replace('#', identifier);
             trace!("Setting presence mqtt topic: {topic}");
             self.mqtt = Some(MqttDeviceConfig { topic });
         }
@@ -187,7 +187,16 @@ impl Config {
             return Err("Missing environment variables".into());
         }
 
-        let config = toml::from_str(&file)?;
+        let config: Config = toml::from_str(&file)?;
+
+        // Some extra config validation
+        if !has_wildcards(&config.presence.topic) {
+            return Err(format!("Invalid presence topic '{}', needs to contain a wildcard (+/#) in order to listen to presence devices", config.presence.topic).into());
+        }
+
+        // @TODO It would be nice it was possible to add validation to serde,
+        // that way we can check that the provided mqtt topics are actually valid
+
         Ok(config)
     }
 }

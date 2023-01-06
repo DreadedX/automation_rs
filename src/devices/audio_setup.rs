@@ -4,7 +4,7 @@ use std::net::{TcpStream, SocketAddr, Ipv4Addr};
 use bytes::{BufMut, Buf};
 use google_home::errors::{ErrorCode, DeviceError};
 use google_home::traits::{self, OnOff};
-use rumqttc::AsyncClient;
+use rumqttc::{AsyncClient, matches};
 use serde::{Deserialize, Serialize};
 use tracing::{error, warn};
 use pollster::FutureExt as _;
@@ -225,7 +225,7 @@ impl Device for AudioSetup {
 
 impl OnMqtt for AudioSetup {
     fn on_mqtt(&mut self, message: &rumqttc::Publish) {
-        if message.topic != self.mqtt.topic {
+        if !matches(&message.topic, &self.mqtt.topic) {
             return;
         }
 

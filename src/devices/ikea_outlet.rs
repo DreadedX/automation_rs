@@ -2,7 +2,7 @@ use std::time::Duration;
 
 use google_home::errors::ErrorCode;
 use google_home::{GoogleHomeDevice, device, types::Type, traits};
-use rumqttc::{AsyncClient, Publish};
+use rumqttc::{AsyncClient, Publish, matches};
 use tracing::{debug, trace, error};
 use tokio::task::JoinHandle;
 use pollster::FutureExt as _;
@@ -48,7 +48,7 @@ impl Device for IkeaOutlet {
 impl OnMqtt for IkeaOutlet {
     fn on_mqtt(&mut self, message: &Publish) {
         // Update the internal state based on what the device has reported
-        if message.topic != self.mqtt.topic {
+        if !matches(&message.topic, &self.mqtt.topic) {
             return;
         }
 

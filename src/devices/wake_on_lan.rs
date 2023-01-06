@@ -1,6 +1,6 @@
 use google_home::{GoogleHomeDevice, types::Type, device, traits::{self, Scene}, errors::{ErrorCode, DeviceError}};
 use tracing::{debug, error};
-use rumqttc::{AsyncClient, Publish};
+use rumqttc::{AsyncClient, Publish, matches};
 use pollster::FutureExt as _;
 
 use crate::{config::{InfoConfig, MqttDeviceConfig}, mqtt::{OnMqtt, ActivateMessage}};
@@ -31,7 +31,7 @@ impl Device for WakeOnLAN {
 
 impl OnMqtt for WakeOnLAN {
     fn on_mqtt(&mut self, message: &Publish) {
-        if message.topic != self.mqtt.topic {
+        if !matches(&message.topic, &self.mqtt.topic) {
             return;
         }
 

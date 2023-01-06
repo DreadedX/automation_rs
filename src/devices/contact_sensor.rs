@@ -1,7 +1,7 @@
 use std::time::Duration;
 
 use pollster::FutureExt;
-use rumqttc::AsyncClient;
+use rumqttc::{AsyncClient, matches};
 use tokio::task::JoinHandle;
 use tracing::{error, debug, warn};
 
@@ -50,7 +50,7 @@ impl OnPresence for ContactSensor {
 
 impl OnMqtt for ContactSensor {
     fn on_mqtt(&mut self, message: &rumqttc::Publish) {
-        if message.topic != self.mqtt.topic {
+        if !matches(&message.topic, &self.mqtt.topic) {
             return;
         }
 

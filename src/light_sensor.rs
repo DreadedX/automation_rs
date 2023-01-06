@@ -1,7 +1,7 @@
 use std::sync::{Weak, RwLock};
 
 use pollster::FutureExt as _;
-use rumqttc::AsyncClient;
+use rumqttc::{AsyncClient, matches};
 use tracing::{span, Level, log::{error, trace}, debug};
 
 use crate::{config::{MqttDeviceConfig, LightSensorConfig}, mqtt::{OnMqtt, BrightnessMessage}};
@@ -42,7 +42,7 @@ impl LightSensor {
 
 impl OnMqtt for LightSensor {
     fn on_mqtt(&mut self, message: &rumqttc::Publish) {
-        if message.topic != self.mqtt.topic {
+        if !matches(&message.topic, &self.mqtt.topic) {
             return;
         }
 
