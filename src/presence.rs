@@ -1,5 +1,6 @@
-use std::{sync::{Weak, RwLock}, collections::HashMap};
+use std::{sync::Weak, collections::HashMap};
 
+use parking_lot::RwLock;
 use tracing::{debug, span, Level, error};
 use rumqttc::{AsyncClient, matches};
 use pollster::FutureExt as _;
@@ -32,7 +33,7 @@ impl Presence {
         let _span = span!(Level::TRACE, "presence_update").entered();
         listeners.into_iter().for_each(|listener| {
             if let Some(listener) = listener.upgrade() {
-                listener.write().unwrap().on_presence(presence);
+                listener.write().on_presence(presence);
             }
         })
     }

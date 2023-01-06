@@ -1,5 +1,6 @@
-use std::sync::{Weak, RwLock};
+use std::sync::Weak;
 
+use parking_lot::RwLock;
 use pollster::FutureExt as _;
 use rumqttc::{AsyncClient, matches};
 use tracing::{span, Level, log::{error, trace}, debug};
@@ -34,7 +35,7 @@ impl LightSensor {
         let _span = span!(Level::TRACE, "darkness_update").entered();
         listeners.into_iter().for_each(|listener| {
             if let Some(listener) = listener.upgrade() {
-                listener.write().unwrap().on_darkness(dark);
+                listener.write().on_darkness(dark);
             }
         })
     }

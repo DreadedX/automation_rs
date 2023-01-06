@@ -1,5 +1,6 @@
 #![feature(async_closure)]
-use std::{time::Duration, sync::{Arc, RwLock}, process};
+use std::{time::Duration, sync::Arc, process};
+use parking_lot::RwLock;
 
 use axum::{Router, Json, routing::post, http::StatusCode, extract::FromRef};
 
@@ -67,7 +68,7 @@ async fn main() {
             device_config.into(identifier, &config, client.clone())
         })
         .for_each(|device| {
-            devices.write().unwrap().add_device(device);
+            devices.write().add_device(device);
         });
 
     // Setup presence system
@@ -101,7 +102,7 @@ async fn main() {
             // Handle request might block, so we need to spawn a blocking task
             tokio::task::spawn_blocking(move || {
                 let gc = GoogleHome::new(&user.preferred_username);
-                let result = gc.handle_request(payload, &mut devices.write().unwrap().as_google_home_devices()).unwrap();
+                let result = gc.handle_request(payload, &mut devices.write().as_google_home_devices()).unwrap();
 
                 return (StatusCode::OK, Json(result));
             }).await.unwrap()

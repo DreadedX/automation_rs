@@ -1,4 +1,5 @@
-use std::sync::{Weak, RwLock};
+use std::sync::Weak;
+use parking_lot::RwLock;
 use serde::{Serialize, Deserialize};
 use tracing::{error, debug, span, Level};
 
@@ -24,7 +25,7 @@ impl Mqtt {
         let _span = span!(Level::TRACE, "mqtt_message").entered();
         listeners.into_iter().for_each(|listener| {
             if let Some(listener) = listener.upgrade() {
-                listener.write().unwrap().on_mqtt(&message);
+                listener.write().on_mqtt(&message);
             }
         })
     }

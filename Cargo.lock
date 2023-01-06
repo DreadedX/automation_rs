@@ -44,6 +44,7 @@ dependencies = [
  "dotenv",
  "google-home",
  "impl_cast",
+ "parking_lot",
  "paste",
  "pollster",
  "regex",
