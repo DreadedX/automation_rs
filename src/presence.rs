@@ -49,7 +49,6 @@ impl OnMqtt for Presence {
                 // Remove the device from the map
                 debug!("State of device [{device_name}] has been removed");
                 self.devices.remove(device_name);
-                return;
             } else {
                 let present = match PresenceMessage::try_from(message) {
                     Ok(state) => state.present(),
