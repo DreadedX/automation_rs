@@ -38,10 +38,9 @@ impl HueBridge {
         };
 
         let url = format!("http://{}/api/{}/sensors/{flag}/state", self.addr, self.login);
-        let json = serde_json::to_string(&FlagMessage{ flag: value }).unwrap();
-        let client = reqwest::Client::new();
-        let res = client.put(url)
-            .body(json)
+        let res = reqwest::Client::new()
+            .put(url)
+            .json(&FlagMessage { flag: value })
             .send()
             .block_on();
 

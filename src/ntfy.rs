@@ -1,7 +1,6 @@
 use std::collections::HashMap;
 
 use tracing::{warn, error};
-use reqwest::StatusCode;
 use serde::Serialize;
 use serde_repr::*;
 use pollster::FutureExt as _;
@@ -118,12 +117,12 @@ impl OnPresence for Ntfy {
             .set_priority(Priority::Low);
 
         // Create the request
-        let req = reqwest::Client::new()
+        let res = reqwest::Client::new()
             .post(self.base_url.clone())
-            .body(serde_json::to_string(&notification).unwrap());
+            .json(&notification)
+            .send()
+            .block_on();
 
-        // Send the notification
-        let res = req.send().block_on();
         if let Err(err) = res {
             error!("Something went wrong while sending the notifcation: {err}");
         } else if let Ok(res) = res {
