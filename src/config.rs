@@ -1,4 +1,4 @@
-use std::{fs, error::Error, collections::HashMap, net::Ipv4Addr};
+use std::{fs, error::Error, collections::HashMap, net::{Ipv4Addr, SocketAddr}};
 
 use tracing::{debug, trace};
 use rumqttc::AsyncClient;
@@ -10,7 +10,9 @@ use crate::devices::{DeviceBox, IkeaOutlet, WakeOnLAN, AudioSetup, ContactSensor
 
 #[derive(Debug, Deserialize)]
 pub struct Config {
+    pub openid: OpenIDConfig,
     pub mqtt: MqttConfig,
+    #[serde(default)]
     pub fullfillment: FullfillmentConfig,
     #[serde(default)]
     pub ntfy: NtfyConfig,
@@ -19,6 +21,11 @@ pub struct Config {
     pub hue_bridge: HueBridgeConfig,
     #[serde(default)]
     pub devices: HashMap<String, Device>
+}
+
+#[derive(Debug, Clone, Deserialize)]
+pub struct OpenIDConfig {
+    pub base_url: String
 }
 
 #[derive(Debug, Deserialize)]
@@ -31,9 +38,26 @@ pub struct MqttConfig {
 
 #[derive(Debug, Deserialize)]
 pub struct FullfillmentConfig {
+    #[serde(default = "default_fullfillment_ip")]
+    pub ip: Ipv4Addr,
     #[serde(default = "default_fullfillment_port")]
     pub port: u16,
-    pub username: String,
+}
+
+impl From<FullfillmentConfig> for SocketAddr {
+    fn from(fullfillment: FullfillmentConfig) -> Self {
+        (fullfillment.ip, fullfillment.port).into()
+    }
+}
+
+impl Default for FullfillmentConfig {
+    fn default() -> Self {
+        Self { ip: default_fullfillment_ip(), port: default_fullfillment_port() }
+    }
+}
+
+fn default_fullfillment_ip() -> Ipv4Addr {
+    [127, 0, 0, 1].into()
 }
 
 fn default_fullfillment_port() -> u16 {

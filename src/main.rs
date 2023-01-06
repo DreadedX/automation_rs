@@ -1,9 +1,9 @@
 #![feature(async_closure)]
 use std::{time::Duration, sync::{Arc, RwLock}, process, net::SocketAddr};
 
-use axum::{Router, Json, routing::post, http::StatusCode};
+use axum::{Router, Json, routing::post, http::StatusCode, extract::FromRef};
 
-use automation::{config::Config, presence::Presence, ntfy::Ntfy, light_sensor::{self, LightSensor}, hue_bridge::HueBridge};
+use automation::{config::{Config, OpenIDConfig}, presence::Presence, ntfy::Ntfy, light_sensor::LightSensor, hue_bridge::HueBridge, auth::User};
 use dotenv::dotenv;
 use rumqttc::{MqttOptions, Transport, AsyncClient};
 use tracing::{error, info, metadata::LevelFilter};
@@ -11,6 +11,17 @@ use tracing::{error, info, metadata::LevelFilter};
 use automation::{devices::Devices, mqtt::Mqtt};
 use google_home::{GoogleHome, Request};
 use tracing_subscriber::EnvFilter;
+
+#[derive(Clone)]
+struct AppState {
+    pub openid: OpenIDConfig
+}
+
+impl FromRef<AppState> for automation::config::OpenIDConfig {
+    fn from_ref(input: &AppState) -> Self {
+        input.openid.clone()
+    }
+}
 
 #[tokio::main]
 async fn main() {
@@ -85,12 +96,10 @@ async fn main() {
 
     // Create google home fullfillment route
     let fullfillment = Router::new()
-        .route("/google_home", post(async move |Json(payload): Json<Request>| {
+        .route("/google_home", post(async move |user: User, Json(payload): Json<Request>| {
             // Handle request might block, so we need to spawn a blocking task
             tokio::task::spawn_blocking(move || {
-                // @TODO Verify that we are actually logged in
-                // Might also be smart to get the username from here
-                let gc = GoogleHome::new(&config.fullfillment.username);
+                let gc = GoogleHome::new(&user.preferred_username);
                 let result = gc.handle_request(payload, &mut devices.write().unwrap().as_google_home_devices()).unwrap();
 
                 return (StatusCode::OK, Json(result));
@@ -99,10 +108,13 @@ async fn main() {
 
     // Combine together all the routes
     let app = Router::new()
-        .nest("/fullfillment", fullfillment);
+        .nest("/fullfillment", fullfillment)
+        .with_state(AppState {
+            openid: config.openid
+        });
 
     // Start the web server
-    let addr: SocketAddr = ([127, 0, 0, 1], config.fullfillment.port).into();
+    let addr = config.fullfillment.into();
     info!("Server started on http://{addr}");
     axum::Server::bind(&addr)
         .serve(app.into_make_service())

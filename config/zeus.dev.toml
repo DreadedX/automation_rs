@@ -1,10 +1,10 @@
+[openid]
+base_url = "https://login.huizinga.dev/api/oidc"
+
 [mqtt]
 host="olympus.lan.huizinga.dev"
 port=8883
 username="mqtt"
-
-[fullfillment]
-username="Dreaded_X"
 
 [presence]
 topic = "automation_dev/presence"
