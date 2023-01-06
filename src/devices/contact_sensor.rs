@@ -5,7 +5,7 @@ use rumqttc::AsyncClient;
 use tokio::task::JoinHandle;
 use tracing::{error, debug, warn};
 
-use crate::{config::{MqttDeviceConfig, PresenceDeviceConfig}, mqtt::{OnMqtt, ContactMessage, PresenceMessage}};
+use crate::{config::{MqttDeviceConfig, PresenceDeviceConfig}, mqtt::{OnMqtt, ContactMessage, PresenceMessage}, presence::OnPresence};
 
 use super::Device;
 
@@ -15,6 +15,7 @@ pub struct ContactSensor {
     presence: Option<PresenceDeviceConfig>,
 
     client: AsyncClient,
+    overall_presence: bool,
     is_closed: bool,
     handle: Option<JoinHandle<()>>,
 }
@@ -28,6 +29,7 @@ impl ContactSensor {
             mqtt,
             presence,
             client,
+            overall_presence: false,
             is_closed: true,
             handle: None,
         }
@@ -37,6 +39,12 @@ impl ContactSensor {
 impl Device for ContactSensor {
     fn get_id(&self) -> String {
         self.identifier.clone()
+    }
+}
+
+impl OnPresence for ContactSensor {
+    fn on_presence(&mut self, presence: bool) {
+        self.overall_presence = presence;
     }
 }
 
@@ -82,8 +90,12 @@ impl OnMqtt for ContactSensor {
                 handle.abort();
             }
 
-
-            self.client.publish(topic, rumqttc::QoS::AtLeastOnce, false, serde_json::to_string(&PresenceMessage::new(true)).unwrap()).block_on().unwrap();
+            // Only use the door as an presence sensor if there the current presence is set false
+            // This is to prevent the house from being marked as present for however long the
+            // timeout is set when leaving the house
+            if !self.overall_presence {
+                self.client.publish(topic, rumqttc::QoS::AtLeastOnce, false, serde_json::to_string(&PresenceMessage::new(true)).unwrap()).block_on().unwrap();
+            }
         } else {
             // Once the door is closed again we start a timeout for removing the presence
             let client = self.client.clone();
