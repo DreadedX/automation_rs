@@ -123,9 +123,11 @@ pub struct PresenceDeviceConfig {
 
 impl PresenceDeviceConfig {
     /// Set the mqtt topic to an appropriate value if it is not already set
-    fn generate_topic(&mut self, identifier: &str, config: &Config) {
+    fn generate_topic(&mut self, class: &str, identifier: &str, config: &Config) {
         if self.mqtt.is_none() {
-            let topic = config.presence.topic.replace('+', identifier).replace('#', identifier);
+            // @TODO This is not perfect, if the topic is some/+/thing/# this will fail
+            let offset = config.presence.topic.find('+').or(config.presence.topic.find('#')).unwrap();
+            let topic = config.presence.topic[..offset].to_owned() + class + "/" + identifier;
             trace!("Setting presence mqtt topic: {topic}");
             self.mqtt = Some(MqttDeviceConfig { topic });
         }
@@ -219,7 +221,7 @@ impl Device {
             Device::ContactSensor { mqtt, mut presence } => {
                 trace!(id = identifier, "ContactSensor [{}]", identifier);
                 if let Some(presence) = &mut presence {
-                    presence.generate_topic(&identifier, &config);
+                    presence.generate_topic("contact", &identifier, &config);
                 }
                 Box::new(ContactSensor::new(identifier, mqtt, presence, client))
             },

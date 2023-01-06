@@ -11,7 +11,7 @@ password="${MQTT_PASSWORD}"
 topic = "${NTFY_TOPIC}"
 
 [presence]
-topic = "automation_dev/presence/+"
+topic = "automation_dev/presence/+/#"
 
 [hue_bridge]
 ip = "10.0.0.146"
