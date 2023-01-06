@@ -1,7 +1,7 @@
 use std::{fs, error::Error, collections::HashMap, net::{Ipv4Addr, SocketAddr}};
 
 use regex::{Regex, Captures};
-use tracing::{debug, trace, warn};
+use tracing::{debug, trace, error};
 use rumqttc::AsyncClient;
 use serde::Deserialize;
 
@@ -158,18 +158,23 @@ impl Config {
 
         // Substitute in environment variables
         let re = Regex::new(r"\$\{(.*)\}").unwrap();
+        let mut failure = false;
         let file = re.replace_all(&file, |caps: &Captures| {
             let key = caps.get(1).unwrap().as_str();
             debug!("Substituting '{key}' in config");
             match std::env::var(key) {
                 Ok(value) => value,
                 Err(_) => {
-                    // @TODO Would be nice if we could propagate this error upwards
-                    warn!("Environment variable '{key}' is not set, using empty string as default");
+                    failure = true;
+                    error!("Environment variable '{key}' is not set");
                     "".to_string()
                 }
             }
         });
+
+        if failure {
+            return Err("Missing environment variables".into());
+        }
 
         let config = toml::from_str(&file)?;
         Ok(config)
