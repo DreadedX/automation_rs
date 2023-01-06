@@ -1,11 +1,11 @@
-use std::{fs, error::Error, collections::HashMap, net::{Ipv4Addr, SocketAddr}};
+use std::{fs, error::Error, net::{Ipv4Addr, SocketAddr}, collections::HashMap};
 
 use regex::{Regex, Captures};
 use tracing::{debug, trace, error};
 use rumqttc::{AsyncClient, has_wildcards};
 use serde::Deserialize;
 
-use crate::devices::{DeviceBox, IkeaOutlet, WakeOnLAN, AudioSetup, ContactSensor};
+use crate::devices::{DeviceBox, IkeaOutlet, WakeOnLAN, AudioSetup, ContactSensor, KasaOutlet};
 
 // @TODO Configure more defaults
 
@@ -151,11 +151,14 @@ pub enum Device {
         mqtt: MqttDeviceConfig,
         mac_address: String,
     },
+    KasaOutlet {
+        ip: Ipv4Addr,
+    },
     AudioSetup {
         #[serde(flatten)]
         mqtt: MqttDeviceConfig,
-        mixer: Ipv4Addr,
-        speakers: Ipv4Addr,
+        mixer: Box::<Device>,
+        speakers: Box::<Device>,
     },
     ContactSensor {
         #[serde(flatten)]
@@ -214,8 +217,14 @@ impl Device {
                 trace!(id = identifier, "WakeOnLan [{} in {:?}]", info.name, info.room);
                 Box::new(WakeOnLAN::new(identifier, info, mqtt, mac_address, client))
             },
+            Device::KasaOutlet { ip } => {
+                trace!(id = identifier, "KasaOutlet [{}]", identifier);
+                Box::new(KasaOutlet::new(identifier, ip))
+            }
             Device::AudioSetup { mqtt, mixer, speakers } => {
                 trace!(id = identifier, "AudioSetup [{}]", identifier);
+                let mixer = (*mixer).into(identifier.clone() + ".mixer", config, client.clone());
+                let speakers = (*speakers).into(identifier.clone() + ".speakers", config, client.clone());
                 Box::new(AudioSetup::new(identifier, mqtt, mixer, speakers, client))
             },
             Device::ContactSensor { mqtt, mut presence } => {

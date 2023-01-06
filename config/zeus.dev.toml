@@ -43,11 +43,15 @@ room = "Living Room"
 topic = "automation/appliance/living_room/zeus"
 mac_address = "30:9c:23:60:9c:13"
 
-[devices.audio]
+[devices.living_audio]
 type = "AudioSetup"
 topic = "zigbee2mqtt/living/remote"
-mixer = "10.0.0.49"
-speakers = "10.0.0.182"
+[devices.living_audio.mixer]
+type = "KasaOutlet"
+ip = "10.0.0.49"
+[devices.living_audio.speakers]
+type = "KasaOutlet"
+ip = "10.0.0.182"
 
 [devices.hallway_frontdoor]
 type = "ContactSensor"

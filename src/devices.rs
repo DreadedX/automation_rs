@@ -1,13 +1,13 @@
 mod ikea_outlet;
-pub use self::ikea_outlet::IkeaOutlet;
-
 mod wake_on_lan;
-pub use self::wake_on_lan::WakeOnLAN;
-
+mod kasa_outlet;
 mod audio_setup;
-pub use self::audio_setup::AudioSetup;
-
 mod contact_sensor;
+
+pub use self::ikea_outlet::IkeaOutlet;
+pub use self::wake_on_lan::WakeOnLAN;
+pub use self::kasa_outlet::KasaOutlet;
+pub use self::audio_setup::AudioSetup;
 pub use self::contact_sensor::ContactSensor;
 
 use std::collections::HashMap;
