@@ -3,7 +3,7 @@ use std::sync::Weak;
 use parking_lot::RwLock;
 use pollster::FutureExt as _;
 use rumqttc::{AsyncClient, matches};
-use tracing::{span, Level, log::{error, trace}, debug};
+use tracing::{span, Level, error, trace, debug};
 
 use crate::{config::{MqttDeviceConfig, LightSensorConfig}, mqtt::{OnMqtt, BrightnessMessage}};
 
