@@ -1,13 +1,16 @@
 use google_home::traits;
 use rumqttc::{AsyncClient, matches};
-use tracing::{error, warn};
+use tracing::{error, warn, debug};
 use pollster::FutureExt as _;
 
 use crate::config::MqttDeviceConfig;
 use crate::mqtt::{OnMqtt, RemoteMessage, RemoteAction};
+use crate::presence::OnPresence;
 
 use super::Device;
 
+// @TODO Ideally we store am Arc to the childern devices,
+// that way they hook into everything just like all other devices
 pub struct AudioSetup {
     identifier: String,
     mqtt: MqttDeviceConfig,
@@ -64,6 +67,17 @@ impl OnMqtt for AudioSetup {
             },
             RemoteAction::BrightnessStop => { /* Ignore this action */ },
             _ => warn!("Expected ikea shortcut button which only supports 'on' and 'brightness_move_up', got: {action:?}")
+        }
+    }
+}
+
+impl OnPresence for AudioSetup {
+    fn on_presence(&mut self, presence: bool) {
+        // Turn off the audio setup when we leave the house
+        if !presence {
+            debug!(id = self.identifier, "Turning devices off");
+            self.speakers.set_on(false).unwrap();
+            self.mixer.set_on(false).unwrap();
         }
     }
 }
