@@ -5,7 +5,7 @@ use tracing::{debug, trace, error};
 use rumqttc::{AsyncClient, has_wildcards};
 use serde::Deserialize;
 
-use crate::devices::{DeviceBox, IkeaOutlet, WakeOnLAN, AudioSetup, ContactSensor, KasaOutlet};
+use crate::devices::{DeviceBox, IkeaOutlet, WakeOnLAN, AudioSetup, ContactSensor, KasaOutlet, AsOnOff};
 
 // @TODO Configure more defaults
 
@@ -223,8 +223,21 @@ impl Device {
             }
             Device::AudioSetup { mqtt, mixer, speakers } => {
                 trace!(id = identifier, "AudioSetup [{}]", identifier);
+                // Create the child devices
                 let mixer = (*mixer).into(identifier.clone() + ".mixer", config, client.clone());
                 let speakers = (*speakers).into(identifier.clone() + ".speakers", config, client.clone());
+
+                // The AudioSetup expects the children to be something that implements the OnOff trait
+                // So let's convert the children and make sure OnOff is implemented
+                let mixer = match AsOnOff::consume(mixer) {
+                    Some(mixer) => mixer,
+                    None => todo!("Handle this properly"),
+                };
+                let speakers = match AsOnOff::consume(speakers) {
+                    Some(speakers) => speakers,
+                    None => todo!("Handle this properly"),
+                };
+
                 Box::new(AudioSetup::new(identifier, mqtt, mixer, speakers, client))
             },
             Device::ContactSensor { mqtt, mut presence } => {

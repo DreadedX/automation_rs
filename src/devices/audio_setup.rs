@@ -1,22 +1,22 @@
+use google_home::traits;
 use rumqttc::{AsyncClient, matches};
 use tracing::{error, warn};
 use pollster::FutureExt as _;
 
 use crate::config::MqttDeviceConfig;
-use crate::devices::AsOnOff;
 use crate::mqtt::{OnMqtt, RemoteMessage, RemoteAction};
 
-use super::{Device, DeviceBox};
+use super::Device;
 
 pub struct AudioSetup {
     identifier: String,
     mqtt: MqttDeviceConfig,
-    mixer: DeviceBox,
-    speakers: DeviceBox,
+    mixer: Box<dyn traits::OnOff + Sync + Send>,
+    speakers: Box<dyn traits::OnOff + Sync + Send>,
 }
 
 impl AudioSetup {
-    pub fn new(identifier: String, mqtt: MqttDeviceConfig, mixer: DeviceBox, speakers: DeviceBox, client: AsyncClient) -> Self {
+    pub fn new(identifier: String, mqtt: MqttDeviceConfig, mixer: Box<dyn traits::OnOff + Sync + Send>, speakers: Box<dyn traits::OnOff + Sync + Send>, client: AsyncClient) -> Self {
         client.subscribe(mqtt.topic.clone(), rumqttc::QoS::AtLeastOnce).block_on().unwrap();
 
         Self { identifier, mqtt, mixer, speakers }
@@ -43,38 +43,23 @@ impl OnMqtt for AudioSetup {
             }
         };
 
-        let mixer = match AsOnOff::cast_mut(self.mixer.as_mut()) {
-            Some(mixer) => mixer,
-            None => {
-                error!(id = self.identifier, "Mixer device '{}' does not implement OnOff trait", self.mixer.get_id());
-                return;
-            },
-        };
-        let speakers = match AsOnOff::cast_mut(self.speakers.as_mut()) {
-            Some(speakers) => speakers,
-            None => {
-                error!(id = self.identifier, "Speakers device '{}' does not implement OnOff trait", self.mixer.get_id());
-                return;
-            },
-        };
-
         match action {
             RemoteAction::On => {
-                if mixer.is_on().unwrap() {
-                    speakers.set_on(false).unwrap();
-                    mixer.set_on(false).unwrap();
+                if self.mixer.is_on().unwrap() {
+                    self.speakers.set_on(false).unwrap();
+                    self.mixer.set_on(false).unwrap();
                 } else {
-                    speakers.set_on(true).unwrap();
-                    mixer.set_on(true).unwrap();
+                    self.speakers.set_on(true).unwrap();
+                    self.mixer.set_on(true).unwrap();
                 }
             },
             RemoteAction::BrightnessMoveUp => {
-                if !mixer.is_on().unwrap() {
-                    mixer.set_on(true).unwrap();
-                } else if speakers.is_on().unwrap() {
-                    speakers.set_on(false).unwrap();
+                if !self.mixer.is_on().unwrap() {
+                    self.mixer.set_on(true).unwrap();
+                } else if self.speakers.is_on().unwrap() {
+                    self.speakers.set_on(false).unwrap();
                 } else {
-                    speakers.set_on(true).unwrap();
+                    self.speakers.set_on(true).unwrap();
                 }
             },
             RemoteAction::BrightnessStop => { /* Ignore this action */ },
