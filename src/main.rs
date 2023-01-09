@@ -5,7 +5,7 @@ use parking_lot::RwLock;
 use axum::{Router, Json, routing::post, http::StatusCode, extract::FromRef};
 
 use automation::{config::{Config, OpenIDConfig}, presence::Presence, ntfy::Ntfy, light_sensor::LightSensor, hue_bridge::HueBridge, auth::User};
-use dotenv::dotenv;
+use dotenvy::dotenv;
 use rumqttc::{MqttOptions, Transport, AsyncClient};
 use tracing::{error, info, metadata::LevelFilter};
 

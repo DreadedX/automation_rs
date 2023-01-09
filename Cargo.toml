@@ -18,7 +18,7 @@ google-home = {path = "./google-home"}
 paste = "1.0.10"
 tokio = { version = "1", features = ["rt-multi-thread"] }
 toml = "0.5.10"
-dotenv = "0.15.0"
+dotenvy = "0.15.0"
 anyhow = "1.0.68"
 reqwest = { version = "0.11.13", features = ["json", "rustls-tls"], default-features = false } # Use rustls, since the other packages also use rustls
 axum = "0.6.1"
