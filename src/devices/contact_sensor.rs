@@ -1,7 +1,6 @@
 use std::time::Duration;
 
 use async_trait::async_trait;
-use pollster::FutureExt;
 use rumqttc::{AsyncClient, matches};
 use tokio::task::JoinHandle;
 use tracing::{error, debug, warn};
@@ -23,8 +22,8 @@ pub struct ContactSensor {
 }
 
 impl ContactSensor {
-    pub fn new(identifier: String, mqtt: MqttDeviceConfig, presence: Option<PresenceDeviceConfig>, client: AsyncClient) -> Self {
-        client.subscribe(mqtt.topic.clone(), rumqttc::QoS::AtLeastOnce).block_on().unwrap();
+    pub async fn new(identifier: String, mqtt: MqttDeviceConfig, presence: Option<PresenceDeviceConfig>, client: AsyncClient) -> Self {
+        client.subscribe(mqtt.topic.clone(), rumqttc::QoS::AtLeastOnce).await.unwrap();
 
         Self {
             identifier,
@@ -51,8 +50,9 @@ impl OnPresence for ContactSensor {
     }
 }
 
+#[async_trait]
 impl OnMqtt for ContactSensor {
-    fn on_mqtt(&mut self, message: &rumqttc::Publish) {
+    async fn on_mqtt(&mut self, message: &rumqttc::Publish) {
         if !matches(&message.topic, &self.mqtt.topic) {
             return;
         }
@@ -97,7 +97,7 @@ impl OnMqtt for ContactSensor {
             // This is to prevent the house from being marked as present for however long the
             // timeout is set when leaving the house
             if !self.overall_presence {
-                self.client.publish(topic, rumqttc::QoS::AtLeastOnce, false, serde_json::to_string(&PresenceMessage::new(true)).unwrap()).block_on().unwrap();
+                self.client.publish(topic, rumqttc::QoS::AtLeastOnce, false, serde_json::to_string(&PresenceMessage::new(true)).unwrap()).await.unwrap();
             }
         } else {
             // Once the door is closed again we start a timeout for removing the presence

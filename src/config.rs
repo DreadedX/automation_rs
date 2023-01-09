@@ -1,5 +1,6 @@
 use std::{fs, error::Error, net::{Ipv4Addr, SocketAddr}, collections::HashMap};
 
+use async_recursion::async_recursion;
 use regex::{Regex, Captures};
 use tracing::{debug, trace, error};
 use rumqttc::{AsyncClient, has_wildcards};
@@ -207,15 +208,16 @@ impl Config {
 }
 
 impl Device {
-    pub fn into(self, identifier: String, config: &Config, client: AsyncClient) -> DeviceBox {
-        match self {
+    #[async_recursion]
+    pub async fn into(self, identifier: String, config: &Config, client: AsyncClient) -> DeviceBox {
+        let device: DeviceBox = match self {
             Device::IkeaOutlet { info, mqtt, kettle } => {
                 trace!(id = identifier, "IkeaOutlet [{} in {:?}]", info.name, info.room);
-                Box::new(IkeaOutlet::new(identifier, info, mqtt, kettle, client))
+                Box::new(IkeaOutlet::new(identifier, info, mqtt, kettle, client).await)
             },
             Device::WakeOnLAN { info, mqtt, mac_address } => {
                 trace!(id = identifier, "WakeOnLan [{} in {:?}]", info.name, info.room);
-                Box::new(WakeOnLAN::new(identifier, info, mqtt, mac_address, client))
+                Box::new(WakeOnLAN::new(identifier, info, mqtt, mac_address, client).await)
             },
             Device::KasaOutlet { ip } => {
                 trace!(id = identifier, "KasaOutlet [{}]", identifier);
@@ -224,8 +226,8 @@ impl Device {
             Device::AudioSetup { mqtt, mixer, speakers } => {
                 trace!(id = identifier, "AudioSetup [{}]", identifier);
                 // Create the child devices
-                let mixer = (*mixer).into(identifier.clone() + ".mixer", config, client.clone());
-                let speakers = (*speakers).into(identifier.clone() + ".speakers", config, client.clone());
+                let mixer = (*mixer).into(identifier.clone() + ".mixer", config, client.clone()).await;
+                let speakers = (*speakers).into(identifier.clone() + ".speakers", config, client.clone()).await;
 
                 // The AudioSetup expects the children to be something that implements the OnOff trait
                 // So let's convert the children and make sure OnOff is implemented
@@ -238,15 +240,17 @@ impl Device {
                     None => todo!("Handle this properly"),
                 };
 
-                Box::new(AudioSetup::new(identifier, mqtt, mixer, speakers, client))
+                Box::new(AudioSetup::new(identifier, mqtt, mixer, speakers, client).await)
             },
             Device::ContactSensor { mqtt, mut presence } => {
                 trace!(id = identifier, "ContactSensor [{}]", identifier);
                 if let Some(presence) = &mut presence {
                     presence.generate_topic("contact", &identifier, &config);
                 }
-                Box::new(ContactSensor::new(identifier, mqtt, presence, client))
+                Box::new(ContactSensor::new(identifier, mqtt, presence, client).await)
             },
-        }
+        };
+
+        return device;
     }
 }

@@ -26,9 +26,9 @@ pub struct IkeaOutlet {
 }
 
 impl IkeaOutlet {
-    pub fn new(identifier: String, info: InfoConfig, mqtt: MqttDeviceConfig, kettle: Option<KettleConfig>, client: AsyncClient) -> Self {
+    pub async fn new(identifier: String, info: InfoConfig, mqtt: MqttDeviceConfig, kettle: Option<KettleConfig>, client: AsyncClient) -> Self {
         // @TODO Handle potential errors here
-        client.subscribe(mqtt.topic.clone(), rumqttc::QoS::AtLeastOnce).block_on().unwrap();
+        client.subscribe(mqtt.topic.clone(), rumqttc::QoS::AtLeastOnce).await.unwrap();
 
         Self{ identifier, info, mqtt, kettle, client, last_known_state: false, handle: None }
     }
@@ -47,8 +47,9 @@ impl Device for IkeaOutlet {
     }
 }
 
+#[async_trait]
 impl OnMqtt for IkeaOutlet {
-    fn on_mqtt(&mut self, message: &Publish) {
+    async fn on_mqtt(&mut self, message: &Publish) {
         // Update the internal state based on what the device has reported
         if !matches(&message.topic, &self.mqtt.topic) {
             return;

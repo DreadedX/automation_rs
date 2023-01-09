@@ -1,3 +1,4 @@
+use async_trait::async_trait;
 use google_home::{GoogleHomeDevice, types::Type, device, traits::{self, Scene}, errors::{ErrorCode, DeviceError}};
 use tracing::{debug, error};
 use rumqttc::{AsyncClient, Publish, matches};
@@ -16,9 +17,9 @@ pub struct WakeOnLAN {
 }
 
 impl WakeOnLAN {
-    pub fn new(identifier: String, info: InfoConfig, mqtt: MqttDeviceConfig, mac_address: String, client: AsyncClient) -> Self {
+    pub async fn new(identifier: String, info: InfoConfig, mqtt: MqttDeviceConfig, mac_address: String, client: AsyncClient) -> Self {
         // @TODO Handle potential errors here
-        client.subscribe(mqtt.topic.clone(), rumqttc::QoS::AtLeastOnce).block_on().unwrap();
+        client.subscribe(mqtt.topic.clone(), rumqttc::QoS::AtLeastOnce).await.unwrap();
 
         Self { identifier, info, mqtt, mac_address }
     }
@@ -30,8 +31,9 @@ impl Device for WakeOnLAN {
     }
 }
 
+#[async_trait]
 impl OnMqtt for WakeOnLAN {
-    fn on_mqtt(&mut self, message: &Publish) {
+    async fn on_mqtt(&mut self, message: &Publish) {
         if !matches(&message.topic, &self.mqtt.topic) {
             return;
         }

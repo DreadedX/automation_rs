@@ -80,8 +80,8 @@ impl DeviceHandle {
         rx.await
     }
 
-    pub fn add_device(&self, device: DeviceBox) {
-        self.tx.send(Command::AddDevice { device }).block_on().unwrap();
+    pub async fn add_device(&self, device: DeviceBox) {
+        self.tx.send(Command::AddDevice { device }).await.unwrap();
     }
 }
 
@@ -99,8 +99,10 @@ pub fn start(mut mqtt_rx: mqtt::Receiver, mut presence_rx: presence::Receiver, m
                         break;
                     }
 
-                    if let Some(message) = &*mqtt_rx.borrow() {
-                        devices.on_mqtt(message);
+                    // @TODO Not ideal that we have to clone here, but not sure how to work around that
+                    let message = mqtt_rx.borrow().clone();
+                    if let Some(message) = message {
+                        devices.on_mqtt(&message).await;
                     }
                 }
                 res = presence_rx.changed() => {
@@ -116,7 +118,8 @@ pub fn start(mut mqtt_rx: mqtt::Receiver, mut presence_rx: presence::Receiver, m
                         break;
                     }
 
-                    devices.on_darkness(*light_sensor_rx.borrow());
+                    let darkness = *light_sensor_rx.borrow();
+                    devices.on_darkness(darkness).await;
                 }
                 Some(cmd) = rx.recv() => devices.handle_cmd(cmd)
             }
@@ -150,12 +153,13 @@ impl Devices {
     get_cast!(GoogleHomeDevice);
 }
 
+#[async_trait]
 impl OnMqtt for Devices {
-    fn on_mqtt(&mut self, message: &rumqttc::Publish) {
+    async fn on_mqtt(&mut self, message: &rumqttc::Publish) {
         self.as_on_mqtts().iter_mut().for_each(|(id, listener)| {
             let _span = span!(Level::TRACE, "on_mqtt").entered();
             trace!(id, "Handling");
-            listener.on_mqtt(message);
+            listener.on_mqtt(message).block_on();
         })
     }
 }
@@ -171,12 +175,13 @@ impl OnPresence for Devices {
     }
 }
 
+#[async_trait]
 impl OnDarkness for Devices {
-    fn on_darkness(&mut self, dark: bool) {
+    async fn on_darkness(&mut self, dark: bool) {
         self.as_on_darknesss().iter_mut().for_each(|(id, device)| {
             let _span = span!(Level::TRACE, "on_darkness").entered();
             trace!(id, "Handling");
-            device.on_darkness(dark);
+            device.on_darkness(dark).block_on();
         })
     }
 }

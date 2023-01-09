@@ -1,13 +1,13 @@
-use pollster::FutureExt as _;
+use async_trait::async_trait;
 use rumqttc::{matches, AsyncClient};
 use tokio::sync::watch;
 use tracing::{error, trace, debug};
 
 use crate::{config::{MqttDeviceConfig, LightSensorConfig}, mqtt::{self, OnMqtt, BrightnessMessage}};
 
-
+#[async_trait]
 pub trait OnDarkness {
-    fn on_darkness(&mut self, dark: bool);
+    async fn on_darkness(&mut self, dark: bool);
 }
 
 pub type Receiver = watch::Receiver<bool>;
@@ -21,16 +21,17 @@ struct LightSensor {
     tx: Sender,
 }
 
-pub fn start(mut mqtt_rx: mqtt::Receiver, config: LightSensorConfig, client: AsyncClient) -> Receiver {
-    client.subscribe(config.mqtt.topic.clone(), rumqttc::QoS::AtLeastOnce).block_on().unwrap();
+pub async fn start(mut mqtt_rx: mqtt::Receiver, config: LightSensorConfig, client: AsyncClient) -> Receiver {
+    client.subscribe(config.mqtt.topic.clone(), rumqttc::QoS::AtLeastOnce).await.unwrap();
 
     let (tx, is_dark) = watch::channel(false);
     let mut light_sensor = LightSensor { is_dark: is_dark.clone(), mqtt: config.mqtt, min: config.min, max: config.max, tx };
 
     tokio::spawn(async move {
         while mqtt_rx.changed().await.is_ok() {
-            if let Some(message) = &*mqtt_rx.borrow() {
-                light_sensor.on_mqtt(message);
+            let message = mqtt_rx.borrow().clone();
+            if let Some(message) = message {
+                light_sensor.on_mqtt(&message).await;
             }
         }
 
@@ -40,8 +41,9 @@ pub fn start(mut mqtt_rx: mqtt::Receiver, config: LightSensorConfig, client: Asy
     return is_dark;
 }
 
+#[async_trait]
 impl OnMqtt for LightSensor {
-    fn on_mqtt(&mut self, message: &rumqttc::Publish) {
+    async fn on_mqtt(&mut self, message: &rumqttc::Publish) {
         if !matches(&message.topic, &self.mqtt.topic) {
             return;
         }

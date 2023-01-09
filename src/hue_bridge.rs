@@ -1,7 +1,6 @@
 use std::net::SocketAddr;
 
 use async_trait::async_trait;
-use pollster::FutureExt;
 use serde::Serialize;
 use tracing::{warn, error, trace};
 
@@ -47,7 +46,8 @@ impl HueBridge {
                             break;
                         }
 
-                        hue_bridge.on_darkness(*light_sensor_rx.borrow());
+                        let darkness = *light_sensor_rx.borrow();
+                        hue_bridge.on_darkness(darkness).await;
                     }
                 }
             }
@@ -91,9 +91,10 @@ impl OnPresence for HueBridge {
     }
 }
 
+#[async_trait]
 impl OnDarkness for HueBridge {
-    fn on_darkness(&mut self, dark: bool) {
+    async fn on_darkness(&mut self, dark: bool) {
         trace!("Bridging darkness to hue");
-        self.set_flag(Flag::Darkness, dark).block_on();
+        self.set_flag(Flag::Darkness, dark).await;
     }
 }

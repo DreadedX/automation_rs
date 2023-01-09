@@ -4,7 +4,6 @@ use async_trait::async_trait;
 use tokio::sync::watch;
 use tracing::{debug, error};
 use rumqttc::{AsyncClient, matches};
-use pollster::FutureExt as _;
 
 use crate::{mqtt::{OnMqtt, PresenceMessage, self}, config::MqttDeviceConfig};
 
@@ -23,17 +22,19 @@ struct Presence {
     tx: Sender,
 }
 
-pub fn start(mut mqtt_rx: mqtt::Receiver, mqtt: MqttDeviceConfig, client: AsyncClient) -> Receiver {
+pub async fn start(mut mqtt_rx: mqtt::Receiver, mqtt: MqttDeviceConfig, client: AsyncClient) -> Receiver {
     // Subscribe to the relevant topics on mqtt
-    client.subscribe(mqtt.topic.clone(), rumqttc::QoS::AtLeastOnce).block_on().unwrap();
+    client.subscribe(mqtt.topic.clone(), rumqttc::QoS::AtLeastOnce).await.unwrap();
 
     let (tx, overall_presence) = watch::channel(false);
     let mut presence = Presence { devices: HashMap::new(), overall_presence: overall_presence.clone(), mqtt, tx };
 
     tokio::spawn(async move {
         while mqtt_rx.changed().await.is_ok() {
-            if let Some(message) = &*mqtt_rx.borrow() {
-                presence.on_mqtt(message);
+            // @TODO Not ideal that we have to clone here, but not sure how to work around that
+            let message = mqtt_rx.borrow().clone();
+            if let Some(message) = message {
+                presence.on_mqtt(&message).await;
             }
         }
 
@@ -43,8 +44,9 @@ pub fn start(mut mqtt_rx: mqtt::Receiver, mqtt: MqttDeviceConfig, client: AsyncC
     return overall_presence;
 }
 
+#[async_trait]
 impl OnMqtt for Presence {
-    fn on_mqtt(&mut self, message: &rumqttc::Publish) {
+    async fn on_mqtt(&mut self, message: &rumqttc::Publish) {
         if !matches(&message.topic, &self.mqtt.topic) {
             return;
         }

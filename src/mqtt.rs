@@ -1,11 +1,13 @@
+use async_trait::async_trait;
 use serde::{Serialize, Deserialize};
 use tracing::{error, debug};
 
 use rumqttc::{Publish, Event, Incoming, EventLoop};
 use tokio::sync::watch;
 
+#[async_trait]
 pub trait OnMqtt {
-    fn on_mqtt(&mut self, message: &Publish);
+    async fn on_mqtt(&mut self, message: &Publish);
 }
 
 pub type Receiver = watch::Receiver<Option<Publish>>;

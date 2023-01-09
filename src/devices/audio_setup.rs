@@ -2,7 +2,6 @@ use async_trait::async_trait;
 use google_home::traits;
 use rumqttc::{AsyncClient, matches};
 use tracing::{error, warn, debug};
-use pollster::FutureExt as _;
 
 use crate::config::MqttDeviceConfig;
 use crate::mqtt::{OnMqtt, RemoteMessage, RemoteAction};
@@ -21,8 +20,8 @@ pub struct AudioSetup {
 }
 
 impl AudioSetup {
-    pub fn new(identifier: String, mqtt: MqttDeviceConfig, mixer: Box<dyn traits::OnOff + Sync + Send>, speakers: Box<dyn traits::OnOff + Sync + Send>, client: AsyncClient) -> Self {
-        client.subscribe(mqtt.topic.clone(), rumqttc::QoS::AtLeastOnce).block_on().unwrap();
+    pub async fn new(identifier: String, mqtt: MqttDeviceConfig, mixer: Box<dyn traits::OnOff + Sync + Send>, speakers: Box<dyn traits::OnOff + Sync + Send>, client: AsyncClient) -> Self {
+        client.subscribe(mqtt.topic.clone(), rumqttc::QoS::AtLeastOnce).await.unwrap();
 
         Self { identifier, mqtt, mixer, speakers }
     }
@@ -34,8 +33,9 @@ impl Device for AudioSetup {
     }
 }
 
+#[async_trait]
 impl OnMqtt for AudioSetup {
-    fn on_mqtt(&mut self, message: &rumqttc::Publish) {
+    async fn on_mqtt(&mut self, message: &rumqttc::Publish) {
         if !matches(&message.topic, &self.mqtt.topic) {
             return;
         }

@@ -15,6 +15,7 @@ use automation::{
 use dotenvy::dotenv;
 use rumqttc::{AsyncClient, MqttOptions, Transport};
 use tracing::{debug, error, info, metadata::LevelFilter};
+use futures::future::join_all;
 
 use google_home::{GoogleHome, Request};
 use tracing_subscriber::EnvFilter;
@@ -58,23 +59,22 @@ async fn main() {
     // Create a mqtt client and wrap the eventloop
     let (client, eventloop) = AsyncClient::new(mqttoptions, 10);
     let mqtt = mqtt::start(eventloop);
-    let presence = presence::start(mqtt.clone(), config.presence.clone(), client.clone());
-    let light_sensor =
-        light_sensor::start(mqtt.clone(), config.light_sensor.clone(), client.clone());
+    let presence = presence::start(mqtt.clone(), config.presence.clone(), client.clone()).await;
+    let light_sensor = light_sensor::start(mqtt.clone(), config.light_sensor.clone(), client.clone()).await;
 
     let devices = devices::start(mqtt, presence.clone(), light_sensor.clone());
-    config
-        .devices
-        .clone()
-        .into_iter()
-        .map(|(identifier, device_config)| {
-            // This can technically block, but this only happens during start-up, so should not be
-            // a problem
-            device_config.into(identifier, &config, client.clone())
-        })
-        .for_each(|device| {
-            devices.add_device(device);
-        });
+    join_all(
+        config
+            .devices
+            .clone()
+            .into_iter()
+            .map(|(identifier, device_config)| async {
+                // This can technically block, but this only happens during start-up, so should not be
+                // a problem
+                let device = device_config.into(identifier, &config, client.clone()).await;
+                devices.add_device(device).await;
+            })
+    ).await;
 
     // Start the ntfy service if it is configured
     if let Some(ntfy_config) = config.ntfy {
