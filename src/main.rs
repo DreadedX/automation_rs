@@ -76,19 +76,25 @@ async fn main() {
     // Register devices as presence listener
     presence.add_listener(Arc::downgrade(&devices));
 
-    let ntfy = Arc::new(RwLock::new(Ntfy::new(config.ntfy)));
-    presence.add_listener(Arc::downgrade(&ntfy));
+    let mut light_sensor = LightSensor::new(config.light_sensor, client.clone());
+    light_sensor.add_listener(Arc::downgrade(&devices));
 
-    let hue_bridge = Arc::new(RwLock::new(HueBridge::new(config.hue_bridge)));
-    presence.add_listener(Arc::downgrade(&hue_bridge));
+    let ntfy;
+    if let Some(ntfy_config) = config.ntfy {
+        ntfy = Arc::new(RwLock::new(Ntfy::new(ntfy_config)));
+        presence.add_listener(Arc::downgrade(&ntfy));
+    }
+
+    let hue_bridge;
+    if let Some(hue_bridge_config) = config.hue_bridge {
+        hue_bridge = Arc::new(RwLock::new(HueBridge::new(hue_bridge_config)));
+        presence.add_listener(Arc::downgrade(&hue_bridge));
+        light_sensor.add_listener(Arc::downgrade(&hue_bridge));
+    }
 
     // Register presence as mqtt listener
     let presence = Arc::new(RwLock::new(presence));
     mqtt.add_listener(Arc::downgrade(&presence));
-
-    let mut light_sensor = LightSensor::new(config.light_sensor, client.clone());
-    light_sensor.add_listener(Arc::downgrade(&devices));
-    light_sensor.add_listener(Arc::downgrade(&hue_bridge));
 
     let light_sensor = Arc::new(RwLock::new(light_sensor));
     mqtt.add_listener(Arc::downgrade(&light_sensor));

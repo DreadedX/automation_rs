@@ -1,6 +1,6 @@
 use std::collections::HashMap;
 
-use tracing::{warn, error};
+use tracing::{warn, error, debug};
 use serde::Serialize;
 use serde_repr::*;
 use pollster::FutureExt as _;
@@ -115,6 +115,8 @@ impl OnPresence for Ntfy {
             .add_tag("house")
             .add_action(action)
             .set_priority(Priority::Low);
+
+        debug!("Notifying presence as {presence}");
 
         // Create the request
         let res = reqwest::Client::new()

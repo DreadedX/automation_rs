@@ -15,10 +15,10 @@ pub struct Config {
     pub mqtt: MqttConfig,
     #[serde(default)]
     pub fullfillment: FullfillmentConfig,
-    pub ntfy: NtfyConfig,
+    pub ntfy: Option<NtfyConfig>,
     pub presence: MqttDeviceConfig,
     pub light_sensor: LightSensorConfig,
-    pub hue_bridge: HueBridgeConfig,
+    pub hue_bridge: Option<HueBridgeConfig>,
     #[serde(default)]
     pub devices: HashMap<String, Device>
 }

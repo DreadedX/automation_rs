@@ -1,4 +1,44 @@
+[openid]
+base_url = "https://login.huizinga.dev/api/oidc"
+
 [mqtt]
 host="olympus.vpn.huizinga.dev"
 port=8883
 username="mqtt"
+password="${MQTT_PASSWORD}"
+
+[ntfy]
+topic = "${NTFY_TOPIC}"
+
+[presence]
+topic = "automation_dev/presence/+/#"
+
+[light_sensor]
+topic = "zigbee2mqtt_dev/living/light"
+min = 23_000
+max = 25_000
+
+[devices.kitchen_kettle]
+type = "IkeaOutlet"
+name = "Kettle"
+room = "Kitchen"
+topic = "zigbee2mqtt/kitchen/kettle"
+kettle = { timeout = 5 }
+
+[devices.living_workbench]
+type = "IkeaOutlet"
+name = "Workbench"
+room = "Living Room"
+topic = "zigbee2mqtt/living/workbench"
+
+[devices.living_zeus]
+type = "WakeOnLAN"
+name = "Zeus"
+room = "Living Room"
+topic = "automation/appliance/living_room/zeus"
+mac_address = "30:9c:23:60:9c:13"
+
+[devices.hallway_frontdoor]
+type = "ContactSensor"
+topic = "zigbee2mqtt/hallway/frontdoor"
+presence = { timeout = 10 }
