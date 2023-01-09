@@ -2,7 +2,7 @@ use std::time::Duration;
 
 use async_trait::async_trait;
 use google_home::errors::ErrorCode;
-use google_home::{GoogleHomeDevice, device, types::Type, traits};
+use google_home::{GoogleHomeDevice, device, types::Type, traits::{self, OnOff}};
 use rumqttc::{AsyncClient, Publish, matches};
 use tracing::{debug, trace, error};
 use tokio::task::JoinHandle;
@@ -101,9 +101,10 @@ impl OnMqtt for IkeaOutlet {
                 tokio::spawn(async move {
                     debug!(id, "Starting timeout ({timeout:?}) for kettle...");
                     tokio::time::sleep(timeout).await;
-                    // @TODO We need to call set_on(false) in order to turn the device off
-                    // again, how are we going to do this?
                     debug!(id, "Turning kettle off!");
+                    // @TODO Idealy we would call self.set_on(false), however since we want to do
+                    // it after a timeout we have to put it in a seperate task.
+                    // I don't think we can really get around calling outside function
                     set_on(client, topic, false).await;
                 })
             );
@@ -117,7 +118,7 @@ impl OnPresence for IkeaOutlet {
         // Turn off the outlet when we leave the house
         if !presence {
             debug!(id = self.identifier, "Turning device off");
-            set_on(self.client.clone(), self.mqtt.topic.clone(), false).await;
+            self.set_on(false).ok();
         }
     }
 }
