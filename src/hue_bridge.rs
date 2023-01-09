@@ -1,10 +1,11 @@
 use std::net::SocketAddr;
 
+use async_trait::async_trait;
 use pollster::FutureExt;
 use serde::Serialize;
 use tracing::{warn, error, trace};
 
-use crate::{config::{HueBridgeConfig, Flags}, presence::OnPresence, light_sensor::OnDarkness};
+use crate::{config::{HueBridgeConfig, Flags}, presence::{OnPresence, self}, light_sensor::{OnDarkness, self}};
 
 pub enum Flag {
     Presence,
@@ -23,15 +24,39 @@ struct FlagMessage {
 }
 
 impl HueBridge {
-    pub fn new(config: HueBridgeConfig) -> Self {
-        Self {
+    pub fn create(mut presence_rx: presence::Receiver, mut light_sensor_rx: light_sensor::Receiver, config: HueBridgeConfig) {
+        let mut hue_bridge = Self {
             addr: (config.ip, 80).into(),
             login: config.login,
             flags: config.flags,
-        }
+        };
+
+        tokio::spawn(async move {
+            loop {
+                tokio::select! {
+                    res = presence_rx.changed() => {
+                        if !res.is_ok() {
+                            break;
+                        }
+
+                        let presence = *presence_rx.borrow();
+                        hue_bridge.on_presence(presence).await;
+                    }
+                    res = light_sensor_rx.changed() => {
+                        if !res.is_ok() {
+                            break;
+                        }
+
+                        hue_bridge.on_darkness(*light_sensor_rx.borrow());
+                    }
+                }
+            }
+
+            unreachable!("Did not expect this");
+        });
     }
 
-    pub fn set_flag(&self, flag: Flag, value: bool) {
+    pub async fn set_flag(&self, flag: Flag, value: bool) {
         let flag = match flag {
             Flag::Presence => self.flags.presence,
             Flag::Darkness => self.flags.darkness,
@@ -42,7 +67,7 @@ impl HueBridge {
             .put(url)
             .json(&FlagMessage { flag: value })
             .send()
-            .block_on();
+            .await;
 
         match res {
             Ok(res) => {
@@ -58,16 +83,17 @@ impl HueBridge {
     }
 }
 
+#[async_trait]
 impl OnPresence for HueBridge {
-    fn on_presence(&mut self, presence: bool) {
+    async fn on_presence(&mut self, presence: bool) {
         trace!("Bridging presence to hue");
-        self.set_flag(Flag::Presence, presence);
+        self.set_flag(Flag::Presence, presence).await;
     }
 }
 
 impl OnDarkness for HueBridge {
     fn on_darkness(&mut self, dark: bool) {
         trace!("Bridging darkness to hue");
-        self.set_flag(Flag::Darkness, dark);
+        self.set_flag(Flag::Darkness, dark).block_on();
     }
 }

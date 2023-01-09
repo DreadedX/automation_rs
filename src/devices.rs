@@ -12,10 +12,13 @@ pub use self::contact_sensor::ContactSensor;
 
 use std::collections::HashMap;
 
-use google_home::{GoogleHomeDevice, traits::OnOff};
+use async_trait::async_trait;
+use google_home::{GoogleHomeDevice, traits::OnOff, GoogleHome};
+use pollster::FutureExt;
+use tokio::sync::{oneshot, mpsc};
 use tracing::{trace, debug, span, Level};
 
-use crate::{mqtt::OnMqtt, presence::OnPresence, light_sensor::OnDarkness};
+use crate::{mqtt::{OnMqtt, self}, presence::{OnPresence, self}, light_sensor::{OnDarkness, self}};
 
 impl_cast::impl_cast!(Device, OnMqtt);
 impl_cast::impl_cast!(Device, OnPresence);
@@ -23,13 +26,13 @@ impl_cast::impl_cast!(Device, OnDarkness);
 impl_cast::impl_cast!(Device, GoogleHomeDevice);
 impl_cast::impl_cast!(Device, OnOff);
 
-pub trait Device: AsGoogleHomeDevice + AsOnMqtt + AsOnPresence + AsOnDarkness + AsOnOff {
+pub trait Device: AsGoogleHomeDevice + AsOnMqtt + AsOnPresence + AsOnDarkness + AsOnOff + std::fmt::Debug {
     fn get_id(&self) -> String;
 }
 
 // @TODO Add an inner type that we can wrap with Arc<RwLock<>> to make this type a little bit nicer
 // to work with
-pub struct Devices {
+struct Devices {
     devices: HashMap<String, DeviceBox>,
 }
 
@@ -50,14 +53,93 @@ macro_rules! get_cast {
     };
 }
 
+#[derive(Debug)]
+enum Command {
+    Fullfillment {
+        google_home: GoogleHome,
+        payload: google_home::Request,
+        tx: oneshot::Sender<google_home::Response>
+    },
+    AddDevice {
+        device: DeviceBox,
+    }
+}
+
 pub type DeviceBox = Box<dyn Device + Sync + Send>;
 
-impl Devices {
-    pub fn new() -> Self {
-        Self { devices: HashMap::new() }
+#[derive(Clone)]
+pub struct DeviceHandle {
+    tx: mpsc::Sender<Command>
+}
+
+impl DeviceHandle {
+    // @TODO Improve error type
+    pub async fn fullfillment(&self, google_home: GoogleHome, payload: google_home::Request) -> Result<google_home::Response, oneshot::error::RecvError> {
+        let (tx, rx) = oneshot::channel();
+        self.tx.send(Command::Fullfillment { google_home, payload, tx }).await.unwrap();
+        rx.await
     }
 
-    pub fn add_device(&mut self, device: DeviceBox) {
+    pub fn add_device(&self, device: DeviceBox) {
+        self.tx.send(Command::AddDevice { device }).block_on().unwrap();
+    }
+}
+
+pub fn start(mut mqtt_rx: mqtt::Receiver, mut presence_rx: presence::Receiver, mut light_sensor_rx: light_sensor::Receiver) -> DeviceHandle {
+
+    let mut devices = Devices { devices: HashMap::new() };
+
+    let (tx, mut rx) = mpsc::channel(100);
+
+    tokio::spawn(async move {
+        loop {
+            tokio::select! {
+                res = mqtt_rx.changed() => {
+                    if !res.is_ok() {
+                        break;
+                    }
+
+                    if let Some(message) = &*mqtt_rx.borrow() {
+                        devices.on_mqtt(message);
+                    }
+                }
+                res = presence_rx.changed() => {
+                    if !res.is_ok() {
+                        break;
+                    }
+
+                    let presence = *presence_rx.borrow();
+                    devices.on_presence(presence).await;
+                }
+                res = light_sensor_rx.changed() => {
+                    if !res.is_ok() {
+                        break;
+                    }
+
+                    devices.on_darkness(*light_sensor_rx.borrow());
+                }
+                Some(cmd) = rx.recv() => devices.handle_cmd(cmd)
+            }
+        }
+
+        unreachable!("Did not expect this");
+    });
+
+    return DeviceHandle { tx };
+}
+
+impl Devices {
+    fn handle_cmd(&mut self, cmd: Command) {
+        match cmd {
+            Command::Fullfillment { google_home, payload, tx } => {
+                let result = google_home.handle_request(payload, &mut self.as_google_home_devices()).unwrap();
+                tx.send(result).ok();
+            },
+            Command::AddDevice { device } => self.add_device(device),
+        }
+    }
+
+    fn add_device(&mut self, device: DeviceBox) {
         debug!(id = device.get_id(), "Adding device");
         self.devices.insert(device.get_id(), device);
     }
@@ -66,14 +148,6 @@ impl Devices {
     get_cast!(OnPresence);
     get_cast!(OnDarkness);
     get_cast!(GoogleHomeDevice);
-    get_cast!(OnOff);
-
-    pub fn get_device(&mut self, name: &str) -> Option<&mut dyn Device> {
-        if let Some(device) = self.devices.get_mut(name) {
-            return Some(device.as_mut());
-        }
-        return None;
-    }
 }
 
 impl OnMqtt for Devices {
@@ -86,12 +160,13 @@ impl OnMqtt for Devices {
     }
 }
 
+#[async_trait]
 impl OnPresence for Devices {
-    fn on_presence(&mut self, presence: bool) {
+    async fn on_presence(&mut self, presence: bool) {
         self.as_on_presences().iter_mut().for_each(|(id, device)| {
             let _span = span!(Level::TRACE, "on_presence").entered();
             trace!(id, "Handling");
-            device.on_presence(presence);
+            device.on_presence(presence).block_on();
         })
     }
 }

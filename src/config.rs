@@ -75,7 +75,7 @@ fn default_ntfy_url() -> String {
     "https://ntfy.sh".into()
 }
 
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Clone, Deserialize)]
 pub struct LightSensorConfig {
     #[serde(flatten)]
     pub mqtt: MqttDeviceConfig,

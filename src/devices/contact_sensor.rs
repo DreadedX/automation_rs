@@ -1,5 +1,6 @@
 use std::time::Duration;
 
+use async_trait::async_trait;
 use pollster::FutureExt;
 use rumqttc::{AsyncClient, matches};
 use tokio::task::JoinHandle;
@@ -9,6 +10,7 @@ use crate::{config::{MqttDeviceConfig, PresenceDeviceConfig}, mqtt::{OnMqtt, Con
 
 use super::Device;
 
+#[derive(Debug)]
 pub struct ContactSensor {
     identifier: String,
     mqtt: MqttDeviceConfig,
@@ -42,8 +44,9 @@ impl Device for ContactSensor {
     }
 }
 
+#[async_trait]
 impl OnPresence for ContactSensor {
-    fn on_presence(&mut self, presence: bool) {
+    async fn on_presence(&mut self, presence: bool) {
         self.overall_presence = presence;
     }
 }

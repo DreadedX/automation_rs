@@ -1,5 +1,6 @@
 use std::time::Duration;
 
+use async_trait::async_trait;
 use google_home::errors::ErrorCode;
 use google_home::{GoogleHomeDevice, device, types::Type, traits};
 use rumqttc::{AsyncClient, Publish, matches};
@@ -12,6 +13,7 @@ use crate::devices::Device;
 use crate::mqtt::{OnMqtt, OnOffMessage};
 use crate::presence::OnPresence;
 
+#[derive(Debug)]
 pub struct IkeaOutlet {
     identifier: String,
     info: InfoConfig,
@@ -108,12 +110,13 @@ impl OnMqtt for IkeaOutlet {
     }
 }
 
+#[async_trait]
 impl OnPresence for IkeaOutlet {
-    fn on_presence(&mut self, presence: bool) {
+    async fn on_presence(&mut self, presence: bool) {
         // Turn off the outlet when we leave the house
         if !presence {
             debug!(id = self.identifier, "Turning device off");
-            set_on(self.client.clone(), self.mqtt.topic.clone(), false).block_on();
+            set_on(self.client.clone(), self.mqtt.topic.clone(), false).await;
         }
     }
 }

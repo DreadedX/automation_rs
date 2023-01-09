@@ -10,7 +10,7 @@ pub enum Trait {
     Scene,
 }
 
-pub trait OnOff {
+pub trait OnOff: std::fmt::Debug {
     fn is_command_only(&self) -> Option<bool> {
         None
     }
@@ -25,7 +25,7 @@ pub trait OnOff {
 }
 impl_cast::impl_cast!(GoogleHomeDevice, OnOff);
 
-pub trait Scene {
+pub trait Scene: std::fmt::Debug {
     fn is_scene_reversible(&self) -> Option<bool> {
         None
     }

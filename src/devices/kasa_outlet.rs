@@ -6,6 +6,7 @@ use serde::{Serialize, Deserialize};
 
 use super::Device;
 
+#[derive(Debug)]
 pub struct KasaOutlet {
     identifier: String,
     addr: SocketAddr,

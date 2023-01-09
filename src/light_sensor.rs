@@ -1,44 +1,43 @@
-use std::sync::Weak;
-
-use parking_lot::RwLock;
 use pollster::FutureExt as _;
-use rumqttc::{AsyncClient, matches};
-use tracing::{span, Level, error, trace, debug};
+use rumqttc::{matches, AsyncClient};
+use tokio::sync::watch;
+use tracing::{error, trace, debug};
 
-use crate::{config::{MqttDeviceConfig, LightSensorConfig}, mqtt::{OnMqtt, BrightnessMessage}};
+use crate::{config::{MqttDeviceConfig, LightSensorConfig}, mqtt::{self, OnMqtt, BrightnessMessage}};
 
 
 pub trait OnDarkness {
     fn on_darkness(&mut self, dark: bool);
 }
 
-pub struct LightSensor {
-    listeners: Vec<Weak<RwLock<dyn OnDarkness + Sync + Send>>>,
-    is_dark: bool,
+pub type Receiver = watch::Receiver<bool>;
+type Sender = watch::Sender<bool>;
+
+struct LightSensor {
+    is_dark: Receiver,
     mqtt: MqttDeviceConfig,
     min: isize,
     max: isize,
+    tx: Sender,
 }
 
-impl LightSensor {
-    pub fn new(config: LightSensorConfig, client: AsyncClient) -> Self {
-        client.subscribe(config.mqtt.topic.clone(), rumqttc::QoS::AtLeastOnce).block_on().unwrap();
+pub fn start(mut mqtt_rx: mqtt::Receiver, config: LightSensorConfig, client: AsyncClient) -> Receiver {
+    client.subscribe(config.mqtt.topic.clone(), rumqttc::QoS::AtLeastOnce).block_on().unwrap();
 
-        Self { listeners: Vec::new(), is_dark: false, mqtt: config.mqtt, min: config.min, max: config.max }
-    }
+    let (tx, is_dark) = watch::channel(false);
+    let mut light_sensor = LightSensor { is_dark: is_dark.clone(), mqtt: config.mqtt, min: config.min, max: config.max, tx };
 
-    pub fn add_listener<T: OnDarkness + Sync + Send + 'static>(&mut self, listener: Weak<RwLock<T>>) {
-        self.listeners.push(listener);
-    }
-
-    pub fn notify(dark: bool, listeners: Vec<Weak<RwLock<dyn OnDarkness + Sync + Send>>>) {
-        let _span = span!(Level::TRACE, "darkness_update").entered();
-        listeners.into_iter().for_each(|listener| {
-            if let Some(listener) = listener.upgrade() {
-                listener.write().on_darkness(dark);
+    tokio::spawn(async move {
+        while mqtt_rx.changed().await.is_ok() {
+            if let Some(message) = &*mqtt_rx.borrow() {
+                light_sensor.on_mqtt(message);
             }
-        })
-    }
+        }
+
+        unreachable!("Did not expect this");
+    });
+
+    return is_dark;
 }
 
 impl OnMqtt for LightSensor {
@@ -63,19 +62,13 @@ impl OnMqtt for LightSensor {
             trace!("It is light");
             false
         } else {
-            trace!("In between min ({}) and max ({}) value, keeping current state: {}", self.min, self.max, self.is_dark);
-            self.is_dark
+            trace!("In between min ({}) and max ({}) value, keeping current state: {}", self.min, self.max, *self.is_dark.borrow());
+            *self.is_dark.borrow()
         };
 
-        if is_dark != self.is_dark {
+        if is_dark != *self.is_dark.borrow() {
             debug!("Dark state has changed: {is_dark}");
-            self.is_dark = is_dark;
-            self.listeners.retain(|listener| listener.strong_count() > 0);
-            let listeners = self.listeners.clone();
-
-            tokio::task::spawn_blocking(move || {
-                LightSensor::notify(is_dark, listeners)
-            });
+            self.tx.send(is_dark).ok();
         }
     }
 }

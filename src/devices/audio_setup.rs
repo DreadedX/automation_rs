@@ -1,3 +1,4 @@
+use async_trait::async_trait;
 use google_home::traits;
 use rumqttc::{AsyncClient, matches};
 use tracing::{error, warn, debug};
@@ -11,6 +12,7 @@ use super::Device;
 
 // @TODO Ideally we store am Arc to the childern devices,
 // that way they hook into everything just like all other devices
+#[derive(Debug)]
 pub struct AudioSetup {
     identifier: String,
     mqtt: MqttDeviceConfig,
@@ -71,8 +73,9 @@ impl OnMqtt for AudioSetup {
     }
 }
 
+#[async_trait]
 impl OnPresence for AudioSetup {
-    fn on_presence(&mut self, presence: bool) {
+    async fn on_presence(&mut self, presence: bool) {
         // Turn off the audio setup when we leave the house
         if !presence {
             debug!(id = self.identifier, "Turning devices off");

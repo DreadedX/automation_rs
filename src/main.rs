@@ -1,21 +1,27 @@
 #![feature(async_closure)]
-use std::{time::Duration, sync::Arc, process};
-use parking_lot::RwLock;
+use std::{process, time::Duration};
 
-use axum::{Router, Json, routing::post, http::StatusCode, extract::FromRef};
+use axum::{extract::FromRef, http::StatusCode, routing::post, Json, Router};
 
-use automation::{config::{Config, OpenIDConfig}, presence::Presence, ntfy::Ntfy, light_sensor::LightSensor, hue_bridge::HueBridge, auth::User};
+use automation::{
+    auth::User,
+    config::{Config, OpenIDConfig},
+    devices,
+    hue_bridge::HueBridge,
+    light_sensor, mqtt,
+    ntfy::Ntfy,
+    presence,
+};
 use dotenvy::dotenv;
-use rumqttc::{MqttOptions, Transport, AsyncClient};
-use tracing::{error, info, metadata::LevelFilter};
+use rumqttc::{AsyncClient, MqttOptions, Transport};
+use tracing::{debug, error, info, metadata::LevelFilter};
 
-use automation::{devices::Devices, mqtt::Mqtt};
 use google_home::{GoogleHome, Request};
 use tracing_subscriber::EnvFilter;
 
 #[derive(Clone)]
 struct AppState {
-    pub openid: OpenIDConfig
+    pub openid: OpenIDConfig,
 }
 
 impl FromRef<AppState> for automation::config::OpenIDConfig {
@@ -32,9 +38,7 @@ async fn main() {
         .with_default_directive(LevelFilter::INFO.into())
         .from_env_lossy();
 
-    tracing_subscriber::fmt()
-        .with_env_filter(filter)
-        .init();
+    tracing_subscriber::fmt().with_env_filter(filter).init();
 
     let config = std::env::var("AUTOMATION_CONFIG").unwrap_or("./config/config.toml".to_owned());
     let config = Config::build(&config).unwrap_or_else(|err| {
@@ -53,14 +57,15 @@ async fn main() {
 
     // Create a mqtt client and wrap the eventloop
     let (client, eventloop) = AsyncClient::new(mqttoptions, 10);
-    let mut mqtt = Mqtt::new(eventloop);
+    let mqtt = mqtt::start(eventloop);
+    let presence = presence::start(mqtt.clone(), config.presence.clone(), client.clone());
+    let light_sensor =
+        light_sensor::start(mqtt.clone(), config.light_sensor.clone(), client.clone());
 
-    // Create device holder and register it as listener for mqtt
-    let devices = Arc::new(RwLock::new(Devices::new()));
-    mqtt.add_listener(Arc::downgrade(&devices));
-
-    // Turn the config into actual devices and add them
-    config.devices.clone()
+    let devices = devices::start(mqtt, presence.clone(), light_sensor.clone());
+    config
+        .devices
+        .clone()
         .into_iter()
         .map(|(identifier, device_config)| {
             // This can technically block, but this only happens during start-up, so should not be
@@ -68,57 +73,38 @@ async fn main() {
             device_config.into(identifier, &config, client.clone())
         })
         .for_each(|device| {
-            devices.write().add_device(device);
+            devices.add_device(device);
         });
 
-    // Setup presence system
-    let mut presence = Presence::new(config.presence, client.clone());
-    // Register devices as presence listener
-    presence.add_listener(Arc::downgrade(&devices));
-
-    let mut light_sensor = LightSensor::new(config.light_sensor, client.clone());
-    light_sensor.add_listener(Arc::downgrade(&devices));
-
-    let ntfy;
+    // Start the ntfy service if it is configured
     if let Some(ntfy_config) = config.ntfy {
-        ntfy = Arc::new(RwLock::new(Ntfy::new(ntfy_config)));
-        presence.add_listener(Arc::downgrade(&ntfy));
+        Ntfy::create(presence.clone(), ntfy_config);
     }
 
-    let hue_bridge;
+    // Start he hue bridge if it is configured
     if let Some(hue_bridge_config) = config.hue_bridge {
-        hue_bridge = Arc::new(RwLock::new(HueBridge::new(hue_bridge_config)));
-        presence.add_listener(Arc::downgrade(&hue_bridge));
-        light_sensor.add_listener(Arc::downgrade(&hue_bridge));
+        HueBridge::create(presence.clone(), light_sensor.clone(), hue_bridge_config);
     }
-
-    // Register presence as mqtt listener
-    let presence = Arc::new(RwLock::new(presence));
-    mqtt.add_listener(Arc::downgrade(&presence));
-
-    let light_sensor = Arc::new(RwLock::new(light_sensor));
-    mqtt.add_listener(Arc::downgrade(&light_sensor));
-
-    // Start mqtt, this spawns a seperate async task
-    mqtt.start();
 
     // Create google home fullfillment route
-    let fullfillment = Router::new()
-        .route("/google_home", post(async move |user: User, Json(payload): Json<Request>| {
-            // Handle request might block, so we need to spawn a blocking task
-            tokio::task::spawn_blocking(move || {
-                let gc = GoogleHome::new(&user.preferred_username);
-                let result = gc.handle_request(payload, &mut devices.write().as_google_home_devices()).unwrap();
+    let fullfillment = Router::new().route(
+        "/google_home",
+        post(async move |user: User, Json(payload): Json<Request>| {
+            debug!(username = user.preferred_username, "{payload:?}");
+            let gc = GoogleHome::new(&user.preferred_username);
+            let result = devices.fullfillment(gc, payload).await.unwrap();
 
-                return (StatusCode::OK, Json(result));
-            }).await.unwrap()
-        }));
+            debug!(username = user.preferred_username, "{result:?}");
+
+            return (StatusCode::OK, Json(result));
+        }),
+    );
 
     // Combine together all the routes
     let app = Router::new()
         .nest("/fullfillment", fullfillment)
         .with_state(AppState {
-            openid: config.openid
+            openid: config.openid,
         });
 
     // Start the web server

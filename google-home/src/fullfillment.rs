@@ -2,6 +2,7 @@ use std::collections::HashMap;
 
 use crate::{request::{Request, Intent, self}, device::GoogleHomeDevice, response::{sync, ResponsePayload, query, execute, Response, self, State}, errors::{DeviceError, ErrorCode}};
 
+#[derive(Debug)]
 pub struct GoogleHome {
     user_id: String,
     // Add credentials so we can notify google home of actions

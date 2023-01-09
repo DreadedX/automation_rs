@@ -1,11 +1,11 @@
 use std::collections::HashMap;
 
+use async_trait::async_trait;
 use tracing::{warn, error, debug};
 use serde::Serialize;
 use serde_repr::*;
-use pollster::FutureExt as _;
 
-use crate::{presence::OnPresence, config::NtfyConfig};
+use crate::{presence::{self, OnPresence}, config::NtfyConfig};
 
 pub struct Ntfy {
     base_url: String,
@@ -88,13 +88,22 @@ impl Notification {
 }
 
 impl Ntfy {
-    pub fn new(config: NtfyConfig) -> Self {
-        Self { base_url: config.url, topic: config.topic }
+    pub fn create(mut rx: presence::Receiver, config: NtfyConfig) {
+        let mut ntfy = Self { base_url: config.url, topic: config.topic };
+        tokio::spawn(async move {
+            while rx.changed().await.is_ok() {
+                let presence = *rx.borrow();
+                ntfy.on_presence(presence).await;
+            }
+
+            unreachable!("Did not expect this");
+        });
     }
 }
 
+#[async_trait]
 impl OnPresence for Ntfy {
-    fn on_presence(&mut self, presence: bool) {
+    async fn on_presence(&mut self, presence: bool) {
         // Setup extras for the broadcast
         let extras = HashMap::from([
             ("cmd".into(), "presence".into()),
@@ -123,7 +132,7 @@ impl OnPresence for Ntfy {
             .post(self.base_url.clone())
             .json(&notification)
             .send()
-            .block_on();
+            .await;
 
         if let Err(err) = res {
             error!("Something went wrong while sending the notifcation: {err}");

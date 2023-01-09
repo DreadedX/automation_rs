@@ -7,6 +7,7 @@ use crate::{config::{InfoConfig, MqttDeviceConfig}, mqtt::{OnMqtt, ActivateMessa
 
 use super::Device;
 
+#[derive(Debug)]
 pub struct WakeOnLAN {
     identifier: String,
     info: InfoConfig,

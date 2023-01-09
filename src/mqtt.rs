@@ -1,67 +1,37 @@
-use std::sync::Weak;
-use parking_lot::RwLock;
 use serde::{Serialize, Deserialize};
-use tracing::{error, debug, span, Level};
+use tracing::{error, debug};
 
 use rumqttc::{Publish, Event, Incoming, EventLoop};
-use tokio::task::JoinHandle;
+use tokio::sync::watch;
 
 pub trait OnMqtt {
     fn on_mqtt(&mut self, message: &Publish);
 }
 
-// @TODO Maybe rename this to make it clear it has to do with mqtt
-pub struct Mqtt {
-    listeners: Vec<Weak<RwLock<dyn OnMqtt + Sync + Send>>>,
-    eventloop: EventLoop,
-}
+pub type Receiver = watch::Receiver<Option<Publish>>;
 
-impl Mqtt {
-    pub fn new(eventloop: EventLoop) -> Self {
-        return Self { listeners: Vec::new(), eventloop }
-    }
-
-    fn notify(message: Publish, listeners: Vec<Weak<RwLock<dyn OnMqtt + Sync + Send>>>) {
-        let _span = span!(Level::TRACE, "mqtt_message").entered();
-        listeners.into_iter().for_each(|listener| {
-            if let Some(listener) = listener.upgrade() {
-                listener.write().on_mqtt(&message);
+pub fn start(mut eventloop: EventLoop) -> Receiver {
+    let (tx, rx) = watch::channel(None);
+    tokio::spawn(async move {
+        debug!("Listening for MQTT events");
+        loop {
+            let notification = eventloop.poll().await;
+            match notification {
+                Ok(Event::Incoming(Incoming::Publish(p))) => {
+                    tx.send(Some(p)).ok();
+                },
+                Ok(..) => continue,
+                Err(err) => {
+                    error!("{}", err);
+                    break
+                },
             }
-        })
-    }
+        }
 
-    pub fn add_listener<T: OnMqtt + Sync + Send + 'static>(&mut self, listener: Weak<RwLock<T>>) {
-        self.listeners.push(listener);
-    }
+        todo!("Error in MQTT (most likely lost connection to mqtt server), we need to handle these errors!");
+    });
 
-    pub fn start(mut self) -> JoinHandle<()> {
-        tokio::spawn(async move {
-            debug!("Listening for MQTT events");
-            loop {
-                let notification = self.eventloop.poll().await;
-                match notification {
-                    Ok(Event::Incoming(Incoming::Publish(p))) => {
-                        // Remove non-existing listeners
-                        self.listeners.retain(|listener| listener.strong_count() > 0);
-                        // Clone the listeners
-                        let listeners = self.listeners.clone();
-
-                        // Notify might block, so we spawn a blocking task
-                        tokio::task::spawn_blocking(move || {
-                            Mqtt::notify(p, listeners);
-                        });
-                    },
-                    Ok(..) => continue,
-                    Err(err) => {
-                        error!("{}", err);
-                        break
-                    },
-                }
-            }
-
-            todo!("Error in MQTT (most likely lost connection to mqtt server), we need to handle these errors!");
-        })
-    }
+    return rx;
 }
 
 #[derive(Debug, Serialize, Deserialize)]

@@ -1,42 +1,46 @@
-use std::{sync::Weak, collections::HashMap};
+use std::collections::HashMap;
 
-use parking_lot::RwLock;
-use tracing::{debug, span, Level, error};
+use async_trait::async_trait;
+use tokio::sync::watch;
+use tracing::{debug, error};
 use rumqttc::{AsyncClient, matches};
 use pollster::FutureExt as _;
 
-use crate::{mqtt::{OnMqtt, PresenceMessage}, config::MqttDeviceConfig};
+use crate::{mqtt::{OnMqtt, PresenceMessage, self}, config::MqttDeviceConfig};
 
+#[async_trait]
 pub trait OnPresence {
-    fn on_presence(&mut self, presence: bool);
+    async fn on_presence(&mut self, presence: bool);
 }
 
-pub struct Presence {
-    listeners: Vec<Weak<RwLock<dyn OnPresence + Sync + Send>>>,
+pub type Receiver = watch::Receiver<bool>;
+type Sender = watch::Sender<bool>;
+
+struct Presence {
     devices: HashMap<String, bool>,
-    overall_presence: bool,
+    overall_presence: Receiver,
     mqtt: MqttDeviceConfig,
+    tx: Sender,
 }
 
-impl Presence {
-    pub fn new(mqtt: MqttDeviceConfig, client: AsyncClient) -> Self {
-        client.subscribe(mqtt.topic.clone(), rumqttc::QoS::AtLeastOnce).block_on().unwrap();
+pub fn start(mut mqtt_rx: mqtt::Receiver, mqtt: MqttDeviceConfig, client: AsyncClient) -> Receiver {
+    // Subscribe to the relevant topics on mqtt
+    client.subscribe(mqtt.topic.clone(), rumqttc::QoS::AtLeastOnce).block_on().unwrap();
 
-        Self { listeners: Vec::new(), devices: HashMap::new(), overall_presence: false, mqtt }
-    }
+    let (tx, overall_presence) = watch::channel(false);
+    let mut presence = Presence { devices: HashMap::new(), overall_presence: overall_presence.clone(), mqtt, tx };
 
-    pub fn add_listener<T: OnPresence + Sync + Send + 'static>(&mut self, listener: Weak<RwLock<T>>) {
-        self.listeners.push(listener);
-    }
-
-    pub fn notify(presence: bool, listeners: Vec<Weak<RwLock<dyn OnPresence + Sync + Send>>>) {
-        let _span = span!(Level::TRACE, "presence_update").entered();
-        listeners.into_iter().for_each(|listener| {
-            if let Some(listener) = listener.upgrade() {
-                listener.write().on_presence(presence);
+    tokio::spawn(async move {
+        while mqtt_rx.changed().await.is_ok() {
+            if let Some(message) = &*mqtt_rx.borrow() {
+                presence.on_mqtt(message);
             }
-        })
-    }
+        }
+
+        unreachable!("Did not expect this");
+    });
+
+    return overall_presence;
 }
 
 impl OnMqtt for Presence {
@@ -66,19 +70,9 @@ impl OnMqtt for Presence {
         }
 
         let overall_presence = self.devices.iter().any(|(_, v)| *v);
-        if overall_presence != self.overall_presence {
+        if overall_presence != *self.overall_presence.borrow() {
             debug!("Overall presence updated: {overall_presence}");
-            self.overall_presence = overall_presence;
-
-            // Remove non-existing listeners
-            self.listeners.retain(|listener| listener.strong_count() > 0);
-            // Clone the listeners
-            let listeners = self.listeners.clone();
-
-            // Notify might block, so we spawn a blocking task
-            tokio::task::spawn_blocking(move || {
-                Presence::notify(overall_presence, listeners);
-            });
+            self.tx.send(overall_presence).ok();
         }
     }
 }

@@ -12,4 +12,5 @@ mod attributes;
 
 pub use fullfillment::GoogleHome;
 pub use request::Request;
+pub use response::Response;
 pub use device::GoogleHomeDevice;
