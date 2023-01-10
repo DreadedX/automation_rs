@@ -58,10 +58,11 @@ enum Command {
     Fullfillment {
         google_home: GoogleHome,
         payload: google_home::Request,
-        tx: oneshot::Sender<google_home::Response>
+        tx: oneshot::Sender<google_home::Response>,
     },
     AddDevice {
         device: DeviceBox,
+        tx: oneshot::Sender<()>
     }
 }
 
@@ -81,7 +82,9 @@ impl DeviceHandle {
     }
 
     pub async fn add_device(&self, device: DeviceBox) {
-        self.tx.send(Command::AddDevice { device }).await.unwrap();
+        let (tx, rx) = oneshot::channel();
+        self.tx.send(Command::AddDevice { device, tx }).await.unwrap();
+        rx.await.ok();
     }
 }
 
@@ -138,7 +141,11 @@ impl Devices {
                 let result = google_home.handle_request(payload, &mut self.as_google_home_devices()).unwrap();
                 tx.send(result).ok();
             },
-            Command::AddDevice { device } => self.add_device(device),
+            Command::AddDevice { device, tx } => {
+                self.add_device(device);
+
+                tx.send(()).ok();
+            },
         }
     }
 

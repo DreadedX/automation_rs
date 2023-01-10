@@ -8,7 +8,7 @@ use automation::{
     config::{Config, OpenIDConfig},
     devices,
     hue_bridge::HueBridge,
-    light_sensor, mqtt,
+    light_sensor, mqtt::{self, Mqtt},
     ntfy::Ntfy,
     presence,
 };
@@ -41,13 +41,13 @@ async fn main() {
 
     tracing_subscriber::fmt().with_env_filter(filter).init();
 
+    info!("Starting automation_rs...");
+
     let config = std::env::var("AUTOMATION_CONFIG").unwrap_or("./config/config.toml".to_owned());
     let config = Config::build(&config).unwrap_or_else(|err| {
         error!("Failed to load config: {err}");
         process::exit(1);
     });
-
-    info!("Starting automation_rs...");
 
     // Configure MQTT
     let mqtt = config.mqtt.clone();
@@ -58,11 +58,11 @@ async fn main() {
 
     // Create a mqtt client and wrap the eventloop
     let (client, eventloop) = AsyncClient::new(mqttoptions, 10);
-    let mqtt = mqtt::start(eventloop);
-    let presence = presence::start(mqtt.clone(), config.presence.clone(), client.clone()).await;
-    let light_sensor = light_sensor::start(mqtt.clone(), config.light_sensor.clone(), client.clone()).await;
+    let mqtt = Mqtt::new(eventloop);
+    let presence = presence::start(mqtt.subscribe(), config.presence.clone(), client.clone()).await;
+    let light_sensor = light_sensor::start(mqtt.subscribe(), config.light_sensor.clone(), client.clone()).await;
 
-    let devices = devices::start(mqtt, presence.clone(), light_sensor.clone());
+    let devices = devices::start(mqtt.subscribe(), presence.clone(), light_sensor.clone());
     join_all(
         config
             .devices
@@ -86,15 +86,19 @@ async fn main() {
         HueBridge::create(presence.clone(), light_sensor.clone(), hue_bridge_config);
     }
 
+    // Actually start listening for mqtt message,
+    // we wait until all the setup is done, as otherwise we might miss some messages
+    mqtt.start();
+
     // Create google home fullfillment route
     let fullfillment = Router::new().route(
         "/google_home",
         post(async move |user: User, Json(payload): Json<Request>| {
-            debug!(username = user.preferred_username, "{payload:?}");
+            debug!(username = user.preferred_username, "{payload:#?}");
             let gc = GoogleHome::new(&user.preferred_username);
             let result = devices.fullfillment(gc, payload).await.unwrap();
 
-            debug!(username = user.preferred_username, "{result:?}");
+            debug!(username = user.preferred_username, "{result:#?}");
 
             return (StatusCode::OK, Json(result));
         }),

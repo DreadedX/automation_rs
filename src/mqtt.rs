@@ -11,29 +11,43 @@ pub trait OnMqtt {
 }
 
 pub type Receiver = watch::Receiver<Option<Publish>>;
+type Sender = watch::Sender<Option<Publish>>;
 
-pub fn start(mut eventloop: EventLoop) -> Receiver {
-    let (tx, rx) = watch::channel(None);
-    tokio::spawn(async move {
-        debug!("Listening for MQTT events");
-        loop {
-            let notification = eventloop.poll().await;
-            match notification {
-                Ok(Event::Incoming(Incoming::Publish(p))) => {
-                    tx.send(Some(p)).ok();
-                },
-                Ok(..) => continue,
-                Err(err) => {
-                    error!("{}", err);
-                    break
-                },
+pub struct Mqtt {
+    tx: Sender,
+    eventloop: EventLoop,
+}
+
+impl Mqtt {
+    pub fn new(eventloop: EventLoop) -> Self {
+        let (tx, _rx) = watch::channel(None);
+        Self { tx, eventloop }
+    }
+
+    pub fn subscribe(&self) -> Receiver {
+        self.tx.subscribe()
+    }
+
+    pub fn start(mut self) {
+        tokio::spawn(async move {
+            debug!("Listening for MQTT events");
+            loop {
+                let notification = self.eventloop.poll().await;
+                match notification {
+                    Ok(Event::Incoming(Incoming::Publish(p))) => {
+                        self.tx.send(Some(p)).ok();
+                    },
+                    Ok(..) => continue,
+                    Err(err) => {
+                        error!("{}", err);
+                        break
+                    },
+                }
             }
-        }
 
-        todo!("Error in MQTT (most likely lost connection to mqtt server), we need to handle these errors!");
-    });
-
-    return rx;
+            todo!("Error in MQTT (most likely lost connection to mqtt server), we need to handle these errors!");
+        });
+    }
 }
 
 #[derive(Debug, Serialize, Deserialize)]
