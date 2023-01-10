@@ -95,40 +95,25 @@ pub fn start(mut mqtt_rx: mqtt::Receiver, mut presence_rx: presence::Receiver, m
     let (tx, mut rx) = mpsc::channel(100);
 
     tokio::spawn(async move {
+        // @TODO Handle error better
         loop {
             tokio::select! {
-                res = mqtt_rx.changed() => {
-                    if !res.is_ok() {
-                        break;
-                    }
-
-                    // @TODO Not ideal that we have to clone here, but not sure how to work around that
-                    let message = mqtt_rx.borrow().clone();
-                    if let Some(message) = message {
-                        devices.on_mqtt(&message).await;
-                    }
+                Ok(message) = mqtt_rx.recv() => {
+                    devices.on_mqtt(&message).await;
                 }
-                res = presence_rx.changed() => {
-                    if !res.is_ok() {
-                        break;
-                    }
-
+                Ok(_) = presence_rx.changed() => {
                     let presence = *presence_rx.borrow();
                     devices.on_presence(presence).await;
                 }
-                res = light_sensor_rx.changed() => {
-                    if !res.is_ok() {
-                        break;
-                    }
-
+                Ok(_) = light_sensor_rx.changed() => {
                     let darkness = *light_sensor_rx.borrow();
                     devices.on_darkness(darkness).await;
                 }
+                // @TODO Handle receiving None better, otherwise it might constantly run doing
+                // nothing
                 Some(cmd) = rx.recv() => devices.handle_cmd(cmd)
             }
         }
-
-        unreachable!("Did not expect this");
     });
 
     return DeviceHandle { tx };

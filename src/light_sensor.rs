@@ -28,14 +28,12 @@ pub async fn start(mut mqtt_rx: mqtt::Receiver, config: LightSensorConfig, clien
     let mut light_sensor = LightSensor { is_dark: is_dark.clone(), mqtt: config.mqtt, min: config.min, max: config.max, tx };
 
     tokio::spawn(async move {
-        while mqtt_rx.changed().await.is_ok() {
-            let message = mqtt_rx.borrow().clone();
-            if let Some(message) = message {
+        loop {
+            // @TODO Handle errors, warn if lagging
+            if let Ok(message) = mqtt_rx.recv().await {
                 light_sensor.on_mqtt(&message).await;
             }
         }
-
-        unreachable!("Did not expect this");
     });
 
     return is_dark;

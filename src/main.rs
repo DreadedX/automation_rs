@@ -8,7 +8,7 @@ use automation::{
     config::{Config, OpenIDConfig},
     devices,
     hue_bridge::HueBridge,
-    light_sensor, mqtt::{self, Mqtt},
+    light_sensor, mqtt::Mqtt,
     ntfy::Ntfy,
     presence,
 };

@@ -30,15 +30,12 @@ pub async fn start(mut mqtt_rx: mqtt::Receiver, mqtt: MqttDeviceConfig, client: 
     let mut presence = Presence { devices: HashMap::new(), overall_presence: overall_presence.clone(), mqtt, tx };
 
     tokio::spawn(async move {
-        while mqtt_rx.changed().await.is_ok() {
-            // @TODO Not ideal that we have to clone here, but not sure how to work around that
-            let message = mqtt_rx.borrow().clone();
-            if let Some(message) = message {
+        loop {
+            // @TODO Handle errors, warn if lagging
+            if let Ok(message) = mqtt_rx.recv().await {
                 presence.on_mqtt(&message).await;
             }
         }
-
-        unreachable!("Did not expect this");
     });
 
     return overall_presence;

@@ -3,15 +3,15 @@ use serde::{Serialize, Deserialize};
 use tracing::{error, debug};
 
 use rumqttc::{Publish, Event, Incoming, EventLoop};
-use tokio::sync::watch;
+use tokio::sync::broadcast;
 
 #[async_trait]
 pub trait OnMqtt {
     async fn on_mqtt(&mut self, message: &Publish);
 }
 
-pub type Receiver = watch::Receiver<Option<Publish>>;
-type Sender = watch::Sender<Option<Publish>>;
+pub type Receiver = broadcast::Receiver<Publish>;
+type Sender = broadcast::Sender<Publish>;
 
 pub struct Mqtt {
     tx: Sender,
@@ -20,7 +20,7 @@ pub struct Mqtt {
 
 impl Mqtt {
     pub fn new(eventloop: EventLoop) -> Self {
-        let (tx, _rx) = watch::channel(None);
+        let (tx, _rx) = broadcast::channel(100);
         Self { tx, eventloop }
     }
 
@@ -35,7 +35,7 @@ impl Mqtt {
                 let notification = self.eventloop.poll().await;
                 match notification {
                     Ok(Event::Incoming(Incoming::Publish(p))) => {
-                        self.tx.send(Some(p)).ok();
+                        self.tx.send(p).ok();
                     },
                     Ok(..) => continue,
                     Err(err) => {
