@@ -39,8 +39,8 @@ impl AudioSetup {
 }
 
 impl Device for AudioSetup {
-    fn get_id(&self) -> String {
-        self.identifier.clone()
+    fn get_id(&self) -> &str {
+        &self.identifier
     }
 }
 

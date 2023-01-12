@@ -79,7 +79,9 @@ async fn app() -> Result<(), Box<dyn std::error::Error>> {
             .clone()
             .into_iter()
             .map(|(identifier, device_config)| async {
-                let device = device_config.create(identifier, &config, client.clone()).await?;
+                // Force the async block to move identifier
+                let identifier = identifier;
+                let device = device_config.create(&identifier, &config, client.clone()).await?;
                 devices.add_device(device).await?;
                 Ok::<(), Box<dyn std::error::Error>>(())
             })

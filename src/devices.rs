@@ -27,7 +27,7 @@ impl_cast::impl_cast!(Device, GoogleHomeDevice);
 impl_cast::impl_cast!(Device, OnOff);
 
 pub trait Device: AsGoogleHomeDevice + AsOnMqtt + AsOnPresence + AsOnDarkness + AsOnOff + std::fmt::Debug {
-    fn get_id(&self) -> String;
+    fn get_id(&self) -> &str;
 }
 
 // @TODO Add an inner type that we can wrap with Arc<RwLock<>> to make this type a little bit nicer
@@ -39,12 +39,12 @@ struct Devices {
 macro_rules! get_cast {
     ($trait:ident) => {
         paste::paste! {
-            pub fn [< as_ $trait:snake s >](&mut self) -> HashMap<String, &mut dyn $trait> {
+            pub fn [< as_ $trait:snake s >](&mut self) -> HashMap<&str, &mut dyn $trait> {
                 self.devices
                     .iter_mut()
                     .filter_map(|(id, device)| {
                         if let Some(listener) = [< As $trait >]::cast_mut(device.as_mut()) {
-                            return Some((id.clone(), listener));
+                            return Some((id.as_str(), listener));
                         };
                         return None;
                     }).collect()
@@ -136,7 +136,7 @@ impl Devices {
 
     fn add_device(&mut self, device: DeviceBox) {
         debug!(id = device.get_id(), "Adding device");
-        self.devices.insert(device.get_id(), device);
+        self.devices.insert(device.get_id().to_owned(), device);
     }
 
     get_cast!(OnMqtt);

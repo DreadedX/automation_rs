@@ -1,5 +1,4 @@
 use std::time::Duration;
-
 use async_trait::async_trait;
 use google_home::errors::ErrorCode;
 use google_home::{GoogleHomeDevice, device, types::Type, traits::{self, OnOff}};
@@ -35,16 +34,16 @@ impl IkeaOutlet {
     }
 }
 
-async fn set_on(client: AsyncClient, topic: String, on: bool) {
+async fn set_on(client: AsyncClient, topic: &str, on: bool) {
     let message = OnOffMessage::new(on);
 
     // @TODO Handle potential errors here
-    client.publish(topic.clone() + "/set", rumqttc::QoS::AtLeastOnce, false, serde_json::to_string(&message).unwrap()).await.map_err(|err| warn!("Failed to update state on {topic}: {err}")).ok();
+    client.publish(topic.to_owned() + "/set", rumqttc::QoS::AtLeastOnce, false, serde_json::to_string(&message).unwrap()).await.map_err(|err| warn!("Failed to update state on {topic}: {err}")).ok();
 }
 
 impl Device for IkeaOutlet {
-    fn get_id(&self) -> String {
-        self.identifier.clone()
+    fn get_id(&self) -> &str {
+        &self.identifier
     }
 }
 
@@ -106,7 +105,7 @@ impl OnMqtt for IkeaOutlet {
                     // @TODO Idealy we would call self.set_on(false), however since we want to do
                     // it after a timeout we have to put it in a seperate task.
                     // I don't think we can really get around calling outside function
-                    set_on(client, topic, false).await;
+                    set_on(client, &topic, false).await;
                 })
             );
         }
@@ -137,7 +136,7 @@ impl GoogleHomeDevice for IkeaOutlet {
         device::Name::new(&self.info.name)
     }
 
-    fn get_id(&self) -> String {
+    fn get_id(&self) -> &str {
         Device::get_id(self)
     }
 
@@ -145,8 +144,8 @@ impl GoogleHomeDevice for IkeaOutlet {
         true
     }
 
-    fn get_room_hint(&self) -> Option<String> {
-        self.info.room.clone()
+    fn get_room_hint(&self) -> Option<&str> {
+        self.info.room.as_deref()
     }
 
     fn will_report_state(&self) -> bool {
@@ -161,7 +160,7 @@ impl traits::OnOff for IkeaOutlet {
     }
 
     fn set_on(&mut self, on: bool) -> Result<(), ErrorCode> {
-        set_on(self.client.clone(), self.mqtt.topic.clone(), on).block_on();
+        set_on(self.client.clone(), &self.mqtt.topic, on).block_on();
 
         Ok(())
     }

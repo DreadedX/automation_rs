@@ -206,7 +206,7 @@ impl Config {
 
 impl Device {
     #[async_recursion]
-    pub async fn create(self, identifier: String, config: &Config, client: AsyncClient) -> Result<DeviceBox, FailedToCreateDevice> {
+    pub async fn create(self, identifier: &str, config: &Config, client: AsyncClient) -> Result<DeviceBox, FailedToCreateDevice> {
         let device: Result<DeviceBox, Error> = match self {
             Device::IkeaOutlet { info, mqtt, kettle } => {
                 trace!(id = identifier, "IkeaOutlet [{} in {:?}]", info.name, info.room);
@@ -229,8 +229,10 @@ impl Device {
             Device::AudioSetup { mqtt, mixer, speakers } => {
                 trace!(id = identifier, "AudioSetup [{}]", identifier);
                 // Create the child devices
-                let mixer = (*mixer).create(identifier.clone() + ".mixer", config, client.clone()).await?;
-                let speakers = (*speakers).create(identifier.clone() + ".speakers", config, client.clone()).await?;
+                let mixer_id = identifier.to_owned() + ".mixer";
+                let mixer = (*mixer).create(&mixer_id, config, client.clone()).await?;
+                let speakers_id = identifier.to_owned() + ".speakers";
+                let speakers = (*speakers).create(&speakers_id, config, client.clone()).await?;
 
                 match AudioSetup::build(&identifier, mqtt, mixer, speakers, client).await {
                     Ok(device) => Ok(Box::new(device)),

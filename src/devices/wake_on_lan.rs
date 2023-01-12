@@ -27,8 +27,8 @@ impl WakeOnLAN {
 }
 
 impl Device for WakeOnLAN {
-    fn get_id(&self) -> String {
-        self.identifier.clone()
+    fn get_id(&self) -> &str {
+        &self.identifier
     }
 }
 
@@ -63,7 +63,7 @@ impl GoogleHomeDevice for WakeOnLAN {
         return name;
     }
 
-    fn get_id(&self) -> String {
+    fn get_id(&self) -> &str {
         Device::get_id(self)
     }
 
@@ -71,8 +71,8 @@ impl GoogleHomeDevice for WakeOnLAN {
         true
     }
 
-    fn get_room_hint(&self) -> Option<String> {
-        self.info.room.clone()
+    fn get_room_hint(&self) -> Option<&str> {
+        self.info.room.as_deref()
     }
 }
 

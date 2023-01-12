@@ -13,7 +13,7 @@ impl GoogleHome {
         Self { user_id: user_id.into() }
     }
 
-    pub fn handle_request(&self, request: Request, mut devices: &mut HashMap<String, &mut dyn GoogleHomeDevice>) -> Result<Response, anyhow::Error> {
+    pub fn handle_request(&self, request: Request, mut devices: &mut HashMap<&str, &mut dyn GoogleHomeDevice>) -> Result<Response, anyhow::Error> {
         // @TODO What do we do if we actually get more then one thing in the input array, right now
         // we only respond to the first thing
         let payload = request
@@ -26,12 +26,12 @@ impl GoogleHome {
             }).next();
 
         match payload {
-            Some(payload) => Ok(Response::new(request.request_id, payload)),
+            Some(payload) => Ok(Response::new(&request.request_id, payload)),
             _ => Err(anyhow::anyhow!("Expected at least one ResponsePayload")),
         }
     }
 
-    fn sync(&self, devices: &HashMap<String, &mut dyn GoogleHomeDevice>) -> sync::Payload {
+    fn sync(&self, devices: &HashMap<&str, &mut dyn GoogleHomeDevice>) -> sync::Payload {
         let mut resp_payload = sync::Payload::new(&self.user_id);
         resp_payload.devices = devices
             .iter()
@@ -41,7 +41,7 @@ impl GoogleHome {
         return resp_payload;
     }
 
-    fn query(&self, payload: request::query::Payload, devices: &HashMap<String, &mut dyn GoogleHomeDevice>) -> query::Payload {
+    fn query(&self, payload: request::query::Payload, devices: &HashMap<&str, &mut dyn GoogleHomeDevice>) -> query::Payload {
         let mut resp_payload = query::Payload::new();
         resp_payload.devices = payload.devices
             .into_iter()
@@ -63,7 +63,7 @@ impl GoogleHome {
 
     }
 
-    fn execute(&self, payload: request::execute::Payload, devices: &mut HashMap<String, &mut dyn GoogleHomeDevice>) -> execute::Payload {
+    fn execute(&self, payload: request::execute::Payload, devices: &mut HashMap<&str, &mut dyn GoogleHomeDevice>) -> execute::Payload {
         let mut resp_payload = response::execute::Payload::new();
 
         payload.commands
@@ -128,6 +128,7 @@ mod tests {
     use super::*;
     use crate::{request::Request, device::{GoogleHomeDevice, self}, types, traits, errors::ErrorCode};
 
+    #[derive(Debug)]
     struct TestOutlet {
         name: String,
         on: bool,
@@ -152,16 +153,16 @@ mod tests {
             return name;
         }
 
-        fn get_id(&self) -> String {
-            return self.name.clone();
+        fn get_id(&self) -> &str {
+            return &self.name;
         }
 
         fn is_online(&self) -> bool {
             true
         }
 
-        fn get_room_hint(&self) -> Option<String> {
-            Some("Bedroom".into())
+        fn get_room_hint(&self) -> Option<&str> {
+            Some("Bedroom")
         }
 
         fn get_device_info(&self) -> Option<device::Info> {
@@ -185,7 +186,8 @@ mod tests {
         }
     }
 
-    struct TestScene {}
+    #[derive(Debug)]
+    struct TestScene;
 
     impl TestScene {
         fn new() -> Self {
@@ -202,16 +204,16 @@ mod tests {
             device::Name::new("Party")
         }
 
-        fn get_id(&self) -> String {
-            return "living/party_mode".into();
+        fn get_id(&self) -> &str {
+            return "living/party_mode";
         }
 
         fn is_online(&self) -> bool {
             true
         }
 
-        fn get_room_hint(&self) -> Option<String> {
-            Some("Living room".into())
+        fn get_room_hint(&self) -> Option<&str> {
+            Some("Living room")
         }
     }
 
@@ -241,10 +243,13 @@ mod tests {
         let mut nightstand = TestOutlet::new("bedroom/nightstand");
         let mut lamp = TestOutlet::new("living/lamp");
         let mut scene = TestScene::new();
-        let mut devices: HashMap<String, &mut dyn GoogleHomeDevice> = HashMap::new();
-        devices.insert(nightstand.get_id(), &mut nightstand);
-        devices.insert(lamp.get_id(), &mut lamp);
-        devices.insert(scene.get_id(), &mut scene);
+        let mut devices: HashMap<&str, &mut dyn GoogleHomeDevice> = HashMap::new();
+        let id = nightstand.get_id().to_owned();
+        devices.insert(&id, &mut nightstand);
+        let id = lamp.get_id().to_owned();
+        devices.insert(&id, &mut lamp);
+        let id = scene.get_id().to_owned();
+        devices.insert(&id, &mut scene);
 
         let resp = gh.handle_request(req, &mut devices).unwrap();
 
@@ -281,10 +286,13 @@ mod tests {
         let mut nightstand = TestOutlet::new("bedroom/nightstand");
         let mut lamp = TestOutlet::new("living/lamp");
         let mut scene = TestScene::new();
-        let mut devices: HashMap<String, &mut dyn GoogleHomeDevice> = HashMap::new();
-        devices.insert(nightstand.get_id(), &mut nightstand);
-        devices.insert(lamp.get_id(), &mut lamp);
-        devices.insert(scene.get_id(), &mut scene);
+        let mut devices: HashMap<&str, &mut dyn GoogleHomeDevice> = HashMap::new();
+        let id = nightstand.get_id().to_owned();
+        devices.insert(&id, &mut nightstand);
+        let id = lamp.get_id().to_owned();
+        devices.insert(&id, &mut lamp);
+        let id = scene.get_id().to_owned();
+        devices.insert(&id, &mut scene);
 
         let resp = gh.handle_request(req, &mut devices).unwrap();
 
@@ -333,10 +341,13 @@ mod tests {
         let mut nightstand = TestOutlet::new("bedroom/nightstand");
         let mut lamp = TestOutlet::new("living/lamp");
         let mut scene = TestScene::new();
-        let mut devices: HashMap<String, &mut dyn GoogleHomeDevice> = HashMap::new();
-        devices.insert(nightstand.get_id(), &mut nightstand);
-        devices.insert(lamp.get_id(), &mut lamp);
-        devices.insert(scene.get_id(), &mut scene);
+        let mut devices: HashMap<&str, &mut dyn GoogleHomeDevice> = HashMap::new();
+        let id = nightstand.get_id().to_owned();
+        devices.insert(&id, &mut nightstand);
+        let id = lamp.get_id().to_owned();
+        devices.insert(&id, &mut lamp);
+        let id = scene.get_id().to_owned();
+        devices.insert(&id, &mut scene);
 
         let resp = gh.handle_request(req, &mut devices).unwrap();
 

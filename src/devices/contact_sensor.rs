@@ -38,8 +38,8 @@ impl ContactSensor {
 }
 
 impl Device for ContactSensor {
-    fn get_id(&self) -> String {
-        self.identifier.clone()
+    fn get_id(&self) -> &str {
+        &self.identifier
     }
 }
 

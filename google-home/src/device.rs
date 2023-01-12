@@ -5,14 +5,14 @@ use crate::{response, types::Type, traits::{AsOnOff, Trait, AsScene}, errors::{D
 pub trait GoogleHomeDevice: AsOnOff + AsScene {
     fn get_device_type(&self) -> Type;
     fn get_device_name(&self) -> Name;
-    fn get_id(&self) -> String;
+    fn get_id(&self) -> &str;
     fn is_online(&self) -> bool;
 
     // Default values that can optionally be overriden
     fn will_report_state(&self) -> bool {
         false
     }
-    fn get_room_hint(&self) -> Option<String> {
+    fn get_room_hint(&self) -> Option<&str> {
         None
     }
     fn get_device_info(&self) -> Option<Info> {

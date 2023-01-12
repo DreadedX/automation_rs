@@ -85,7 +85,7 @@ mod tests {
 
         sync_resp.add_device(device);
 
-        let resp = Response::new("ff36a3cc-ec34-11e6-b1a0-64510650abcf".to_owned(), ResponsePayload::Sync(sync_resp));
+        let resp = Response::new("ff36a3cc-ec34-11e6-b1a0-64510650abcf", ResponsePayload::Sync(sync_resp));
 
         let json = serde_json::to_string(&resp).unwrap();
 

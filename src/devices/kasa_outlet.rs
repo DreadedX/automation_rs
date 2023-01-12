@@ -19,8 +19,8 @@ impl KasaOutlet {
 }
 
 impl Device for KasaOutlet {
-    fn get_id(&self) -> String {
-        self.identifier.clone()
+    fn get_id(&self) -> &str {
+        &self.identifier
     }
 }
 

@@ -81,7 +81,7 @@ mod tests {
         device.state.on = Some(false);
         query_resp.add_device("456", device);
 
-        let resp = Response::new("ff36a3cc-ec34-11e6-b1a0-64510650abcf".to_owned(), ResponsePayload::Query(query_resp));
+        let resp = Response::new("ff36a3cc-ec34-11e6-b1a0-64510650abcf", ResponsePayload::Query(query_resp));
 
         let json = serde_json::to_string(&resp).unwrap();
 
