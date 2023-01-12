@@ -4,12 +4,13 @@ use async_trait::async_trait;
 use google_home::errors::ErrorCode;
 use google_home::{GoogleHomeDevice, device, types::Type, traits::{self, OnOff}};
 use rumqttc::{AsyncClient, Publish, matches};
-use tracing::{debug, trace, error};
+use tracing::{debug, trace, error, warn};
 use tokio::task::JoinHandle;
 use pollster::FutureExt as _;
 
 use crate::config::{KettleConfig, InfoConfig, MqttDeviceConfig};
 use crate::devices::Device;
+use crate::error;
 use crate::mqtt::{OnMqtt, OnOffMessage};
 use crate::presence::OnPresence;
 
@@ -26,11 +27,11 @@ pub struct IkeaOutlet {
 }
 
 impl IkeaOutlet {
-    pub async fn new(identifier: String, info: InfoConfig, mqtt: MqttDeviceConfig, kettle: Option<KettleConfig>, client: AsyncClient) -> Self {
+    pub async fn build(identifier: &str, info: InfoConfig, mqtt: MqttDeviceConfig, kettle: Option<KettleConfig>, client: AsyncClient) -> error::Result<Self> {
         // @TODO Handle potential errors here
-        client.subscribe(mqtt.topic.clone(), rumqttc::QoS::AtLeastOnce).await.unwrap();
+        client.subscribe(mqtt.topic.clone(), rumqttc::QoS::AtLeastOnce).await?;
 
-        Self{ identifier, info, mqtt, kettle, client, last_known_state: false, handle: None }
+        Ok(Self{ identifier: identifier.to_owned(), info, mqtt, kettle, client, last_known_state: false, handle: None })
     }
 }
 
@@ -38,7 +39,7 @@ async fn set_on(client: AsyncClient, topic: String, on: bool) {
     let message = OnOffMessage::new(on);
 
     // @TODO Handle potential errors here
-    client.publish(topic + "/set", rumqttc::QoS::AtLeastOnce, false, serde_json::to_string(&message).unwrap()).await.unwrap();
+    client.publish(topic.clone() + "/set", rumqttc::QoS::AtLeastOnce, false, serde_json::to_string(&message).unwrap()).await.map_err(|err| warn!("Failed to update state on {topic}: {err}")).ok();
 }
 
 impl Device for IkeaOutlet {

@@ -1,16 +1,16 @@
 #![feature(async_closure)]
 use std::{process, time::Duration};
 
-use axum::{extract::FromRef, http::StatusCode, routing::post, Json, Router};
+use axum::{extract::FromRef, http::StatusCode, routing::post, Json, Router, response::IntoResponse};
 
 use automation::{
     auth::User,
     config::{Config, OpenIDConfig},
     devices,
-    hue_bridge::HueBridge,
+    hue_bridge,
     light_sensor, mqtt::Mqtt,
-    ntfy::Ntfy,
-    presence,
+    ntfy,
+    presence, error::ApiError,
 };
 use dotenvy::dotenv;
 use rumqttc::{AsyncClient, MqttOptions, Transport};
@@ -33,6 +33,19 @@ impl FromRef<AppState> for automation::config::OpenIDConfig {
 
 #[tokio::main]
 async fn main() {
+    if let Err(err) = app().await {
+        error!("Error: {err}");
+        let mut cause = err.source();
+        while let Some(c) = cause {
+            error!("Cause: {c}");
+            cause = c.source();
+        }
+        process::exit(1);
+    }
+}
+
+
+async fn app() -> Result<(), Box<dyn std::error::Error>> {
     dotenv().ok();
 
     let filter = EnvFilter::builder()
@@ -44,10 +57,7 @@ async fn main() {
     info!("Starting automation_rs...");
 
     let config = std::env::var("AUTOMATION_CONFIG").unwrap_or("./config/config.toml".to_owned());
-    let config = Config::build(&config).unwrap_or_else(|err| {
-        error!("Failed to load config: {err}");
-        process::exit(1);
-    });
+    let config = Config::parse_file(&config)?;
 
     // Configure MQTT
     let mqtt = config.mqtt.clone();
@@ -59,8 +69,8 @@ async fn main() {
     // Create a mqtt client and wrap the eventloop
     let (client, eventloop) = AsyncClient::new(mqttoptions, 10);
     let mqtt = Mqtt::new(eventloop);
-    let presence = presence::start(mqtt.subscribe(), config.presence.clone(), client.clone()).await;
-    let light_sensor = light_sensor::start(mqtt.subscribe(), config.light_sensor.clone(), client.clone()).await;
+    let presence = presence::start(config.presence.clone(), mqtt.subscribe(), client.clone()).await?;
+    let light_sensor = light_sensor::start(mqtt.subscribe(), config.light_sensor.clone(), client.clone()).await?;
 
     let devices = devices::start(mqtt.subscribe(), presence.clone(), light_sensor.clone());
     join_all(
@@ -69,21 +79,20 @@ async fn main() {
             .clone()
             .into_iter()
             .map(|(identifier, device_config)| async {
-                // This can technically block, but this only happens during start-up, so should not be
-                // a problem
-                let device = device_config.into(identifier, &config, client.clone()).await;
-                devices.add_device(device).await;
+                let device = device_config.create(identifier, &config, client.clone()).await?;
+                devices.add_device(device).await?;
+                Ok::<(), Box<dyn std::error::Error>>(())
             })
-    ).await;
+    ).await.into_iter().collect::<Result<_, _>>()?;
 
     // Start the ntfy service if it is configured
     if let Some(ntfy_config) = config.ntfy {
-        Ntfy::create(presence.clone(), ntfy_config);
+        ntfy::start(presence.clone(), &ntfy_config);
     }
 
     // Start he hue bridge if it is configured
     if let Some(hue_bridge_config) = config.hue_bridge {
-        HueBridge::create(presence.clone(), light_sensor.clone(), hue_bridge_config);
+        hue_bridge::start(presence.clone(), light_sensor.clone(), hue_bridge_config);
     }
 
     // Actually start listening for mqtt message,
@@ -96,11 +105,14 @@ async fn main() {
         post(async move |user: User, Json(payload): Json<Request>| {
             debug!(username = user.preferred_username, "{payload:#?}");
             let gc = GoogleHome::new(&user.preferred_username);
-            let result = devices.fullfillment(gc, payload).await.unwrap();
+            let result = match devices.fullfillment(gc, payload).await {
+                Ok(result) => result,
+                Err(err) => return ApiError::new(StatusCode::INTERNAL_SERVER_ERROR, err.into()).into_response(),
+            };
 
             debug!(username = user.preferred_username, "{result:#?}");
 
-            return (StatusCode::OK, Json(result));
+            return (StatusCode::OK, Json(result)).into_response();
         }),
     );
 
@@ -114,8 +126,9 @@ async fn main() {
     // Start the web server
     let addr = config.fullfillment.into();
     info!("Server started on http://{addr}");
-    axum::Server::bind(&addr)
+    axum::Server::try_bind(&addr)?
         .serve(app.into_make_service())
-        .await
-        .unwrap();
+        .await?;
+
+    Ok(())
 }

@@ -27,7 +27,7 @@ impl GoogleHome {
 
         match payload {
             Some(payload) => Ok(Response::new(request.request_id, payload)),
-            _ => Err(anyhow::anyhow!("Something went wrong, expected at least ResponsePayload")),
+            _ => Err(anyhow::anyhow!("Expected at least one ResponsePayload")),
         }
     }
 

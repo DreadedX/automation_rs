@@ -3,8 +3,9 @@ use google_home::{GoogleHomeDevice, types::Type, device, traits::{self, Scene}, 
 use tracing::{debug, error};
 use rumqttc::{AsyncClient, Publish, matches};
 use pollster::FutureExt as _;
+use eui48::MacAddress;
 
-use crate::{config::{InfoConfig, MqttDeviceConfig}, mqtt::{OnMqtt, ActivateMessage}};
+use crate::{config::{InfoConfig, MqttDeviceConfig}, mqtt::{OnMqtt, ActivateMessage}, error};
 
 use super::Device;
 
@@ -13,15 +14,15 @@ pub struct WakeOnLAN {
     identifier: String,
     info: InfoConfig,
     mqtt: MqttDeviceConfig,
-    mac_address: String,
+    mac_address: MacAddress,
 }
 
 impl WakeOnLAN {
-    pub async fn new(identifier: String, info: InfoConfig, mqtt: MqttDeviceConfig, mac_address: String, client: AsyncClient) -> Self {
+    pub async fn build(identifier: &str, info: InfoConfig, mqtt: MqttDeviceConfig, mac_address: MacAddress, client: AsyncClient) -> error::Result<Self> {
         // @TODO Handle potential errors here
-        client.subscribe(mqtt.topic.clone(), rumqttc::QoS::AtLeastOnce).await.unwrap();
+        client.subscribe(mqtt.topic.clone(), rumqttc::QoS::AtLeastOnce).await?;
 
-        Self { identifier, info, mqtt, mac_address }
+        Ok(Self { identifier: identifier.to_owned(), info, mqtt, mac_address })
     }
 }
 

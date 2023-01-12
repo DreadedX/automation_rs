@@ -18,7 +18,7 @@ use pollster::FutureExt;
 use tokio::sync::{oneshot, mpsc};
 use tracing::{trace, debug, span, Level};
 
-use crate::{mqtt::{OnMqtt, self}, presence::{OnPresence, self}, light_sensor::{OnDarkness, self}};
+use crate::{mqtt::{OnMqtt, self}, presence::{OnPresence, self}, light_sensor::{OnDarkness, self}, error};
 
 impl_cast::impl_cast!(Device, OnMqtt);
 impl_cast::impl_cast!(Device, OnPresence);
@@ -58,7 +58,7 @@ enum Command {
     Fullfillment {
         google_home: GoogleHome,
         payload: google_home::Request,
-        tx: oneshot::Sender<google_home::Response>,
+        tx: oneshot::Sender<anyhow::Result<google_home::Response>>,
     },
     AddDevice {
         device: DeviceBox,
@@ -75,16 +75,16 @@ pub struct DeviceHandle {
 
 impl DeviceHandle {
     // @TODO Improve error type
-    pub async fn fullfillment(&self, google_home: GoogleHome, payload: google_home::Request) -> Result<google_home::Response, oneshot::error::RecvError> {
+    pub async fn fullfillment(&self, google_home: GoogleHome, payload: google_home::Request) -> anyhow::Result<google_home::Response> {
         let (tx, rx) = oneshot::channel();
-        self.tx.send(Command::Fullfillment { google_home, payload, tx }).await.unwrap();
-        rx.await
+        self.tx.send(Command::Fullfillment { google_home, payload, tx }).await?;
+        rx.await?
     }
 
-    pub async fn add_device(&self, device: DeviceBox) {
+    pub async fn add_device(&self, device: DeviceBox) -> error::Result<()> {
         let (tx, rx) = oneshot::channel();
-        self.tx.send(Command::AddDevice { device, tx }).await.unwrap();
-        rx.await.ok();
+        self.tx.send(Command::AddDevice { device, tx }).await?;
+        Ok(rx.await?)
     }
 }
 
@@ -123,7 +123,7 @@ impl Devices {
     fn handle_cmd(&mut self, cmd: Command) {
         match cmd {
             Command::Fullfillment { google_home, payload, tx } => {
-                let result = google_home.handle_request(payload, &mut self.as_google_home_devices()).unwrap();
+                let result = google_home.handle_request(payload, &mut self.as_google_home_devices());
                 tx.send(result).ok();
             },
             Command::AddDevice { device, tx } => {

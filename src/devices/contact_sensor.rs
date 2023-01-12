@@ -5,7 +5,7 @@ use rumqttc::{AsyncClient, matches};
 use tokio::task::JoinHandle;
 use tracing::{error, debug, warn};
 
-use crate::{config::{MqttDeviceConfig, PresenceDeviceConfig}, mqtt::{OnMqtt, ContactMessage, PresenceMessage}, presence::OnPresence};
+use crate::{config::{MqttDeviceConfig, PresenceDeviceConfig}, mqtt::{OnMqtt, ContactMessage, PresenceMessage}, presence::OnPresence, error};
 
 use super::Device;
 
@@ -22,18 +22,18 @@ pub struct ContactSensor {
 }
 
 impl ContactSensor {
-    pub async fn new(identifier: String, mqtt: MqttDeviceConfig, presence: Option<PresenceDeviceConfig>, client: AsyncClient) -> Self {
-        client.subscribe(mqtt.topic.clone(), rumqttc::QoS::AtLeastOnce).await.unwrap();
+    pub async fn build(identifier: &str, mqtt: MqttDeviceConfig, presence: Option<PresenceDeviceConfig>, client: AsyncClient) -> error::Result<Self> {
+        client.subscribe(mqtt.topic.clone(), rumqttc::QoS::AtLeastOnce).await?;
 
-        Self {
-            identifier,
+        Ok(Self {
+            identifier: identifier.to_owned(),
             mqtt,
             presence,
             client,
             overall_presence: false,
             is_closed: true,
             handle: None,
-        }
+        })
     }
 }
 
@@ -97,7 +97,7 @@ impl OnMqtt for ContactSensor {
             // This is to prevent the house from being marked as present for however long the
             // timeout is set when leaving the house
             if !self.overall_presence {
-                self.client.publish(topic, rumqttc::QoS::AtLeastOnce, false, serde_json::to_string(&PresenceMessage::new(true)).unwrap()).await.unwrap();
+                self.client.publish(topic.clone(), rumqttc::QoS::AtLeastOnce, false, serde_json::to_string(&PresenceMessage::new(true)).unwrap()).await.map_err(|err| warn!("Failed to publish presence on {topic}: {err}")).ok();
             }
         } else {
             // Once the door is closed again we start a timeout for removing the presence
@@ -109,7 +109,7 @@ impl OnMqtt for ContactSensor {
                     debug!(id, "Starting timeout ({timeout:?}) for contact sensor...");
                     tokio::time::sleep(timeout).await;
                     debug!(id, "Removing door device!");
-                    client.publish(topic, rumqttc::QoS::AtLeastOnce, false, "").await.unwrap();
+                    client.publish(topic.clone(), rumqttc::QoS::AtLeastOnce, false, "").await.map_err(|err| warn!("Failed to publish presence on {topic}: {err}")).ok();
                 })
             );
         }

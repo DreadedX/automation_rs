@@ -7,3 +7,4 @@ pub mod ntfy;
 pub mod light_sensor;
 pub mod hue_bridge;
 pub mod auth;
+pub mod error;

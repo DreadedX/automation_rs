@@ -7,7 +7,7 @@ use serde_repr::*;
 
 use crate::{presence::{self, OnPresence}, config::NtfyConfig};
 
-pub struct Ntfy {
+struct Ntfy {
     base_url: String,
     topic: String
 }
@@ -88,17 +88,22 @@ impl Notification {
 }
 
 impl Ntfy {
-    pub fn create(mut rx: presence::Receiver, config: NtfyConfig) {
-        let mut ntfy = Self { base_url: config.url, topic: config.topic };
-        tokio::spawn(async move {
-            while rx.changed().await.is_ok() {
-                let presence = *rx.borrow();
-                ntfy.on_presence(presence).await;
-            }
-
-            unreachable!("Did not expect this");
-        });
+    fn new(base_url: &str, topic: &str) -> Self {
+        Self { base_url: base_url.to_owned(), topic: topic.to_owned() }
     }
+}
+
+pub fn start(mut rx: presence::Receiver, config: &NtfyConfig) {
+    let mut ntfy = Ntfy::new(&config.url, &config.topic);
+
+    tokio::spawn(async move {
+        while rx.changed().await.is_ok() {
+            let presence = *rx.borrow();
+            ntfy.on_presence(presence).await;
+        }
+
+        unreachable!("Did not expect this");
+    });
 }
 
 #[async_trait]

@@ -3,7 +3,7 @@ use rumqttc::{matches, AsyncClient};
 use tokio::sync::watch;
 use tracing::{error, trace, debug};
 
-use crate::{config::{MqttDeviceConfig, LightSensorConfig}, mqtt::{self, OnMqtt, BrightnessMessage}};
+use crate::{config::{MqttDeviceConfig, LightSensorConfig}, mqtt::{self, OnMqtt, BrightnessMessage}, error};
 
 #[async_trait]
 pub trait OnDarkness {
@@ -14,18 +14,25 @@ pub type Receiver = watch::Receiver<bool>;
 type Sender = watch::Sender<bool>;
 
 struct LightSensor {
-    is_dark: Receiver,
     mqtt: MqttDeviceConfig,
     min: isize,
     max: isize,
     tx: Sender,
+    is_dark: Receiver,
 }
 
-pub async fn start(mut mqtt_rx: mqtt::Receiver, config: LightSensorConfig, client: AsyncClient) -> Receiver {
-    client.subscribe(config.mqtt.topic.clone(), rumqttc::QoS::AtLeastOnce).await.unwrap();
+impl LightSensor {
+    fn new(mqtt: MqttDeviceConfig, min: isize, max: isize) -> Self {
+        let (tx, is_dark) = watch::channel(false);
+        Self { is_dark: is_dark.clone(), mqtt, min, max, tx }
+    }
+}
 
-    let (tx, is_dark) = watch::channel(false);
-    let mut light_sensor = LightSensor { is_dark: is_dark.clone(), mqtt: config.mqtt, min: config.min, max: config.max, tx };
+pub async fn start(mut mqtt_rx: mqtt::Receiver, config: LightSensorConfig, client: AsyncClient) -> error::Result<Receiver> {
+    client.subscribe(config.mqtt.topic.clone(), rumqttc::QoS::AtLeastOnce).await?;
+
+    let mut light_sensor = LightSensor::new(config.mqtt, config.min, config.max);
+    let is_dark = light_sensor.is_dark.clone();
 
     tokio::spawn(async move {
         loop {
@@ -36,7 +43,7 @@ pub async fn start(mut mqtt_rx: mqtt::Receiver, config: LightSensorConfig, clien
         }
     });
 
-    return is_dark;
+    Ok(is_dark)
 }
 
 #[async_trait]

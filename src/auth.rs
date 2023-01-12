@@ -2,11 +2,10 @@ use axum::{
     async_trait,
     extract::{FromRequestParts, FromRef},
     http::{StatusCode, request::Parts},
-    response::{IntoResponse, Response},
 };
 use serde::Deserialize;
 
-use crate::config::OpenIDConfig;
+use crate::{config::OpenIDConfig, error::{ApiError, ApiErrorJson}};
 
 #[derive(Debug, Deserialize)]
 pub struct User {
@@ -19,7 +18,7 @@ where
     OpenIDConfig: FromRef<S>,
     S: Send + Sync,
 {
-    type Rejection = Response;
+    type Rejection = ApiError;
 
     async fn from_request_parts(parts: &mut Parts, state: &S) -> Result<Self, Self::Rejection> {
         // Get the state
@@ -38,23 +37,26 @@ where
         // Send the request
         let res = req.send()
             .await
-            .map_err(|err| (StatusCode::INTERNAL_SERVER_ERROR, err.to_string()).into_response())?;
+            .map_err(|err| ApiError::new(StatusCode::INTERNAL_SERVER_ERROR, err.into()))?;
 
         // If the request is success full the auth token is valid and we are given userinfo
         let status = res.status();
         if status.is_success() {
             let user = res.json()
                 .await
-                .map_err(|err| (StatusCode::INTERNAL_SERVER_ERROR, err.to_string()).into_response())?;
+                .map_err(|err| ApiError::new(StatusCode::INTERNAL_SERVER_ERROR, err.into()))?;
 
             return Ok(user);
         } else {
-            let err = res
-                .text()
+            let err: ApiErrorJson = res
+                .json()
                 .await
-                .map_err(|err| (StatusCode::INTERNAL_SERVER_ERROR, err.to_string()).into_response())?;
+                .map_err(|err| ApiError::new(StatusCode::INTERNAL_SERVER_ERROR, err.into()))?;
 
-            return Err((status, err).into_response());
+            let err = ApiError::try_from(err)
+                .map_err(|err| ApiError::new(StatusCode::INTERNAL_SERVER_ERROR, err.into()))?;
+
+            Err(err)
         }
     }
 }

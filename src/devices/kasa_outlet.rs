@@ -13,9 +13,8 @@ pub struct KasaOutlet {
 }
 
 impl KasaOutlet {
-    pub fn new(identifier: String, ip: Ipv4Addr) -> Self {
-        // @TODO Get the current state of the outlet
-        Self { identifier, addr: (ip, 9999).into() }
+    pub fn new(identifier: &str, ip: Ipv4Addr) -> Self {
+        Self { identifier: identifier.to_owned(), addr: (ip, 9999).into() }
     }
 }
 

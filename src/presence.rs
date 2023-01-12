@@ -3,9 +3,9 @@ use std::collections::HashMap;
 use async_trait::async_trait;
 use tokio::sync::watch;
 use tracing::{debug, error};
-use rumqttc::{AsyncClient, matches};
+use rumqttc::{AsyncClient, matches, has_wildcards};
 
-use crate::{mqtt::{OnMqtt, PresenceMessage, self}, config::MqttDeviceConfig};
+use crate::{mqtt::{OnMqtt, PresenceMessage, self}, config::MqttDeviceConfig, error::{self, MissingWildcard}};
 
 #[async_trait]
 pub trait OnPresence {
@@ -17,17 +17,28 @@ type Sender = watch::Sender<bool>;
 
 struct Presence {
     devices: HashMap<String, bool>,
-    overall_presence: Receiver,
     mqtt: MqttDeviceConfig,
     tx: Sender,
+    overall_presence: Receiver,
 }
 
-pub async fn start(mut mqtt_rx: mqtt::Receiver, mqtt: MqttDeviceConfig, client: AsyncClient) -> Receiver {
-    // Subscribe to the relevant topics on mqtt
-    client.subscribe(mqtt.topic.clone(), rumqttc::QoS::AtLeastOnce).await.unwrap();
+impl Presence {
+    fn build(mqtt: MqttDeviceConfig) -> Result<Self, MissingWildcard> {
+        if !has_wildcards(&mqtt.topic) {
+            return Err(MissingWildcard::new(&mqtt.topic).into());
+        }
 
-    let (tx, overall_presence) = watch::channel(false);
-    let mut presence = Presence { devices: HashMap::new(), overall_presence: overall_presence.clone(), mqtt, tx };
+        let (tx, overall_presence) = watch::channel(false);
+        Ok(Self { devices: HashMap::new(), overall_presence: overall_presence.clone(), mqtt, tx })
+    }
+}
+
+pub async fn start(mqtt: MqttDeviceConfig, mut mqtt_rx: mqtt::Receiver, client: AsyncClient) -> error::Result<Receiver> {
+    // Subscribe to the relevant topics on mqtt
+    client.subscribe(mqtt.topic.clone(), rumqttc::QoS::AtLeastOnce).await?;
+
+    let mut presence = Presence::build(mqtt)?;
+    let overall_presence = presence.overall_presence.clone();
 
     tokio::spawn(async move {
         loop {
@@ -38,7 +49,7 @@ pub async fn start(mut mqtt_rx: mqtt::Receiver, mqtt: MqttDeviceConfig, client: 
         }
     });
 
-    return overall_presence;
+    Ok(overall_presence)
 }
 
 #[async_trait]
@@ -48,7 +59,7 @@ impl OnMqtt for Presence {
             return;
         }
 
-        let offset = self.mqtt.topic.find('+').or(self.mqtt.topic.find('#')).unwrap();
+        let offset = self.mqtt.topic.find('+').or(self.mqtt.topic.find('#')).expect("Presence::new fails if it does not contain wildcards");
         let device_name = &message.topic[offset..];
 
         if message.payload.len() == 0 {

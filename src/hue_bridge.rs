@@ -11,7 +11,7 @@ pub enum Flag {
     Darkness,
 }
 
-pub struct HueBridge {
+struct HueBridge {
     addr: SocketAddr,
     login: String,
     flags: Flags,
@@ -23,37 +23,8 @@ struct FlagMessage {
 }
 
 impl HueBridge {
-    pub fn create(mut presence_rx: presence::Receiver, mut light_sensor_rx: light_sensor::Receiver, config: HueBridgeConfig) {
-        let mut hue_bridge = Self {
-            addr: (config.ip, 80).into(),
-            login: config.login,
-            flags: config.flags,
-        };
-
-        tokio::spawn(async move {
-            loop {
-                tokio::select! {
-                    res = presence_rx.changed() => {
-                        if !res.is_ok() {
-                            break;
-                        }
-
-                        let presence = *presence_rx.borrow();
-                        hue_bridge.on_presence(presence).await;
-                    }
-                    res = light_sensor_rx.changed() => {
-                        if !res.is_ok() {
-                            break;
-                        }
-
-                        let darkness = *light_sensor_rx.borrow();
-                        hue_bridge.on_darkness(darkness).await;
-                    }
-                }
-            }
-
-            unreachable!("Did not expect this");
-        });
+    pub fn new(addr: SocketAddr, login: &str, flags: Flags) -> Self {
+        Self { addr, login: login.to_owned(), flags }
     }
 
     pub async fn set_flag(&self, flag: Flag, value: bool) {
@@ -81,6 +52,35 @@ impl HueBridge {
             }
         }
     }
+}
+
+pub fn start(mut presence_rx: presence::Receiver, mut light_sensor_rx: light_sensor::Receiver, config: HueBridgeConfig) {
+    let mut hue_bridge = HueBridge::new((config.ip, 80).into(), &config.login, config.flags);
+
+    tokio::spawn(async move {
+        loop {
+            tokio::select! {
+                res = presence_rx.changed() => {
+                    if !res.is_ok() {
+                        break;
+                    }
+
+                    let presence = *presence_rx.borrow();
+                    hue_bridge.on_presence(presence).await;
+                }
+                res = light_sensor_rx.changed() => {
+                    if !res.is_ok() {
+                        break;
+                    }
+
+                    let darkness = *light_sensor_rx.borrow();
+                    hue_bridge.on_darkness(darkness).await;
+                }
+            }
+        }
+
+        unreachable!("Did not expect this");
+    });
 }
 
 #[async_trait]
