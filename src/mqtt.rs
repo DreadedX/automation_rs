@@ -1,6 +1,6 @@
 use async_trait::async_trait;
 use serde::{Serialize, Deserialize};
-use tracing::{error, debug};
+use tracing::{debug, warn};
 
 use rumqttc::{Publish, Event, Incoming, EventLoop};
 use tokio::sync::broadcast;
@@ -39,13 +39,12 @@ impl Mqtt {
                     },
                     Ok(..) => continue,
                     Err(err) => {
-                        error!("{}", err);
-                        break
+                        // Something has gone wrong
+                        // We stay in the loop as that will attempt to reconnect
+                        warn!("{}", err);
                     },
                 }
             }
-
-            todo!("Error in MQTT (most likely lost connection to mqtt server), we need to handle these errors!");
         });
     }
 }
