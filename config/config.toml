@@ -12,7 +12,7 @@ password="${MQTT_PASSWORD}"
 topic = "${NTFY_TOPIC}"
 
 [presence]
-topic = "automation_dev/presence/+/#"
+topic = "automation/presence/+/#"
 
 [hue_bridge]
 ip = "10.0.0.146"
@@ -20,7 +20,7 @@ login = "${HUE_TOKEN}"
 flags = { presence = 41, darkness = 43 }
 
 [light_sensor]
-topic = "zigbee2mqtt_dev/living/light"
+topic = "zigbee2mqtt/living/light"
 min = 23_000
 max = 25_000
 
