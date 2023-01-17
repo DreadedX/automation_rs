@@ -60,7 +60,7 @@ impl Default for FullfillmentConfig {
 }
 
 fn default_fullfillment_ip() -> Ipv4Addr {
-    [127, 0, 0, 1].into()
+    [0, 0, 0, 0].into()
 }
 
 fn default_fullfillment_port() -> u16 {
