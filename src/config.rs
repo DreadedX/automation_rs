@@ -34,6 +34,8 @@ pub struct MqttConfig {
     pub port: u16,
     pub username: String,
     pub password: String,
+    #[serde(default)]
+    pub tls: bool
 }
 
 #[derive(Debug, Deserialize)]

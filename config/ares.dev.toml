@@ -6,6 +6,7 @@ host="olympus.vpn.huizinga.dev"
 port=8883
 username="mqtt"
 password="${MQTT_PASSWORD}"
+tls=true
 
 [ntfy]
 topic = "${NTFY_TOPIC}"

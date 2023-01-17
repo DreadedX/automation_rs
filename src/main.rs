@@ -64,7 +64,10 @@ async fn app() -> Result<(), Box<dyn std::error::Error>> {
     let mut mqttoptions = MqttOptions::new("rust-test", mqtt.host, mqtt.port);
     mqttoptions.set_credentials(mqtt.username, mqtt.password);
     mqttoptions.set_keep_alive(Duration::from_secs(5));
-    mqttoptions.set_transport(Transport::tls_with_default_config());
+
+    if mqtt.tls {
+        mqttoptions.set_transport(Transport::tls_with_default_config());
+    }
 
     // Create a mqtt client and wrap the eventloop
     let (client, eventloop) = AsyncClient::new(mqttoptions, 10);
