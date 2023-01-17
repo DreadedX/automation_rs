@@ -32,10 +32,11 @@ pub struct OpenIDConfig {
 pub struct MqttConfig {
     pub host: String,
     pub port: u16,
+    pub client_name: String,
     pub username: String,
     pub password: String,
     #[serde(default)]
-    pub tls: bool
+    pub tls: bool,
 }
 
 #[derive(Debug, Deserialize)]

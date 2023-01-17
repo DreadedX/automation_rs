@@ -61,7 +61,7 @@ async fn app() -> Result<(), Box<dyn std::error::Error>> {
 
     // Configure MQTT
     let mqtt = config.mqtt.clone();
-    let mut mqttoptions = MqttOptions::new("rust-test", mqtt.host, mqtt.port);
+    let mut mqttoptions = MqttOptions::new(mqtt.client_name, mqtt.host, mqtt.port);
     mqttoptions.set_credentials(mqtt.username, mqtt.password);
     mqttoptions.set_keep_alive(Duration::from_secs(5));
 
