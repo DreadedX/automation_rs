@@ -1,0 +1,46 @@
+kind: pipeline
+type: docker
+name: default
+
+steps:
+    - name: build
+      image: docker
+      volumes:
+          - name: socket
+            path: /var/run/docker.sock
+      commands:
+          - DOCKER_BUILDKIT=1 docker build -t automation_rs .
+
+    - name: deploy
+      image: docker
+      volumes:
+          - name: socket
+            path: /var/run/docker.sock
+      environment:
+          MQTT_PASSWORD:
+              from_secret: MQTT_PASSWORD
+          HUE_TOKEN:
+              from_secret: HUE_TOKEN
+          NTFY_TOPIC:
+              from_secret: NTFY_TOPIC
+      commands:
+          - docker stop automation_rs || true
+
+          - docker rm automation_rs || true
+
+          - docker create -e MQTT_PASSWORD=$MQTT_PASSWORD -e HUE_TOKEN=$HUE_TOKEN -e NTFY_TOPIC=$NTFY_TOPIC --name automation_rs automation_rs
+          - docker network connect mqtt automation_rs
+          - docker network connect web automation_rs
+          - docker start automation_rs
+
+      when:
+        branch:
+          - master
+        event:
+          exclude:
+            - pull_request
+
+volumes:
+    - name: socket
+      host:
+          path: /var/run/docker.sock
