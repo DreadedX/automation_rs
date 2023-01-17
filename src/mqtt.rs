@@ -1,3 +1,5 @@
+use std::time::{UNIX_EPOCH, SystemTime};
+
 use async_trait::async_trait;
 use serde::{Serialize, Deserialize};
 use tracing::{debug, warn};
@@ -125,12 +127,13 @@ impl TryFrom<&Publish> for RemoteMessage {
 
 #[derive(Debug, Deserialize, Serialize)]
 pub struct PresenceMessage {
-    state: bool
+    state: bool,
+    updated: Option<u128>,
 }
 
 impl PresenceMessage {
     pub fn new(state: bool) -> Self {
-        Self { state }
+        Self { state, updated: Some(SystemTime::now().duration_since(UNIX_EPOCH).expect("Time is after UNIX EPOCH").as_millis()) }
     }
 
     pub fn present(&self) -> bool {
@@ -179,6 +182,31 @@ impl ContactMessage {
 }
 
 impl TryFrom<&Publish> for ContactMessage {
+    type Error = anyhow::Error;
+
+    fn try_from(message: &Publish) -> Result<Self, Self::Error> {
+        serde_json::from_slice(&message.payload)
+            .or(Err(anyhow::anyhow!("Invalid message payload received: {:?}", message.payload)))
+    }
+}
+
+#[derive(Debug, Deserialize, Serialize)]
+pub struct DarknessMessage {
+    state: bool,
+    updated: Option<u128>,
+}
+
+impl DarknessMessage {
+    pub fn new(state: bool) -> Self {
+        Self { state, updated: Some(SystemTime::now().duration_since(UNIX_EPOCH).expect("Time is after UNIX EPOCH").as_millis()) }
+    }
+
+    pub fn present(&self) -> bool {
+        self.state
+    }
+}
+
+impl TryFrom<&Publish> for DarknessMessage {
     type Error = anyhow::Error;
 
     fn try_from(message: &Publish) -> Result<Self, Self::Error> {

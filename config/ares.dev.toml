@@ -15,6 +15,9 @@ topic = "${NTFY_TOPIC}"
 [presence]
 topic = "automation_dev/presence/+/#"
 
+[debug_bridge]
+topic = "automation_dev/debug"
+
 [light_sensor]
 topic = "zigbee2mqtt_dev/living/light"
 min = 23_000

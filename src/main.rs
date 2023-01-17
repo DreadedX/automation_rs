@@ -10,7 +10,7 @@ use automation::{
     hue_bridge,
     light_sensor, mqtt::Mqtt,
     ntfy,
-    presence, error::ApiError,
+    presence, error::ApiError, debug_bridge,
 };
 use dotenvy::dotenv;
 use rumqttc::{AsyncClient, MqttOptions, Transport};
@@ -95,9 +95,14 @@ async fn app() -> Result<(), Box<dyn std::error::Error>> {
         ntfy::start(presence.clone(), &ntfy_config);
     }
 
-    // Start he hue bridge if it is configured
+    // Start the hue bridge if it is configured
     if let Some(hue_bridge_config) = config.hue_bridge {
         hue_bridge::start(presence.clone(), light_sensor.clone(), hue_bridge_config);
+    }
+
+    // Start the debug bridge if it is configured
+    if let Some(debug_bridge_config) = config.debug_bridge {
+        debug_bridge::start(presence.clone(), light_sensor.clone(), debug_bridge_config, client.clone());
     }
 
     // Actually start listening for mqtt message,

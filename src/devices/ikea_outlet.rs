@@ -38,7 +38,10 @@ async fn set_on(client: AsyncClient, topic: &str, on: bool) {
     let message = OnOffMessage::new(on);
 
     // @TODO Handle potential errors here
-    client.publish(topic.to_owned() + "/set", rumqttc::QoS::AtLeastOnce, false, serde_json::to_string(&message).unwrap()).await.map_err(|err| warn!("Failed to update state on {topic}: {err}")).ok();
+    client.publish(topic.to_owned() + "/set", rumqttc::QoS::AtLeastOnce, false, serde_json::to_string(&message).unwrap())
+        .await
+        .map_err(|err| warn!("Failed to update state on {topic}/set: {err}"))
+        .ok();
 }
 
 impl Device for IkeaOutlet {

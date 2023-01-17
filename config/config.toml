@@ -19,6 +19,9 @@ ip = "10.0.0.146"
 login = "${HUE_TOKEN}"
 flags = { presence = 41, darkness = 43 }
 
+[debug_bridge]
+topic = "automation/debug"
+
 [light_sensor]
 topic = "zigbee2mqtt/living/light"
 min = 23_000

@@ -8,3 +8,4 @@ pub mod light_sensor;
 pub mod hue_bridge;
 pub mod auth;
 pub mod error;
+pub mod debug_bridge;

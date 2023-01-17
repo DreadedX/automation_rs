@@ -19,8 +19,9 @@ pub struct Config {
     pub presence: MqttDeviceConfig,
     pub light_sensor: LightSensorConfig,
     pub hue_bridge: Option<HueBridgeConfig>,
+    pub debug_bridge: Option<DebugBridgeConfig>,
     #[serde(default)]
-    pub devices: HashMap<String, Device>
+    pub devices: HashMap<String, Device>,
 }
 
 #[derive(Debug, Clone, Deserialize)]
@@ -97,6 +98,11 @@ pub struct HueBridgeConfig {
     pub ip: Ipv4Addr,
     pub login: String,
     pub flags: Flags,
+}
+
+#[derive(Debug, Deserialize)]
+pub struct DebugBridgeConfig {
+    pub topic: String,
 }
 
 #[derive(Debug, Clone, Deserialize)]

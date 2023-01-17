@@ -97,7 +97,10 @@ impl OnMqtt for ContactSensor {
             // This is to prevent the house from being marked as present for however long the
             // timeout is set when leaving the house
             if !self.overall_presence {
-                self.client.publish(topic.clone(), rumqttc::QoS::AtLeastOnce, false, serde_json::to_string(&PresenceMessage::new(true)).unwrap()).await.map_err(|err| warn!("Failed to publish presence on {topic}: {err}")).ok();
+                self.client.publish(topic.clone(), rumqttc::QoS::AtLeastOnce, false, serde_json::to_string(&PresenceMessage::new(true)).unwrap())
+                    .await
+                    .map_err(|err| warn!("Failed to publish presence on {topic}: {err}"))
+                    .ok();
             }
         } else {
             // Once the door is closed again we start a timeout for removing the presence
@@ -109,7 +112,10 @@ impl OnMqtt for ContactSensor {
                     debug!(id, "Starting timeout ({timeout:?}) for contact sensor...");
                     tokio::time::sleep(timeout).await;
                     debug!(id, "Removing door device!");
-                    client.publish(topic.clone(), rumqttc::QoS::AtLeastOnce, false, "").await.map_err(|err| warn!("Failed to publish presence on {topic}: {err}")).ok();
+                    client.publish(topic.clone(), rumqttc::QoS::AtLeastOnce, false, "")
+                        .await
+                        .map_err(|err| warn!("Failed to publish presence on {topic}: {err}"))
+                        .ok();
                 })
             );
         }
