@@ -2,7 +2,7 @@
 base_url = "https://login.huizinga.dev/api/oidc"
 
 [mqtt]
-host="olympus.lan.huizinga.dev"
+host="mqtt"
 port=8883
 username="mqtt"
 password="${MQTT_PASSWORD}"
@@ -28,7 +28,7 @@ type = "IkeaOutlet"
 name = "Kettle"
 room = "Kitchen"
 topic = "zigbee2mqtt/kitchen/kettle"
-kettle = { timeout = 5 }
+kettle = { timeout = 300 }
 
 [devices.living_workbench]
 type = "IkeaOutlet"
@@ -56,4 +56,4 @@ ip = "10.0.0.182"
 [devices.hallway_frontdoor]
 type = "ContactSensor"
 topic = "zigbee2mqtt/hallway/frontdoor"
-presence = { timeout = 10 }
+presence = { timeout = 900 }
