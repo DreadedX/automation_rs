@@ -2,7 +2,7 @@
 base_url = "https://login.huizinga.dev/api/oidc"
 
 [mqtt]
-host="mqtt"
+host="mosquitto"
 port=8883
 username="mqtt"
 password="${MQTT_PASSWORD}"
