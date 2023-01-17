@@ -28,7 +28,7 @@ steps:
 
           - docker rm automation_rs || true
 
-          - docker create -e MQTT_PASSWORD=$MQTT_PASSWORD -e HUE_TOKEN=$HUE_TOKEN -e NTFY_TOPIC=$NTFY_TOPIC --name automation_rs automation_rs
+          - docker create -e RUST_LOG=automation=debug -e MQTT_PASSWORD=$MQTT_PASSWORD -e HUE_TOKEN=$HUE_TOKEN -e NTFY_TOPIC=$NTFY_TOPIC --name automation_rs automation_rs
           - docker network connect mqtt automation_rs
           - docker network connect web automation_rs
           - docker start automation_rs
