@@ -23,12 +23,14 @@ steps:
               from_secret: HUE_TOKEN
           NTFY_TOPIC:
               from_secret: NTFY_TOPIC
+          RUST_LOG:
+              from_secret: RUST_LOG
       commands:
           - docker stop automation_rs || true
 
           - docker rm automation_rs || true
 
-          - docker create -e MQTT_PASSWORD=$MQTT_PASSWORD -e HUE_TOKEN=$HUE_TOKEN -e NTFY_TOPIC=$NTFY_TOPIC --name automation_rs automation_rs
+          - docker create -e RUST_LOG=$RUST_LOG -e MQTT_PASSWORD=$MQTT_PASSWORD -e HUE_TOKEN=$HUE_TOKEN -e NTFY_TOPIC=$NTFY_TOPIC --name automation_rs automation_rs
           - docker network connect mqtt automation_rs
           - docker network connect web automation_rs
           - docker start automation_rs
