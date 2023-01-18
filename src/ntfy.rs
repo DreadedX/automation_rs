@@ -93,7 +93,7 @@ impl Ntfy {
     }
 }
 
-pub fn start(mut rx: presence::Receiver, config: &NtfyConfig) {
+pub fn start(mut rx: presence::Receiver, config: NtfyConfig) {
     let mut ntfy = Ntfy::new(&config.url, &config.topic);
 
     tokio::spawn(async move {

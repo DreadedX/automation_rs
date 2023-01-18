@@ -91,18 +91,18 @@ async fn app() -> Result<(), Box<dyn std::error::Error>> {
     ).await.into_iter().collect::<Result<_, _>>()?;
 
     // Start the ntfy service if it is configured
-    if let Some(ntfy_config) = config.ntfy {
-        ntfy::start(presence.clone(), &ntfy_config);
+    if let Some(config) = config.ntfy {
+        ntfy::start(presence.clone(), config);
     }
 
     // Start the hue bridge if it is configured
-    if let Some(hue_bridge_config) = config.hue_bridge {
-        hue_bridge::start(presence.clone(), light_sensor.clone(), hue_bridge_config);
+    if let Some(config) = config.hue_bridge {
+        hue_bridge::start(presence.clone(), light_sensor.clone(), config);
     }
 
     // Start the debug bridge if it is configured
-    if let Some(debug_bridge_config) = config.debug_bridge {
-        debug_bridge::start(presence.clone(), light_sensor.clone(), debug_bridge_config, client.clone());
+    if let Some(config) = config.debug_bridge {
+        debug_bridge::start(presence.clone(), light_sensor.clone(), config, client.clone());
     }
 
     // Actually start listening for mqtt message,

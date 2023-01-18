@@ -1,7 +1,7 @@
 use std::{net::{SocketAddr, Ipv4Addr, TcpStream}, io::{Write, Read}};
 
 use bytes::{Buf, BufMut};
-use google_home::{traits, errors::{ErrorCode, DeviceError}};
+use google_home::{traits, errors::{self, DeviceError}};
 use serde::{Serialize, Deserialize};
 
 use super::Device;
@@ -84,13 +84,30 @@ impl Request {
 }
 
 #[derive(Debug, Deserialize)]
-struct ResponseSetRelayState {
+struct ErrorCode {
     err_code: isize,
+}
+
+impl ErrorCode {
+    fn ok(&self) -> Result<(), anyhow::Error> {
+        if self.err_code != 0 {
+            Err(anyhow::anyhow!("Error code: {}", self.err_code))
+        } else {
+            Ok(())
+        }
+    }
+}
+
+#[derive(Debug, Deserialize)]
+struct ResponseSetRelayState {
+    #[serde(flatten)]
+    err_code: ErrorCode,
 }
 
 #[derive(Debug, Deserialize)]
 struct ResponseGetSysinfo {
-    err_code: isize,
+    #[serde(flatten)]
+    err_code: ErrorCode,
     relay_state: isize,
 }
 
@@ -108,10 +125,8 @@ struct Response {
 impl Response {
     fn get_current_relay_state(&self) -> Result<bool, anyhow::Error> {
         if let Some(sysinfo) = &self.system.get_sysinfo {
-            if sysinfo.err_code != 0 {
-                return Err(anyhow::anyhow!("Error code: {}", sysinfo.err_code));
-            }
-            return Ok(sysinfo.relay_state == 1);
+            return sysinfo.err_code.ok()
+                .map(|_| sysinfo.relay_state == 1);
         }
 
         return Err(anyhow::anyhow!("No sysinfo found in response"));
@@ -119,10 +134,7 @@ impl Response {
 
     fn check_set_relay_success(&self) -> Result<(), anyhow::Error> {
         if let Some(set_relay_state) = &self.system.set_relay_state {
-            if set_relay_state.err_code != 0 {
-                return Err(anyhow::anyhow!("Error code: {}", set_relay_state.err_code));
-            }
-            return Ok(());
+            return set_relay_state.err_code.ok();
         }
 
         return Err(anyhow::anyhow!("No relay_state found in response"));
@@ -148,7 +160,7 @@ impl Response {
 }
 
 impl traits::OnOff for KasaOutlet {
-    fn is_on(&self) -> Result<bool, ErrorCode> {
+    fn is_on(&self) -> Result<bool, errors::ErrorCode> {
         let mut stream = TcpStream::connect(self.addr).or::<DeviceError>(Err(DeviceError::DeviceOffline.into()))?;
 
         let body = Request::get_sysinfo().encrypt();
@@ -157,7 +169,7 @@ impl traits::OnOff for KasaOutlet {
         let mut received = Vec::new();
         let mut rx_bytes = [0; 1024];
         loop {
-            let read = stream.read(&mut rx_bytes).or::<ErrorCode>(Err(DeviceError::TransientError.into()))?;
+            let read = stream.read(&mut rx_bytes).or::<errors::ErrorCode>(Err(DeviceError::TransientError.into()))?;
 
             received.extend_from_slice(&rx_bytes[..read]);
 
@@ -166,12 +178,12 @@ impl traits::OnOff for KasaOutlet {
             }
         }
 
-        let resp = Response::decrypt(received.into()).or::<ErrorCode>(Err(DeviceError::TransientError.into()))?;
+        let resp = Response::decrypt(received.into()).or::<errors::ErrorCode>(Err(DeviceError::TransientError.into()))?;
 
         resp.get_current_relay_state().or(Err(DeviceError::TransientError.into()))
     }
 
-    fn set_on(&mut self, on: bool) -> Result<(), ErrorCode> {
+    fn set_on(&mut self, on: bool) -> Result<(), errors::ErrorCode> {
         let mut stream = TcpStream::connect(self.addr).or::<DeviceError>(Err(DeviceError::DeviceOffline.into()))?;
 
         let body = Request::set_relay_state(on).encrypt();
@@ -192,7 +204,7 @@ impl traits::OnOff for KasaOutlet {
             }
         }
 
-        let resp = Response::decrypt(received.into()).or::<ErrorCode>(Err(DeviceError::TransientError.into()))?;
+        let resp = Response::decrypt(received.into()).or::<errors::ErrorCode>(Err(DeviceError::TransientError.into()))?;
 
         resp.check_set_relay_success().or(Err(DeviceError::TransientError.into()))
     }

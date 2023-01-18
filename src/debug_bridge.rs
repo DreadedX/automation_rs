@@ -10,13 +10,13 @@ struct DebugBridge {
 }
 
 impl DebugBridge {
-    pub fn new(topic: String, client: AsyncClient) -> Self {
-        Self { topic, client }
+    pub fn new(topic: &str, client: AsyncClient) -> Self {
+        Self { topic: topic.to_owned(), client }
     }
 }
 
 pub fn start(mut presence_rx: presence::Receiver, mut light_sensor_rx: light_sensor::Receiver, config: DebugBridgeConfig, client: AsyncClient) {
-    let mut debug_bridge = DebugBridge::new(config.topic, client);
+    let mut debug_bridge = DebugBridge::new(&config.topic, client);
 
     tokio::spawn(async move {
         loop {

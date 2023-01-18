@@ -26,7 +26,7 @@ impl_cast::impl_cast!(Device, OnDarkness);
 impl_cast::impl_cast!(Device, GoogleHomeDevice);
 impl_cast::impl_cast!(Device, OnOff);
 
-pub trait Device: AsGoogleHomeDevice + AsOnMqtt + AsOnPresence + AsOnDarkness + AsOnOff + std::fmt::Debug {
+pub trait Device: AsGoogleHomeDevice + AsOnMqtt + AsOnPresence + AsOnDarkness + AsOnOff + std::fmt::Debug + Sync + Send {
     fn get_id(&self) -> &str;
 }
 
@@ -43,10 +43,8 @@ macro_rules! get_cast {
                 self.devices
                     .iter_mut()
                     .filter_map(|(id, device)| {
-                        if let Some(listener) = [< As $trait >]::cast_mut(device.as_mut()) {
-                            return Some((id.as_str(), listener));
-                        };
-                        return None;
+                        [< As $trait >]::cast_mut(device.as_mut())
+                            .map(|listener| (id.as_str(), listener))
                     }).collect()
             }
         }
@@ -66,7 +64,7 @@ enum Command {
     }
 }
 
-pub type DeviceBox = Box<dyn Device + Sync + Send>;
+pub type DeviceBox = Box<dyn Device>;
 
 #[derive(Clone)]
 pub struct DeviceHandle {

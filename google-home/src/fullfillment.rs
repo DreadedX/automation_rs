@@ -47,16 +47,16 @@ impl GoogleHome {
             .into_iter()
             .map(|device| device.id)
             .map(|id| {
-                let mut d: query::Device;
-                if let Some(device) = devices.get(id.as_str()) {
-                    d = device.query();
-                } else {
-                    d = query::Device::new();
-                    d.set_offline();
-                    d.set_error(DeviceError::DeviceNotFound.into());
-                }
+                let device = devices.get(id.as_str())
+                    .map_or_else(|| {
+                        let mut device = query::Device::new();
+                        device.set_offline();
+                        device.set_error(DeviceError::DeviceNotFound.into());
 
-                return (id, d);
+                        device
+                    }, |device| device.query());
+
+                return (id, device);
             }).collect();
 
         return resp_payload;
@@ -79,25 +79,25 @@ impl GoogleHome {
                     .into_iter()
                     .map(|device| device.id)
                     .map(|id| {
-                        if let Some(device) = devices.get_mut(id.as_str()) {
-                            if !device.is_online() {
-                                return (id, Ok(false));
-                            }
-                            let results = command.execution.iter().map(|cmd| {
-                                // @TODO We should also return the state after update in the state
-                                // struct, however that will make things WAY more complicated
-                                device.execute(cmd)
-                            }).collect::<Result<Vec<_>, ErrorCode>>();
+                        devices.get_mut(id.as_str())
+                            .map_or((id.clone(), Err(DeviceError::DeviceNotFound.into())), |device| {
+                                if !device.is_online() {
+                                    return (id, Ok(false));
+                                }
 
-                            // @TODO We only get one error not all errors
-                            if let Err(err) = results {
-                                return (id, Err(err));
-                            } else {
-                                return (id, Ok(true));
-                            }
-                        } else {
-                            return (id, Err(DeviceError::DeviceNotFound.into()));
-                        }
+                                let results = command.execution.iter().map(|cmd| {
+                                    // @TODO We should also return the state after update in the state
+                                    // struct, however that will make things WAY more complicated
+                                    device.execute(cmd)
+                                }).collect::<Result<Vec<_>, ErrorCode>>();
+
+                                // @TODO We only get one error not all errors
+                                if let Err(err) = results {
+                                    return (id, Err(err));
+                                } else {
+                                    return (id, Ok(true));
+                                }
+                            })
                     }).for_each(|(id, state)| {
                         match state {
                             Ok(true) => success.add_id(&id),
