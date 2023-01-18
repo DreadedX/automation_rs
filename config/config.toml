@@ -24,8 +24,8 @@ topic = "automation/debug"
 
 [light_sensor]
 topic = "zigbee2mqtt/living/light"
-min = 23_000
-max = 25_000
+min = 19_000
+max = 22_000
 
 [devices.kitchen_kettle]
 type = "IkeaOutlet"
