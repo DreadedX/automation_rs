@@ -4,7 +4,7 @@ use rumqttc::{AsyncClient, matches};
 use tracing::{error, warn, debug};
 
 use crate::config::MqttDeviceConfig;
-use crate::error;
+use crate::error::DeviceError;
 use crate::mqtt::{OnMqtt, RemoteMessage, RemoteAction};
 use crate::presence::OnPresence;
 
@@ -21,16 +21,13 @@ pub struct AudioSetup {
 }
 
 impl AudioSetup {
-    pub async fn build(identifier: &str, mqtt: MqttDeviceConfig, mixer: DeviceBox, speakers: DeviceBox, client: AsyncClient) -> error::Result<Self> {
+    pub async fn build(identifier: &str, mqtt: MqttDeviceConfig, mixer: DeviceBox, speakers: DeviceBox, client: AsyncClient) -> Result<Self, DeviceError> {
         // We expect the children devices to implement the OnOff trait
-        let mixer = match AsOnOff::consume(mixer) {
-            Some(mixer) => mixer,
-            None => Err(error::ExpectedOnOff::new(&(identifier.to_owned() + ".mixer")))?,
-        };
-        let speakers = match AsOnOff::consume(speakers) {
-            Some(speakers) => speakers,
-            None => Err(error::ExpectedOnOff::new(&(identifier.to_owned() + ".speakers")))?,
-        };
+        let mixer = AsOnOff::consume(mixer)
+            .ok_or_else(|| DeviceError::OnOffExpected(identifier.to_owned() + ".mixer"))?;
+
+        let speakers = AsOnOff::consume(speakers)
+            .ok_or_else(|| DeviceError::OnOffExpected(identifier.to_owned() + ".speakers"))?;
 
         client.subscribe(mqtt.topic.clone(), rumqttc::QoS::AtLeastOnce).await?;
 

@@ -19,7 +19,6 @@ paste = "1.0.10"
 tokio = { version = "1", features = ["rt-multi-thread"] }
 toml = "0.5.10"
 dotenvy = "0.15.0"
-anyhow = "1.0.68"
 reqwest = { version = "0.11.13", features = ["json", "rustls-tls"], default-features = false } # Use rustls, since the other packages also use rustls
 axum = "0.6.1"
 serde_repr = "0.1.10"
@@ -32,6 +31,8 @@ async-trait = "0.1.61"
 async-recursion = "1.0.0"
 futures = "0.3.25"
 eui48 = { version = "1.1.0", default-features = false, features = ["disp_hexstring", "serde"] }
+thiserror = "1.0.38"
+anyhow = "1.0.68"
 
 [profile.release]
 lto=true

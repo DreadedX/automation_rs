@@ -1,5 +1,7 @@
 use std::time::{UNIX_EPOCH, SystemTime};
 
+use bytes::Bytes;
+use thiserror::Error;
 use async_trait::async_trait;
 use serde::{Serialize, Deserialize};
 use tracing::{debug, warn};
@@ -18,6 +20,12 @@ type Sender = broadcast::Sender<Publish>;
 pub struct Mqtt {
     tx: Sender,
     eventloop: EventLoop,
+}
+
+#[derive(Debug, Error)]
+pub enum ParseError {
+    #[error("Invalid message payload received: {0:?}")]
+    InvalidPayload(Bytes),
 }
 
 impl Mqtt {
@@ -67,11 +75,11 @@ impl OnOffMessage {
 }
 
 impl TryFrom<&Publish> for OnOffMessage {
-    type Error = anyhow::Error;
+    type Error = ParseError;
 
     fn try_from(message: &Publish) -> Result<Self, Self::Error> {
         serde_json::from_slice(&message.payload)
-            .or(Err(anyhow::anyhow!("Invalid message payload received: {:?}", message.payload)))
+            .or(Err(ParseError::InvalidPayload(message.payload.clone())))
     }
 }
 
@@ -87,11 +95,11 @@ impl ActivateMessage {
 }
 
 impl TryFrom<&Publish> for ActivateMessage {
-    type Error = anyhow::Error;
+    type Error = ParseError;
 
     fn try_from(message: &Publish) -> Result<Self, Self::Error> {
         serde_json::from_slice(&message.payload)
-            .or(Err(anyhow::anyhow!("Invalid message payload received: {:?}", message.payload)))
+            .or(Err(ParseError::InvalidPayload(message.payload.clone())))
     }
 }
 
@@ -117,11 +125,11 @@ impl RemoteMessage {
 }
 
 impl TryFrom<&Publish> for RemoteMessage {
-    type Error = anyhow::Error;
+    type Error = ParseError;
 
     fn try_from(message: &Publish) -> Result<Self, Self::Error> {
         serde_json::from_slice(&message.payload)
-            .or(Err(anyhow::anyhow!("Invalid message payload received: {:?}", message.payload)))
+            .or(Err(ParseError::InvalidPayload(message.payload.clone())))
     }
 }
 
@@ -142,11 +150,11 @@ impl PresenceMessage {
 }
 
 impl TryFrom<&Publish> for PresenceMessage {
-    type Error = anyhow::Error;
+    type Error = ParseError;
 
     fn try_from(message: &Publish) -> Result<Self, Self::Error> {
         serde_json::from_slice(&message.payload)
-            .or(Err(anyhow::anyhow!("Invalid message payload received: {:?}", message.payload)))
+            .or(Err(ParseError::InvalidPayload(message.payload.clone())))
     }
 }
 
@@ -162,11 +170,11 @@ impl BrightnessMessage {
 }
 
 impl TryFrom<&Publish> for BrightnessMessage {
-    type Error = anyhow::Error;
+    type Error = ParseError;
 
     fn try_from(message: &Publish) -> Result<Self, Self::Error> {
         serde_json::from_slice(&message.payload)
-            .or(Err(anyhow::anyhow!("Invalid message payload received: {:?}", message.payload)))
+            .or(Err(ParseError::InvalidPayload(message.payload.clone())))
     }
 }
 
@@ -182,11 +190,11 @@ impl ContactMessage {
 }
 
 impl TryFrom<&Publish> for ContactMessage {
-    type Error = anyhow::Error;
+    type Error = ParseError;
 
     fn try_from(message: &Publish) -> Result<Self, Self::Error> {
         serde_json::from_slice(&message.payload)
-            .or(Err(anyhow::anyhow!("Invalid message payload received: {:?}", message.payload)))
+            .or(Err(ParseError::InvalidPayload(message.payload.clone())))
     }
 }
 
@@ -207,11 +215,11 @@ impl DarknessMessage {
 }
 
 impl TryFrom<&Publish> for DarknessMessage {
-    type Error = anyhow::Error;
+    type Error = ParseError;
 
     fn try_from(message: &Publish) -> Result<Self, Self::Error> {
         serde_json::from_slice(&message.payload)
-            .or(Err(anyhow::anyhow!("Invalid message payload received: {:?}", message.payload)))
+            .or(Err(ParseError::InvalidPayload(message.payload.clone())))
     }
 }
 

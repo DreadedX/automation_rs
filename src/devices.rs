@@ -12,13 +12,14 @@ pub use self::contact_sensor::ContactSensor;
 
 use std::collections::HashMap;
 
+use thiserror::Error;
 use async_trait::async_trait;
-use google_home::{GoogleHomeDevice, traits::OnOff, GoogleHome};
+use google_home::{GoogleHomeDevice, traits::OnOff, GoogleHome, FullfillmentError, };
 use pollster::FutureExt;
 use tokio::sync::{oneshot, mpsc};
 use tracing::{trace, debug, span, Level};
 
-use crate::{mqtt::{OnMqtt, self}, presence::{OnPresence, self}, light_sensor::{OnDarkness, self}, error};
+use crate::{mqtt::{OnMqtt, self}, presence::{OnPresence, self}, light_sensor::{OnDarkness, self}};
 
 impl_cast::impl_cast!(Device, OnMqtt);
 impl_cast::impl_cast!(Device, OnPresence);
@@ -52,11 +53,11 @@ macro_rules! get_cast {
 }
 
 #[derive(Debug)]
-enum Command {
+pub enum Command {
     Fullfillment {
         google_home: GoogleHome,
         payload: google_home::Request,
-        tx: oneshot::Sender<anyhow::Result<google_home::Response>>,
+        tx: oneshot::Sender<Result<google_home::Response, FullfillmentError>>,
     },
     AddDevice {
         device: DeviceBox,
@@ -67,26 +68,37 @@ enum Command {
 pub type DeviceBox = Box<dyn Device>;
 
 #[derive(Clone)]
-pub struct DeviceHandle {
+pub struct DevicesHandle {
     tx: mpsc::Sender<Command>
 }
 
-impl DeviceHandle {
+#[derive(Debug, Error)]
+pub enum DevicesError {
+    #[error(transparent)]
+    FullfillmentError(#[from] FullfillmentError),
+    #[error(transparent)]
+    SendError(#[from] tokio::sync::mpsc::error::SendError<Command>),
+    #[error(transparent)]
+    RecvError(#[from] tokio::sync::oneshot::error::RecvError),
+}
+
+
+impl DevicesHandle {
     // @TODO Improve error type
-    pub async fn fullfillment(&self, google_home: GoogleHome, payload: google_home::Request) -> anyhow::Result<google_home::Response> {
+    pub async fn fullfillment(&self, google_home: GoogleHome, payload: google_home::Request) -> Result<google_home::Response, DevicesError> {
         let (tx, rx) = oneshot::channel();
         self.tx.send(Command::Fullfillment { google_home, payload, tx }).await?;
-        rx.await?
+        Ok(rx.await??)
     }
 
-    pub async fn add_device(&self, device: DeviceBox) -> error::Result<()> {
+    pub async fn add_device(&self, device: DeviceBox) -> Result<(), DevicesError> {
         let (tx, rx) = oneshot::channel();
         self.tx.send(Command::AddDevice { device, tx }).await?;
         Ok(rx.await?)
     }
 }
 
-pub fn start(mut mqtt_rx: mqtt::Receiver, mut presence_rx: presence::Receiver, mut light_sensor_rx: light_sensor::Receiver) -> DeviceHandle {
+pub fn start(mut mqtt_rx: mqtt::Receiver, mut presence_rx: presence::Receiver, mut light_sensor_rx: light_sensor::Receiver) -> DevicesHandle {
 
     let mut devices = Devices { devices: HashMap::new() };
 
@@ -114,7 +126,7 @@ pub fn start(mut mqtt_rx: mqtt::Receiver, mut presence_rx: presence::Receiver, m
         }
     });
 
-    return DeviceHandle { tx };
+    return DevicesHandle { tx };
 }
 
 impl Devices {

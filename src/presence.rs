@@ -5,7 +5,7 @@ use tokio::sync::watch;
 use tracing::{debug, error};
 use rumqttc::{AsyncClient, matches, has_wildcards};
 
-use crate::{mqtt::{OnMqtt, PresenceMessage, self}, config::MqttDeviceConfig, error::{self, MissingWildcard}};
+use crate::{mqtt::{OnMqtt, PresenceMessage, self}, config::MqttDeviceConfig, error::{MissingWildcard, PresenceError}};
 
 #[async_trait]
 pub trait OnPresence {
@@ -33,7 +33,7 @@ impl Presence {
     }
 }
 
-pub async fn start(mqtt: MqttDeviceConfig, mut mqtt_rx: mqtt::Receiver, client: AsyncClient) -> error::Result<Receiver> {
+pub async fn start(mqtt: MqttDeviceConfig, mut mqtt_rx: mqtt::Receiver, client: AsyncClient) -> Result<Receiver, PresenceError> {
     // Subscribe to the relevant topics on mqtt
     client.subscribe(mqtt.topic.clone(), rumqttc::QoS::AtLeastOnce).await?;
 

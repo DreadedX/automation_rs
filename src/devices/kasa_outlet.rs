@@ -1,5 +1,6 @@
-use std::{net::{SocketAddr, Ipv4Addr, TcpStream}, io::{Write, Read}};
+use std::{net::{SocketAddr, Ipv4Addr, TcpStream}, io::{Write, Read}, str::Utf8Error};
 
+use thiserror::Error;
 use bytes::{Buf, BufMut};
 use google_home::{traits, errors::{self, DeviceError}};
 use serde::{Serialize, Deserialize};
@@ -89,9 +90,9 @@ struct ErrorCode {
 }
 
 impl ErrorCode {
-    fn ok(&self) -> Result<(), anyhow::Error> {
+    fn ok(&self) -> Result<(), ResponseError> {
         if self.err_code != 0 {
-            Err(anyhow::anyhow!("Error code: {}", self.err_code))
+            Err(ResponseError::ErrorCode(self.err_code))
         } else {
             Ok(())
         }
@@ -122,28 +123,55 @@ struct Response {
     system: ResponseSystem,
 }
 
+// @TODO Improve this error
+#[derive(Debug, Error)]
+enum ResponseError {
+    #[error("Expected a minimum data length of 4")]
+    ToShort,
+    #[error("No sysinfo found in response")]
+    SysinfoNotFound,
+    #[error("No relay_state not found in response")]
+    RelayStateNotFound,
+    #[error("Error code: {0}")]
+    ErrorCode(isize),
+    #[error(transparent)]
+    Other(#[from] Box<dyn std::error::Error>),
+}
+
+impl From<Utf8Error> for ResponseError {
+    fn from(err: Utf8Error) -> Self {
+        ResponseError::Other(err.into())
+    }
+}
+
+impl From<serde_json::Error> for ResponseError {
+    fn from(err: serde_json::Error) -> Self {
+        ResponseError::Other(err.into())
+    }
+}
+
 impl Response {
-    fn get_current_relay_state(&self) -> Result<bool, anyhow::Error> {
+    fn get_current_relay_state(&self) -> Result<bool, ResponseError> {
         if let Some(sysinfo) = &self.system.get_sysinfo {
             return sysinfo.err_code.ok()
                 .map(|_| sysinfo.relay_state == 1);
         }
 
-        return Err(anyhow::anyhow!("No sysinfo found in response"));
+        return Err(ResponseError::SysinfoNotFound);
     }
 
-    fn check_set_relay_success(&self) -> Result<(), anyhow::Error> {
+    fn check_set_relay_success(&self) -> Result<(), ResponseError> {
         if let Some(set_relay_state) = &self.system.set_relay_state {
             return set_relay_state.err_code.ok();
         }
 
-        return Err(anyhow::anyhow!("No relay_state found in response"));
+        return Err(ResponseError::RelayStateNotFound);
     }
 
-    fn decrypt(mut data: bytes::Bytes) -> Result<Self, anyhow::Error> {
+    fn decrypt(mut data: bytes::Bytes) -> Result<Self, ResponseError> {
         let mut key: u8 = 171;
         if data.len() < 4 {
-            return Err(anyhow::anyhow!("Expected a minimun data length of 4"));
+            return Err(ResponseError::ToShort.into());
         }
 
         let length = data.get_u32();

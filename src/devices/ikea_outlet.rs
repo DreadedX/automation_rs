@@ -9,7 +9,7 @@ use pollster::FutureExt as _;
 
 use crate::config::{KettleConfig, InfoConfig, MqttDeviceConfig};
 use crate::devices::Device;
-use crate::error;
+use crate::error::DeviceError;
 use crate::mqtt::{OnMqtt, OnOffMessage};
 use crate::presence::OnPresence;
 
@@ -26,7 +26,7 @@ pub struct IkeaOutlet {
 }
 
 impl IkeaOutlet {
-    pub async fn build(identifier: &str, info: InfoConfig, mqtt: MqttDeviceConfig, kettle: Option<KettleConfig>, client: AsyncClient) -> error::Result<Self> {
+    pub async fn build(identifier: &str, info: InfoConfig, mqtt: MqttDeviceConfig, kettle: Option<KettleConfig>, client: AsyncClient) -> Result<Self, DeviceError> {
         // @TODO Handle potential errors here
         client.subscribe(mqtt.topic.clone(), rumqttc::QoS::AtLeastOnce).await?;
 

@@ -45,7 +45,7 @@ async fn main() {
 }
 
 
-async fn app() -> Result<(), Box<dyn std::error::Error>> {
+async fn app() -> anyhow::Result<()> {
     dotenv().ok();
 
     let filter = EnvFilter::builder()
@@ -86,7 +86,8 @@ async fn app() -> Result<(), Box<dyn std::error::Error>> {
                 let identifier = identifier;
                 let device = device_config.create(&identifier, &config, client.clone()).await?;
                 devices.add_device(device).await?;
-                Ok::<(), Box<dyn std::error::Error>>(())
+                // We don't need a seperate error type in main
+                anyhow::Ok(())
             })
     ).await.into_iter().collect::<Result<_, _>>()?;
 

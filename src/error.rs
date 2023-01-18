@@ -1,10 +1,9 @@
 use std::{fmt, error, result};
 
+use rumqttc::ClientError;
+use thiserror::Error;
 use axum::{response::IntoResponse, http::status::InvalidStatusCode};
 use serde::{Serialize, Deserialize};
-
-pub type Error = Box<dyn error::Error>;
-pub type Result<T> = result::Result<T, Error>;
 
 #[derive(Debug, Clone)]
 pub struct MissingEnv {
@@ -51,9 +50,19 @@ impl fmt::Display for MissingEnv {
 
 impl error::Error for MissingEnv {}
 
+#[derive(Debug, Error)]
+pub enum ConfigParseError {
+    #[error(transparent)]
+    MissingEnv(#[from] MissingEnv),
+    #[error(transparent)]
+    IoError(#[from] std::io::Error),
+    #[error(transparent)]
+    DeserializeError(#[from] toml::de::Error)
+}
 
 // @TODO Would be nice to somehow get the line number of the expected wildcard topic
-#[derive(Debug, Clone)]
+#[derive(Debug, Error)]
+#[error("Topic '{topic}' is expected to be a wildcard topic")]
 pub struct MissingWildcard {
     topic: String
 }
@@ -64,118 +73,64 @@ impl MissingWildcard {
     }
 }
 
-impl fmt::Display for MissingWildcard {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        write!(f, "Topic '{}' is exptected to be a wildcard topic", self.topic)
-    }
+#[derive(Debug, Error)]
+pub enum DeviceError {
+    #[error(transparent)]
+    SubscribeError(#[from] ClientError),
+    #[error("Expected device '{0}' to implement OnOff trait")]
+    OnOffExpected(String)
 }
 
-impl error::Error for MissingWildcard {}
-
-
-#[derive(Debug)]
-pub struct FailedToParseConfig {
-    config: String,
-    cause: Error,
+#[derive(Debug, Error)]
+pub enum DeviceCreationError {
+    #[error(transparent)]
+    DeviceError(#[from] DeviceError),
+    #[error(transparent)]
+    MissingWildcard(#[from] MissingWildcard),
 }
 
-impl FailedToParseConfig {
-    pub fn new(config: &str, cause: Error) -> Self {
-        Self { config: config.to_owned(), cause }
-    }
+#[derive(Debug, Error)]
+pub enum PresenceError {
+    #[error(transparent)]
+    SubscribeError(#[from] ClientError),
+    #[error(transparent)]
+    MissingWildcard(#[from] MissingWildcard),
 }
 
-impl fmt::Display for FailedToParseConfig {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        write!(f, "Failed to parse config '{}'", self.config)
-    }
+#[derive(Debug, Error)]
+pub enum LightSensorError {
+    #[error(transparent)]
+    SubscribeError(#[from] ClientError),
 }
 
-impl error::Error for FailedToParseConfig {
-    fn source(&self) -> Option<&(dyn error::Error + 'static)> {
-        Some(self.cause.as_ref())
-    }
-}
-
-
-#[derive(Debug)]
-pub struct FailedToCreateDevice {
-    device: String,
-    cause: Error,
-}
-
-impl FailedToCreateDevice {
-    pub fn new(device: &str, cause: Error) -> Self {
-        Self { device: device.to_owned(), cause }
-    }
-}
-
-impl fmt::Display for FailedToCreateDevice {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        write!(f, "Failed to create device '{}'", self.device)
-    }
-}
-
-impl error::Error for FailedToCreateDevice {
-    fn source(&self) -> Option<&(dyn error::Error + 'static)> {
-        Some(self.cause.as_ref())
-    }
-}
-
-
-#[derive(Debug, Clone)]
-pub struct ExpectedOnOff {
-    device: String
-}
-
-impl ExpectedOnOff {
-    pub fn new(device: &str) -> Self {
-        Self { device: device.to_owned() }
-    }
-}
-
-impl fmt::Display for ExpectedOnOff {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        write!(f, "Expected device '{}' to implement OnOff trait", self.device)
-    }
-}
-
-impl error::Error for ExpectedOnOff {}
-
-
-#[derive(Debug)]
+#[derive(Debug, Error)]
+#[error("{source}")]
 pub struct ApiError {
     status_code: axum::http::StatusCode,
-    error: Error,
+    source: Box<dyn std::error::Error>,
 }
 
 impl ApiError {
-    pub fn new(status_code: axum::http::StatusCode, error: Error) -> Self {
-        Self { status_code, error }
+    pub fn new(status_code: axum::http::StatusCode, source: Box<dyn std::error::Error>) -> Self {
+        Self { status_code, source }
     }
+}
 
-    pub fn prepare_for_json(&self) -> ApiErrorJson {
+impl From<ApiError> for ApiErrorJson {
+    fn from(value: ApiError) -> Self {
         let error = ApiErrorJsonError {
-            code: self.status_code.as_u16(),
-            status: self.status_code.to_string(),
-            reason: self.error.to_string(),
+            code: value.status_code.as_u16(),
+            status: value.status_code.to_string(),
+            reason: value.source.to_string(),
         };
 
-        ApiErrorJson { error }
+        Self { error }
     }
 }
-
-impl fmt::Display for ApiError {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        self.error.fmt(f)
-    }
-}
-
-impl error::Error for ApiError {}
 
 impl IntoResponse for ApiError {
     fn into_response(self) -> axum::response::Response {
-        (self.status_code, serde_json::to_string(&self.prepare_for_json()).unwrap()).into_response()
+        (self.status_code, serde_json::to_string::<ApiErrorJson>(&self.into()).unwrap()).into_response()
     }
 }
 
@@ -196,8 +151,8 @@ impl TryFrom<ApiErrorJson> for ApiError {
 
     fn try_from(value: ApiErrorJson) -> result::Result<Self, Self::Error> {
         let status_code = axum::http::StatusCode::from_u16(value.error.code)?;
-        let error = value.error.reason.into();
+        let source = value.error.reason.into();
 
-        Ok(Self { status_code, error })
+        Ok(Self { status_code, source })
     }
 }

@@ -3,7 +3,7 @@ use rumqttc::{matches, AsyncClient};
 use tokio::sync::watch;
 use tracing::{error, trace, debug};
 
-use crate::{config::{MqttDeviceConfig, LightSensorConfig}, mqtt::{self, OnMqtt, BrightnessMessage}, error};
+use crate::{config::{MqttDeviceConfig, LightSensorConfig}, mqtt::{self, OnMqtt, BrightnessMessage}, error::{LightSensorError}};
 
 #[async_trait]
 pub trait OnDarkness {
@@ -28,7 +28,7 @@ impl LightSensor {
     }
 }
 
-pub async fn start(mut mqtt_rx: mqtt::Receiver, config: LightSensorConfig, client: AsyncClient) -> error::Result<Receiver> {
+pub async fn start(mut mqtt_rx: mqtt::Receiver, config: LightSensorConfig, client: AsyncClient) -> Result<Receiver, LightSensorError> {
     client.subscribe(config.mqtt.topic.clone(), rumqttc::QoS::AtLeastOnce).await?;
 
     let mut light_sensor = LightSensor::new(config.mqtt, config.min, config.max);

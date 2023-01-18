@@ -7,7 +7,7 @@ use rumqttc::{AsyncClient, has_wildcards};
 use serde::Deserialize;
 use eui48::MacAddress;
 
-use crate::{devices::{DeviceBox, IkeaOutlet, WakeOnLAN, AudioSetup, ContactSensor, KasaOutlet, self}, error::{FailedToParseConfig, MissingEnv, MissingWildcard, Error, FailedToCreateDevice}};
+use crate::{devices::{DeviceBox, IkeaOutlet, WakeOnLAN, AudioSetup, ContactSensor, KasaOutlet, self}, error::{MissingEnv, MissingWildcard, ConfigParseError, DeviceCreationError}};
 
 #[derive(Debug, Deserialize)]
 pub struct Config {
@@ -183,10 +183,9 @@ pub enum Device {
 }
 
 impl Config {
-    pub fn parse_file(filename: &str) -> Result<Self, FailedToParseConfig> {
+    pub fn parse_file(filename: &str) -> Result<Self, ConfigParseError> {
         debug!("Loading config: {filename}");
-        let file = fs::read_to_string(filename)
-            .map_err(|err| FailedToParseConfig::new(filename, err.into()))?;
+        let file = fs::read_to_string(filename)?;
 
         // Substitute in environment variables
         let re = Regex::new(r"\$\{(.*)\}").unwrap();
@@ -203,11 +202,9 @@ impl Config {
             }
         });
 
-        missing.has_missing()
-            .map_err(|err| FailedToParseConfig::new(filename, err.into()))?;
+        missing.has_missing()?;
 
-        let config: Config = toml::from_str(&file)
-            .map_err(|err| FailedToParseConfig::new(filename, err.into()))?;
+        let config: Config = toml::from_str(&file)?;
 
         Ok(config)
     }
@@ -223,21 +220,21 @@ fn device_box<T: devices::Device + 'static>(device: T) -> DeviceBox {
 
 impl Device {
     #[async_recursion]
-    pub async fn create(self, identifier: &str, config: &Config, client: AsyncClient) -> Result<DeviceBox, FailedToCreateDevice> {
-        let device: Result<DeviceBox, Error> = match self {
+    pub async fn create(self, identifier: &str, config: &Config, client: AsyncClient) -> Result<DeviceBox, DeviceCreationError> {
+        let device = match self {
             Device::IkeaOutlet { info, mqtt, kettle } => {
                 trace!(id = identifier, "IkeaOutlet [{} in {:?}]", info.name, info.room);
                 IkeaOutlet::build(&identifier, info, mqtt, kettle, client).await
-                    .map(device_box)
+                    .map(device_box)?
             },
             Device::WakeOnLAN { info, mqtt, mac_address } => {
                 trace!(id = identifier, "WakeOnLan [{} in {:?}]", info.name, info.room);
                 WakeOnLAN::build(&identifier, info, mqtt, mac_address, client).await
-                    .map(device_box)
+                    .map(device_box)?
             },
             Device::KasaOutlet { ip } => {
                 trace!(id = identifier, "KasaOutlet [{}]", identifier);
-                Ok(Box::new(KasaOutlet::new(&identifier, ip)))
+                device_box(KasaOutlet::new(&identifier, ip))
             }
             Device::AudioSetup { mqtt, mixer, speakers } => {
                 trace!(id = identifier, "AudioSetup [{}]", identifier);
@@ -248,20 +245,19 @@ impl Device {
                 let speakers = (*speakers).create(&speakers_id, config, client.clone()).await?;
 
                 AudioSetup::build(&identifier, mqtt, mixer, speakers, client).await
-                    .map(device_box)
+                    .map(device_box)?
             },
             Device::ContactSensor { mqtt, presence } => {
                 trace!(id = identifier, "ContactSensor [{}]", identifier);
                 let presence = presence
                     .map(|p| p.generate_topic("contact", &identifier, &config))
-                    .transpose()
-                    .map_err(|err| FailedToCreateDevice::new(&identifier, err.into()))?;
+                    .transpose()?;
 
                 ContactSensor::build(&identifier, mqtt, presence, client).await
-                    .map(device_box)
+                    .map(device_box)?
             },
         };
 
-        return device.map_err(|err| FailedToCreateDevice::new(&identifier, err));
+        Ok(device)
     }
 }

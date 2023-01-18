@@ -1,11 +1,11 @@
 use async_trait::async_trait;
-use google_home::{GoogleHomeDevice, types::Type, device, traits::{self, Scene}, errors::{ErrorCode, DeviceError}};
+use google_home::{GoogleHomeDevice, types::Type, device, traits::{self, Scene}, errors::ErrorCode};
 use tracing::{debug, error};
 use rumqttc::{AsyncClient, Publish, matches};
 use pollster::FutureExt as _;
 use eui48::MacAddress;
 
-use crate::{config::{InfoConfig, MqttDeviceConfig}, mqtt::{OnMqtt, ActivateMessage}, error};
+use crate::{config::{InfoConfig, MqttDeviceConfig}, mqtt::{OnMqtt, ActivateMessage}, error::DeviceError};
 
 use super::Device;
 
@@ -18,7 +18,7 @@ pub struct WakeOnLAN {
 }
 
 impl WakeOnLAN {
-    pub async fn build(identifier: &str, info: InfoConfig, mqtt: MqttDeviceConfig, mac_address: MacAddress, client: AsyncClient) -> error::Result<Self> {
+    pub async fn build(identifier: &str, info: InfoConfig, mqtt: MqttDeviceConfig, mac_address: MacAddress, client: AsyncClient) -> Result<Self, DeviceError> {
         // @TODO Handle potential errors here
         client.subscribe(mqtt.topic.clone(), rumqttc::QoS::AtLeastOnce).await?;
 
@@ -89,7 +89,7 @@ impl traits::Scene for WakeOnLAN {
                 Ok(res) => res,
                 Err(err) => {
                     error!(id, "Failed to call webhook: {err}");
-                    return Err(DeviceError::TransientError.into());
+                    return Err(google_home::errors::DeviceError::TransientError.into());
                 }
             };
 
@@ -102,7 +102,7 @@ impl traits::Scene for WakeOnLAN {
         } else {
             debug!(id = self.identifier, "Trying to deactive computer, this is not currently supported");
             // We do not support deactivating this scene
-            Err(ErrorCode::DeviceError(DeviceError::ActionNotAvailable))
+            Err(ErrorCode::DeviceError(google_home::errors::DeviceError::ActionNotAvailable))
         }
     }
 }

@@ -5,7 +5,7 @@ use rumqttc::{AsyncClient, matches};
 use tokio::task::JoinHandle;
 use tracing::{error, debug, warn};
 
-use crate::{config::{MqttDeviceConfig, PresenceDeviceConfig}, mqtt::{OnMqtt, ContactMessage, PresenceMessage}, presence::OnPresence, error};
+use crate::{config::{MqttDeviceConfig, PresenceDeviceConfig}, mqtt::{OnMqtt, ContactMessage, PresenceMessage}, presence::OnPresence, error::DeviceError};
 
 use super::Device;
 
@@ -22,7 +22,7 @@ pub struct ContactSensor {
 }
 
 impl ContactSensor {
-    pub async fn build(identifier: &str, mqtt: MqttDeviceConfig, presence: Option<PresenceDeviceConfig>, client: AsyncClient) -> error::Result<Self> {
+    pub async fn build(identifier: &str, mqtt: MqttDeviceConfig, presence: Option<PresenceDeviceConfig>, client: AsyncClient) -> Result<Self, DeviceError> {
         client.subscribe(mqtt.topic.clone(), rumqttc::QoS::AtLeastOnce).await?;
 
         Ok(Self {

@@ -1,5 +1,7 @@
 use std::collections::HashMap;
 
+use thiserror::Error;
+
 use crate::{request::{Request, Intent, self}, device::GoogleHomeDevice, response::{sync, ResponsePayload, query, execute, Response, self, State}, errors::{DeviceError, ErrorCode}};
 
 #[derive(Debug)]
@@ -8,12 +10,18 @@ pub struct GoogleHome {
     // Add credentials so we can notify google home of actions
 }
 
+#[derive(Debug, Error)]
+pub enum FullfillmentError {
+    #[error("Expected at least one ResponsePayload")]
+    ExpectedOnePayload
+}
+
 impl GoogleHome {
     pub fn new(user_id: &str) -> Self {
         Self { user_id: user_id.into() }
     }
 
-    pub fn handle_request(&self, request: Request, mut devices: &mut HashMap<&str, &mut dyn GoogleHomeDevice>) -> Result<Response, anyhow::Error> {
+    pub fn handle_request(&self, request: Request, mut devices: &mut HashMap<&str, &mut dyn GoogleHomeDevice>) -> Result<Response, FullfillmentError> {
         // @TODO What do we do if we actually get more then one thing in the input array, right now
         // we only respond to the first thing
         let payload = request
@@ -25,10 +33,9 @@ impl GoogleHome {
                 Intent::Execute(payload) => ResponsePayload::Execute(self.execute(payload, &mut devices)),
             }).next();
 
-        match payload {
-            Some(payload) => Ok(Response::new(&request.request_id, payload)),
-            _ => Err(anyhow::anyhow!("Expected at least one ResponsePayload")),
-        }
+        payload
+            .ok_or(FullfillmentError::ExpectedOnePayload)
+            .map(|payload| Response::new(&request.request_id, payload))
     }
 
     fn sync(&self, devices: &HashMap<&str, &mut dyn GoogleHomeDevice>) -> sync::Payload {
