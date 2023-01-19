@@ -165,6 +165,8 @@ pub enum Device {
         #[serde(flatten)]
         mqtt: MqttDeviceConfig,
         mac_address: MacAddress,
+        #[serde(default = "default_broadcast_ip")]
+        broadcast_ip: Ipv4Addr,
     },
     KasaOutlet {
         ip: Ipv4Addr,
@@ -180,6 +182,10 @@ pub enum Device {
         mqtt: MqttDeviceConfig,
         presence: Option<PresenceDeviceConfig>,
     }
+}
+
+fn default_broadcast_ip() -> Ipv4Addr {
+    Ipv4Addr::new(255, 255, 255, 255)
 }
 
 impl Config {
@@ -227,9 +233,9 @@ impl Device {
                 IkeaOutlet::build(&identifier, info, mqtt, kettle, client).await
                     .map(device_box)?
             },
-            Device::WakeOnLAN { info, mqtt, mac_address } => {
+            Device::WakeOnLAN { info, mqtt, mac_address, broadcast_ip } => {
                 trace!(id = identifier, "WakeOnLan [{} in {:?}]", info.name, info.room);
-                WakeOnLAN::build(&identifier, info, mqtt, mac_address, client).await
+                WakeOnLAN::build(&identifier, info, mqtt, mac_address, broadcast_ip, client).await
                     .map(device_box)?
             },
             Device::KasaOutlet { ip } => {

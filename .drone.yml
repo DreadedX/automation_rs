@@ -30,8 +30,9 @@ steps:
 
           - docker rm automation_rs || true
 
-          - docker create -e RUST_LOG=$RUST_LOG -e MQTT_PASSWORD=$MQTT_PASSWORD -e HUE_TOKEN=$HUE_TOKEN -e NTFY_TOPIC=$NTFY_TOPIC --name automation_rs automation_rs
-          - docker network connect mqtt automation_rs
+          # Networks need to be setup to to allow broadcasts: https://www.devwithimagination.com/2020/06/15/homebridge-docker-and-wake-on-lan/ https://github.com/dhutchison/container-images/blob/0c2d7d96bab751fb0a008cc91ba2990724bbd11f/homebridge/configure_docker_networks_for_wol.sh
+          # Needs to be done for ALL networks, because we can't seem to control which interface gets used to send the broadcast
+          - docker create -e RUST_LOG=$RUST_LOG -e MQTT_PASSWORD=$MQTT_PASSWORD -e HUE_TOKEN=$HUE_TOKEN -e NTFY_TOPIC=$NTFY_TOPIC --network mqtt --restart unless-stopped --name automation_rs automation_rs
           - docker network connect web automation_rs
           - docker start automation_rs
 

@@ -1,8 +1,9 @@
+use std::net::Ipv4Addr;
+
 use async_trait::async_trait;
 use google_home::{GoogleHomeDevice, types::Type, device, traits::{self, Scene}, errors::ErrorCode};
 use tracing::{debug, error};
 use rumqttc::{AsyncClient, Publish, matches};
-use pollster::FutureExt as _;
 use eui48::MacAddress;
 
 use crate::{config::{InfoConfig, MqttDeviceConfig}, mqtt::{OnMqtt, ActivateMessage}, error::DeviceError};
@@ -15,14 +16,15 @@ pub struct WakeOnLAN {
     info: InfoConfig,
     mqtt: MqttDeviceConfig,
     mac_address: MacAddress,
+    broadcast_ip: Ipv4Addr,
 }
 
 impl WakeOnLAN {
-    pub async fn build(identifier: &str, info: InfoConfig, mqtt: MqttDeviceConfig, mac_address: MacAddress, client: AsyncClient) -> Result<Self, DeviceError> {
+    pub async fn build(identifier: &str, info: InfoConfig, mqtt: MqttDeviceConfig, mac_address: MacAddress, broadcast_ip: Ipv4Addr, client: AsyncClient) -> Result<Self, DeviceError> {
         // @TODO Handle potential errors here
         client.subscribe(mqtt.topic.clone(), rumqttc::QoS::AtLeastOnce).await?;
 
-        Ok(Self { identifier: identifier.to_owned(), info, mqtt, mac_address })
+        Ok(Self { identifier: identifier.to_owned(), info, mqtt, mac_address, broadcast_ip })
     }
 }
 
@@ -79,26 +81,16 @@ impl GoogleHomeDevice for WakeOnLAN {
 impl traits::Scene for WakeOnLAN {
     fn set_active(&self, activate: bool) -> Result<(), ErrorCode> {
         if activate {
-            // @TODO In the future send the wake on lan package directly, this is kind of annoying
-            // if we are inside of docker, so for now just call a webhook that does it for us
-            let mac_address = self.mac_address.clone();
-            let id = self.identifier.clone();
+            debug!(id = self.identifier, "Activating Computer: {} (Sending to {})", self.mac_address, self.broadcast_ip);
+            let wol = wakey::WolPacket::from_bytes(&self.mac_address.to_array()).map_err(|err| {
+                error!(id = self.identifier, "invalid mac address: {err}");
+                google_home::errors::DeviceError::TransientError
+            })?;
 
-            debug!(id, "Activating Computer: {}", mac_address);
-            let res = match reqwest::get(format!("http://10.0.0.2:9000/start-pc?mac={mac_address}")).block_on() {
-                Ok(res) => res,
-                Err(err) => {
-                    error!(id, "Failed to call webhook: {err}");
-                    return Err(google_home::errors::DeviceError::TransientError.into());
-                }
-            };
-
-            let status = res.status();
-            if !status.is_success() {
-                error!(id, "Failed to call webhook: {}", status);
-            }
-
-            Ok(())
+            wol.send_magic_to((Ipv4Addr::new(0, 0, 0, 0), 0), (self.broadcast_ip, 9)).map_err(|err| {
+                error!(id = self.identifier, "Failed to activate computer: {err}");
+                google_home::errors::DeviceError::TransientError.into()
+            }).map(|_| debug!(id = self.identifier, "Success!"))
         } else {
             debug!(id = self.identifier, "Trying to deactive computer, this is not currently supported");
             // We do not support deactivating this scene

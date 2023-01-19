@@ -46,6 +46,7 @@ name = "Zeus"
 room = "Living Room"
 topic = "automation/appliance/living_room/zeus"
 mac_address = "30:9c:23:60:9c:13"
+broadcast_ip = "10.0.0.255"
 
 [devices.living_audio]
 type = "AudioSetup"
