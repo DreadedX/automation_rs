@@ -24,7 +24,7 @@ topic = "automation/debug"
 
 [light_sensor]
 topic = "zigbee2mqtt/living/light"
-min = 19_000
+min = 20_500
 max = 22_000
 
 [devices.kitchen_kettle]
