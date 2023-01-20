@@ -140,7 +140,7 @@ impl PresenceDeviceConfig {
 
             // @TODO This is not perfect, if the topic is some/+/thing/# this will fail
             let offset = config.presence.topic.find('+').or(config.presence.topic.find('#')).unwrap();
-            let topic = config.presence.topic[..offset].to_owned() + class + "/" + identifier;
+            let topic = format!("{}/{class}/{identifier}", &config.presence.topic[..offset-1]);
             trace!("Setting presence mqtt topic: {topic}");
             self.mqtt = Some(MqttDeviceConfig { topic });
         }
@@ -245,9 +245,9 @@ impl Device {
             Device::AudioSetup { mqtt, mixer, speakers } => {
                 trace!(id = identifier, "AudioSetup [{}]", identifier);
                 // Create the child devices
-                let mixer_id = identifier.to_owned() + ".mixer";
+                let mixer_id = format!("{}.mixer", identifier);
                 let mixer = (*mixer).create(&mixer_id, config, client.clone()).await?;
-                let speakers_id = identifier.to_owned() + ".speakers";
+                let speakers_id = format!("{}.speakers", identifier);
                 let speakers = (*speakers).create(&speakers_id, config, client.clone()).await?;
 
                 AudioSetup::build(&identifier, mqtt, mixer, speakers, client).await

@@ -48,7 +48,7 @@ pub fn start(mut presence_rx: presence::Receiver, mut light_sensor_rx: light_sen
 impl OnPresence for DebugBridge {
     async fn on_presence(&mut self, presence: bool) {
         let message = PresenceMessage::new(presence);
-        let topic = self.topic.clone() + "/presence";
+        let topic = format!("{}/presence", self.topic);
         self.client.publish(topic, rumqttc::QoS::AtLeastOnce, true, serde_json::to_string(&message).unwrap())
             .await
             .map_err(|err| warn!("Failed to update presence on {}/presence: {err}", self.topic))
@@ -60,7 +60,7 @@ impl OnPresence for DebugBridge {
 impl OnDarkness for DebugBridge {
     async fn on_darkness(&mut self, dark: bool) {
         let message = DarknessMessage::new(dark);
-        let topic = self.topic.clone() + "/darkness";
+        let topic = format!("{}/darkness", self.topic);
         self.client.publish(topic, rumqttc::QoS::AtLeastOnce, true, serde_json::to_string(&message).unwrap())
             .await
             .map_err(|err| warn!("Failed to update presence on {}/presence: {err}", self.topic))

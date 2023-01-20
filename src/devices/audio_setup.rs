@@ -23,11 +23,13 @@ pub struct AudioSetup {
 impl AudioSetup {
     pub async fn build(identifier: &str, mqtt: MqttDeviceConfig, mixer: DeviceBox, speakers: DeviceBox, client: AsyncClient) -> Result<Self, DeviceError> {
         // We expect the children devices to implement the OnOff trait
+        let mixer_id = mixer.get_id().to_owned();
         let mixer = AsOnOff::consume(mixer)
-            .ok_or_else(|| DeviceError::OnOffExpected(identifier.to_owned() + ".mixer"))?;
+            .ok_or_else(|| DeviceError::OnOffExpected(mixer_id))?;
 
+        let speakers_id = speakers.get_id().to_owned();
         let speakers = AsOnOff::consume(speakers)
-            .ok_or_else(|| DeviceError::OnOffExpected(identifier.to_owned() + ".speakers"))?;
+            .ok_or_else(|| DeviceError::OnOffExpected(speakers_id))?;
 
         client.subscribe(mqtt.topic.clone(), rumqttc::QoS::AtLeastOnce).await?;
 
