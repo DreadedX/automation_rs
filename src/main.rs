@@ -1,5 +1,5 @@
 #![feature(async_closure)]
-use std::{process, time::Duration};
+use std::{process, time::Duration, collections::HashMap};
 
 use axum::{extract::FromRef, http::StatusCode, routing::post, Json, Router, response::IntoResponse};
 
@@ -13,7 +13,7 @@ use automation::{
     presence, error::ApiError, debug_bridge,
 };
 use dotenvy::dotenv;
-use rumqttc::{AsyncClient, MqttOptions, Transport};
+use rumqttc::{AsyncClient, MqttOptions, Transport, matches};
 use tracing::{debug, error, info, metadata::LevelFilter};
 use futures::future::join_all;
 
@@ -75,6 +75,23 @@ async fn app() -> anyhow::Result<()> {
     let presence = presence::start(config.presence.clone(), mqtt.subscribe(), client.clone()).await?;
     let light_sensor = light_sensor::start(mqtt.subscribe(), config.light_sensor.clone(), client.clone()).await?;
 
+    // Start the ntfy service if it is configured
+    let mut ntfy = None;
+    if let Some(config) = &config.ntfy {
+        ntfy = Some(ntfy::start(presence.clone(), config));
+    }
+    let ntfy = ntfy;
+
+    // Start the hue bridge if it is configured
+    if let Some(config) = &config.hue_bridge {
+        hue_bridge::start(presence.clone(), light_sensor.clone(), config);
+    }
+
+    // Start the debug bridge if it is configured
+    if let Some(config) = &config.debug_bridge {
+        debug_bridge::start(presence.clone(), light_sensor.clone(), config, client.clone());
+    }
+
     let devices = devices::start(mqtt.subscribe(), presence.clone(), light_sensor.clone());
     join_all(
         config
@@ -90,21 +107,6 @@ async fn app() -> anyhow::Result<()> {
                 anyhow::Ok(())
             })
     ).await.into_iter().collect::<Result<_, _>>()?;
-
-    // Start the ntfy service if it is configured
-    if let Some(config) = config.ntfy {
-        ntfy::start(presence.clone(), config);
-    }
-
-    // Start the hue bridge if it is configured
-    if let Some(config) = config.hue_bridge {
-        hue_bridge::start(presence.clone(), light_sensor.clone(), config);
-    }
-
-    // Start the debug bridge if it is configured
-    if let Some(config) = config.debug_bridge {
-        debug_bridge::start(presence.clone(), light_sensor.clone(), config, client.clone());
-    }
 
     // Actually start listening for mqtt message,
     // we wait until all the setup is done, as otherwise we might miss some messages

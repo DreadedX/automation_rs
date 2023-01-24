@@ -54,8 +54,8 @@ impl HueBridge {
     }
 }
 
-pub fn start(mut presence_rx: presence::Receiver, mut light_sensor_rx: light_sensor::Receiver, config: HueBridgeConfig) {
-    let mut hue_bridge = HueBridge::new((config.ip, 80).into(), &config.login, config.flags);
+pub fn start(mut presence_rx: presence::Receiver, mut light_sensor_rx: light_sensor::Receiver, config: &HueBridgeConfig) {
+    let mut hue_bridge = HueBridge::new((config.ip, 80).into(), &config.login, config.flags.clone());
 
     tokio::spawn(async move {
         loop {

@@ -15,7 +15,7 @@ impl DebugBridge {
     }
 }
 
-pub fn start(mut presence_rx: presence::Receiver, mut light_sensor_rx: light_sensor::Receiver, config: DebugBridgeConfig, client: AsyncClient) {
+pub fn start(mut presence_rx: presence::Receiver, mut light_sensor_rx: light_sensor::Receiver, config: &DebugBridgeConfig, client: AsyncClient) {
     let mut debug_bridge = DebugBridge::new(&config.topic, client);
 
     tokio::spawn(async move {

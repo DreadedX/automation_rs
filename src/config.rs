@@ -87,7 +87,7 @@ pub struct LightSensorConfig {
     pub max: isize,
 }
 
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Clone, Deserialize)]
 pub struct Flags {
     pub presence: isize,
     pub darkness: isize,
