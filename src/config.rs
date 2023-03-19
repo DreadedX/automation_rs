@@ -117,6 +117,13 @@ pub struct MqttDeviceConfig {
 }
 
 #[derive(Debug, Clone, Deserialize)]
+pub enum OutletType {
+    Outlet,
+    Kettle,
+    Charger,
+}
+
+#[derive(Debug, Clone, Deserialize)]
 pub struct KettleConfig {
     pub timeout: Option<u64>, // Timeout in seconds
 }
@@ -157,7 +164,9 @@ pub enum Device {
         info: InfoConfig,
         #[serde(flatten)]
         mqtt: MqttDeviceConfig,
-        kettle: Option<KettleConfig>,
+        #[serde(default = "default_outlet_type")]
+        outlet_type: OutletType,
+        timeout: Option<u64>, // Timeout in seconds
     },
     WakeOnLAN {
         #[serde(flatten)]
@@ -182,6 +191,10 @@ pub enum Device {
         mqtt: MqttDeviceConfig,
         presence: Option<PresenceDeviceConfig>,
     }
+}
+
+fn default_outlet_type() -> OutletType {
+    OutletType::Outlet
 }
 
 fn default_broadcast_ip() -> Ipv4Addr {
@@ -228,9 +241,9 @@ impl Device {
     #[async_recursion]
     pub async fn create(self, identifier: &str, config: &Config, client: AsyncClient) -> Result<DeviceBox, DeviceCreationError> {
         let device = match self {
-            Device::IkeaOutlet { info, mqtt, kettle } => {
+            Device::IkeaOutlet { info, mqtt, outlet_type, timeout } => {
                 trace!(id = identifier, "IkeaOutlet [{} in {:?}]", info.name, info.room);
-                IkeaOutlet::build(&identifier, info, mqtt, kettle, client).await
+                IkeaOutlet::build(&identifier, info, mqtt, outlet_type, timeout, client).await
                     .map(device_box)?
             },
             Device::WakeOnLAN { info, mqtt, mac_address, broadcast_ip } => {

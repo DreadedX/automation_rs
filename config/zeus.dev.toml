@@ -30,16 +30,25 @@ max = 25_000
 
 [devices.kitchen_kettle]
 type = "IkeaOutlet"
+outlet_type = "Kettle"
 name = "Kettle"
 room = "Kitchen"
 topic = "zigbee2mqtt/kitchen/kettle"
-kettle = { timeout = 5 }
+timeout = 5
 
-[devices.living_workbench]
+[devices.workbench_charger]
 type = "IkeaOutlet"
-name = "Workbench"
-room = "Living Room"
-topic = "zigbee2mqtt/living/workbench"
+outlet_type = "Charger"
+name = "Charger"
+room = "Workbench"
+topic = "zigbee2mqtt/workbench/charger"
+timeout = 5
+
+[devices.workbench_outlet]
+type = "IkeaOutlet"
+name = "Outlet"
+room = "Workbench"
+topic = "zigbee2mqtt/workbench/outlet"
 
 [devices.living_zeus]
 type = "WakeOnLAN"

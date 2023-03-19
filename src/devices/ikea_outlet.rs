@@ -3,11 +3,11 @@ use async_trait::async_trait;
 use google_home::errors::ErrorCode;
 use google_home::{GoogleHomeDevice, device, types::Type, traits::{self, OnOff}};
 use rumqttc::{AsyncClient, Publish, matches};
-use tracing::{debug, trace, error, warn};
+use tracing::{debug, error, warn};
 use tokio::task::JoinHandle;
 use pollster::FutureExt as _;
 
-use crate::config::{KettleConfig, InfoConfig, MqttDeviceConfig};
+use crate::config::{InfoConfig, MqttDeviceConfig, OutletType};
 use crate::devices::Device;
 use crate::error::DeviceError;
 use crate::mqtt::{OnMqtt, OnOffMessage};
@@ -18,7 +18,8 @@ pub struct IkeaOutlet {
     identifier: String,
     info: InfoConfig,
     mqtt: MqttDeviceConfig,
-    kettle: Option<KettleConfig>,
+    outlet_type: OutletType,
+    timeout: Option<u64>,
 
     client: AsyncClient,
     last_known_state: bool,
@@ -26,11 +27,11 @@ pub struct IkeaOutlet {
 }
 
 impl IkeaOutlet {
-    pub async fn build(identifier: &str, info: InfoConfig, mqtt: MqttDeviceConfig, kettle: Option<KettleConfig>, client: AsyncClient) -> Result<Self, DeviceError> {
+    pub async fn build(identifier: &str, info: InfoConfig, mqtt: MqttDeviceConfig, outlet_type: OutletType, timeout: Option<u64>, client: AsyncClient) -> Result<Self, DeviceError> {
         // @TODO Handle potential errors here
         client.subscribe(mqtt.topic.clone(), rumqttc::QoS::AtLeastOnce).await?;
 
-        Ok(Self{ identifier: identifier.to_owned(), info, mqtt, kettle, client, last_known_state: false, handle: None })
+        Ok(Self{ identifier: identifier.to_owned(), info, mqtt, outlet_type, timeout, client, last_known_state: false, handle: None })
     }
 }
 
@@ -82,17 +83,9 @@ impl OnMqtt for IkeaOutlet {
 
         // If this is a kettle start a timeout for turning it of again
         if state {
-            let kettle = match &self.kettle {
-                Some(kettle) => kettle,
-                None => return,
-            };
-
-            let timeout = match kettle.timeout.clone() {
+            let timeout = match self.timeout {
                 Some(timeout) => Duration::from_secs(timeout),
-                None => {
-                    trace!(id = self.identifier, "Outlet is a kettle without timeout");
-                    return;
-                },
+                None => return,
             };
 
             // Turn the kettle of after the specified timeout
@@ -129,10 +122,10 @@ impl OnPresence for IkeaOutlet {
 
 impl GoogleHomeDevice for IkeaOutlet {
     fn get_device_type(&self) -> Type {
-        if self.kettle.is_some() {
-            Type::Kettle
-        } else {
-            Type::Outlet
+        match self.outlet_type {
+            OutletType::Outlet => Type::Outlet,
+            OutletType::Kettle => Type::Kettle,
+            OutletType::Charger => Type::Outlet, // Find a better device type for this, ideally would like to use charger, but that needs more work
         }
     }
 
