@@ -112,8 +112,9 @@ impl OnMqtt for IkeaOutlet {
 #[async_trait]
 impl OnPresence for IkeaOutlet {
     async fn on_presence(&mut self, presence: bool) {
-        // Turn off the outlet when we leave the house
-        if !presence {
+        // Turn off the outlet when we leave the house (Not if it is a battery charger)
+        debug!(id = self.identifier, "{:?}", self.outlet_type);
+        if !presence && self.outlet_type != OutletType::Charger {
             debug!(id = self.identifier, "Turning device off");
             self.set_on(false).ok();
         }
