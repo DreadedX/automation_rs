@@ -132,7 +132,7 @@ pub struct KettleConfig {
 pub struct PresenceDeviceConfig {
     #[serde(flatten)]
     pub mqtt: Option<MqttDeviceConfig>,
-    // @TODO Maybe make this an option? That way if no timeout is set it will immediately turn the
+    // TODO: Maybe make this an option? That way if no timeout is set it will immediately turn the
     // device off again?
     pub timeout: u64 // Timeout in seconds
 }
@@ -145,7 +145,7 @@ impl PresenceDeviceConfig {
                 return Err(MissingWildcard::new(&config.presence.topic).into());
             }
 
-            // @TODO This is not perfect, if the topic is some/+/thing/# this will fail
+            // TODO: This is not perfect, if the topic is some/+/thing/# this will fail
             let offset = config.presence.topic.find('+').or(config.presence.topic.find('#')).unwrap();
             let topic = format!("{}/{class}/{identifier}", &config.presence.topic[..offset-1]);
             trace!("Setting presence mqtt topic: {topic}");

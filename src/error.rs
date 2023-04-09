@@ -10,7 +10,7 @@ pub struct MissingEnv {
     keys: Vec<String>
 }
 
-// @TODO Would be nice to somehow get the line number of the missing keys
+// TODO: Would be nice to somehow get the line number of the missing keys
 impl MissingEnv {
     pub fn new() -> Self {
         Self { keys: Vec::new() }
@@ -60,7 +60,7 @@ pub enum ConfigParseError {
     DeserializeError(#[from] toml::de::Error)
 }
 
-// @TODO Would be nice to somehow get the line number of the expected wildcard topic
+// TODO: Would be nice to somehow get the line number of the expected wildcard topic
 #[derive(Debug, Error)]
 #[error("Topic '{topic}' is expected to be a wildcard topic")]
 pub struct MissingWildcard {

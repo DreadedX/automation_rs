@@ -42,7 +42,7 @@ pub async fn start(mqtt: MqttDeviceConfig, mut mqtt_rx: mqtt::Receiver, client: 
 
     tokio::spawn(async move {
         loop {
-            // @TODO Handle errors, warn if lagging
+            // TODO: Handle errors, warn if lagging
             if let Ok(message) = mqtt_rx.recv().await {
                 presence.on_mqtt(&message).await;
             }

@@ -25,7 +25,7 @@ where
         let openid = OpenIDConfig::from_ref(state);
 
         // Create a request to the auth server
-        // @TODO Do some discovery to find the correct url for this instead of assuming
+        // TODO: Do some discovery to find the correct url for this instead of assuming
         let mut req = reqwest::Client::new()
             .get(format!("{}/userinfo", openid.base_url));
 

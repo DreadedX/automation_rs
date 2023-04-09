@@ -19,7 +19,7 @@ pub trait OnOff: std::fmt::Debug {
         None
     }
 
-    // @TODO Implement correct error so we can handle them properly
+    // TODO: Implement correct error so we can handle them properly
     fn is_on(&self) -> Result<bool, ErrorCode>;
     fn set_on(&mut self, on: bool) -> Result<(), ErrorCode>;
 }

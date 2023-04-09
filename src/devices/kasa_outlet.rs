@@ -123,7 +123,7 @@ struct Response {
     system: ResponseSystem,
 }
 
-// @TODO Improve this error
+// TODO: Improve this error
 #[derive(Debug, Error)]
 enum ResponseError {
     #[error("Expected a minimum data length of 4")]

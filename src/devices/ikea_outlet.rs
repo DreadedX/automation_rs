@@ -28,7 +28,7 @@ pub struct IkeaOutlet {
 
 impl IkeaOutlet {
     pub async fn build(identifier: &str, info: InfoConfig, mqtt: MqttDeviceConfig, outlet_type: OutletType, timeout: Option<u64>, client: AsyncClient) -> Result<Self, DeviceError> {
-        // @TODO Handle potential errors here
+        // TODO: Handle potential errors here
         client.subscribe(mqtt.topic.clone(), rumqttc::QoS::AtLeastOnce).await?;
 
         Ok(Self{ identifier: identifier.to_owned(), info, mqtt, outlet_type, timeout, client, last_known_state: false, handle: None })
@@ -39,7 +39,7 @@ async fn set_on(client: AsyncClient, topic: &str, on: bool) {
     let message = OnOffMessage::new(on);
 
     let topic = format!("{}/set", topic);
-    // @TODO Handle potential errors here
+    // TODO: Handle potential errors here
     client.publish(topic.clone(), rumqttc::QoS::AtLeastOnce, false, serde_json::to_string(&message).unwrap())
         .await
         .map_err(|err| warn!("Failed to update state on {topic}: {err}"))
@@ -89,7 +89,7 @@ impl OnMqtt for IkeaOutlet {
             };
 
             // Turn the kettle of after the specified timeout
-            // @TODO Impl Drop for IkeaOutlet that will abort the handle if the IkeaOutlet
+            // TODO: Impl Drop for IkeaOutlet that will abort the handle if the IkeaOutlet
             // get dropped
             let client = self.client.clone();
             let topic = self.mqtt.topic.clone();
@@ -99,7 +99,7 @@ impl OnMqtt for IkeaOutlet {
                     debug!(id, "Starting timeout ({timeout:?}) for kettle...");
                     tokio::time::sleep(timeout).await;
                     debug!(id, "Turning kettle off!");
-                    // @TODO Idealy we would call self.set_on(false), however since we want to do
+                    // TODO: Idealy we would call self.set_on(false), however since we want to do
                     // it after a timeout we have to put it in a seperate task.
                     // I don't think we can really get around calling outside function
                     set_on(client, &topic, false).await;
@@ -147,7 +147,7 @@ impl GoogleHomeDevice for IkeaOutlet {
     }
 
     fn will_report_state(&self) -> bool {
-        // @TODO Implement state reporting
+        // TODO: Implement state reporting
         false
     }
 }

@@ -21,7 +21,7 @@ pub struct WakeOnLAN {
 
 impl WakeOnLAN {
     pub async fn build(identifier: &str, info: InfoConfig, mqtt: MqttDeviceConfig, mac_address: MacAddress, broadcast_ip: Ipv4Addr, client: AsyncClient) -> Result<Self, DeviceError> {
-        // @TODO Handle potential errors here
+        // TODO: Handle potential errors here
         client.subscribe(mqtt.topic.clone(), rumqttc::QoS::AtLeastOnce).await?;
 
         Ok(Self { identifier: identifier.to_owned(), info, mqtt, mac_address, broadcast_ip })

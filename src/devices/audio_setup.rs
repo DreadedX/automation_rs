@@ -10,7 +10,7 @@ use crate::presence::OnPresence;
 
 use super::{Device, DeviceBox, AsOnOff};
 
-// @TODO Ideally we store am Arc to the childern devices,
+// TODO: Ideally we store am Arc to the childern devices,
 // that way they hook into everything just like all other devices
 #[derive(Debug)]
 pub struct AudioSetup {

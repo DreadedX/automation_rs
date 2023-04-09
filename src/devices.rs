@@ -31,7 +31,7 @@ pub trait Device: AsGoogleHomeDevice + AsOnMqtt + AsOnPresence + AsOnDarkness + 
     fn get_id(&self) -> &str;
 }
 
-// @TODO Add an inner type that we can wrap with Arc<RwLock<>> to make this type a little bit nicer
+// TODO: Add an inner type that we can wrap with Arc<RwLock<>> to make this type a little bit nicer
 // to work with
 struct Devices {
     devices: HashMap<String, DeviceBox>,
@@ -84,7 +84,7 @@ pub enum DevicesError {
 
 
 impl DevicesHandle {
-    // @TODO Improve error type
+    // TODO: Improve error type
     pub async fn fullfillment(&self, google_home: GoogleHome, payload: google_home::Request) -> Result<google_home::Response, DevicesError> {
         let (tx, rx) = oneshot::channel();
         self.tx.send(Command::Fullfillment { google_home, payload, tx }).await?;
@@ -105,7 +105,7 @@ pub fn start(mut mqtt_rx: mqtt::Receiver, mut presence_rx: presence::Receiver, m
     let (tx, mut rx) = mpsc::channel(100);
 
     tokio::spawn(async move {
-        // @TODO Handle error better
+        // TODO: Handle error better
         loop {
             tokio::select! {
                 Ok(message) = mqtt_rx.recv() => {
@@ -119,7 +119,7 @@ pub fn start(mut mqtt_rx: mqtt::Receiver, mut presence_rx: presence::Receiver, m
                     let darkness = *light_sensor_rx.borrow();
                     devices.on_darkness(darkness).await;
                 }
-                // @TODO Handle receiving None better, otherwise it might constantly run doing
+                // TODO: Handle receiving None better, otherwise it might constantly run doing
                 // nothing
                 Some(cmd) = rx.recv() => devices.handle_cmd(cmd)
             }

@@ -22,7 +22,7 @@ impl GoogleHome {
     }
 
     pub fn handle_request(&self, request: Request, mut devices: &mut HashMap<&str, &mut dyn GoogleHomeDevice>) -> Result<Response, FullfillmentError> {
-        // @TODO What do we do if we actually get more then one thing in the input array, right now
+        // TODO: What do we do if we actually get more then one thing in the input array, right now
         // we only respond to the first thing
         let payload = request
             .inputs
@@ -93,12 +93,12 @@ impl GoogleHome {
                                 }
 
                                 let results = command.execution.iter().map(|cmd| {
-                                    // @TODO We should also return the state after update in the state
+                                    // TODO: We should also return the state after update in the state
                                     // struct, however that will make things WAY more complicated
                                     device.execute(cmd)
                                 }).collect::<Result<Vec<_>, ErrorCode>>();
 
-                                // @TODO We only get one error not all errors
+                                // TODO: We only get one error not all errors
                                 if let Err(err) = results {
                                     return (id, Err(err));
                                 } else {
