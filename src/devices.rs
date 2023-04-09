@@ -1,25 +1,29 @@
-mod ikea_outlet;
-mod wake_on_lan;
-mod kasa_outlet;
 mod audio_setup;
 mod contact_sensor;
+mod ikea_outlet;
+mod kasa_outlet;
+mod wake_on_lan;
 
-pub use self::ikea_outlet::IkeaOutlet;
-pub use self::wake_on_lan::WakeOnLAN;
-pub use self::kasa_outlet::KasaOutlet;
 pub use self::audio_setup::AudioSetup;
 pub use self::contact_sensor::ContactSensor;
+pub use self::ikea_outlet::IkeaOutlet;
+pub use self::kasa_outlet::KasaOutlet;
+pub use self::wake_on_lan::WakeOnLAN;
 
 use std::collections::HashMap;
 
-use thiserror::Error;
 use async_trait::async_trait;
-use google_home::{GoogleHomeDevice, traits::OnOff, GoogleHome, FullfillmentError, };
+use google_home::{traits::OnOff, FullfillmentError, GoogleHome, GoogleHomeDevice};
 use pollster::FutureExt;
-use tokio::sync::{oneshot, mpsc};
-use tracing::{trace, debug, span, Level};
+use thiserror::Error;
+use tokio::sync::{mpsc, oneshot};
+use tracing::{debug, span, trace, Level};
 
-use crate::{mqtt::{OnMqtt, self}, presence::{OnPresence, self}, light_sensor::{OnDarkness, self}};
+use crate::{
+    light_sensor::{self, OnDarkness},
+    mqtt::{self, OnMqtt},
+    presence::{self, OnPresence},
+};
 
 impl_cast::impl_cast!(Device, OnMqtt);
 impl_cast::impl_cast!(Device, OnPresence);
@@ -27,7 +31,16 @@ impl_cast::impl_cast!(Device, OnDarkness);
 impl_cast::impl_cast!(Device, GoogleHomeDevice);
 impl_cast::impl_cast!(Device, OnOff);
 
-pub trait Device: AsGoogleHomeDevice + AsOnMqtt + AsOnPresence + AsOnDarkness + AsOnOff + std::fmt::Debug + Sync + Send {
+pub trait Device:
+    AsGoogleHomeDevice
+    + AsOnMqtt
+    + AsOnPresence
+    + AsOnDarkness
+    + AsOnOff
+    + std::fmt::Debug
+    + Sync
+    + Send
+{
     fn get_id(&self) -> &str;
 }
 
@@ -61,15 +74,15 @@ pub enum Command {
     },
     AddDevice {
         device: DeviceBox,
-        tx: oneshot::Sender<()>
-    }
+        tx: oneshot::Sender<()>,
+    },
 }
 
 pub type DeviceBox = Box<dyn Device>;
 
 #[derive(Clone)]
 pub struct DevicesHandle {
-    tx: mpsc::Sender<Command>
+    tx: mpsc::Sender<Command>,
 }
 
 #[derive(Debug, Error)]
@@ -82,12 +95,21 @@ pub enum DevicesError {
     RecvError(#[from] tokio::sync::oneshot::error::RecvError),
 }
 
-
 impl DevicesHandle {
     // TODO: Improve error type
-    pub async fn fullfillment(&self, google_home: GoogleHome, payload: google_home::Request) -> Result<google_home::Response, DevicesError> {
+    pub async fn fullfillment(
+        &self,
+        google_home: GoogleHome,
+        payload: google_home::Request,
+    ) -> Result<google_home::Response, DevicesError> {
         let (tx, rx) = oneshot::channel();
-        self.tx.send(Command::Fullfillment { google_home, payload, tx }).await?;
+        self.tx
+            .send(Command::Fullfillment {
+                google_home,
+                payload,
+                tx,
+            })
+            .await?;
         Ok(rx.await??)
     }
 
@@ -98,9 +120,14 @@ impl DevicesHandle {
     }
 }
 
-pub fn start(mut mqtt_rx: mqtt::Receiver, mut presence_rx: presence::Receiver, mut light_sensor_rx: light_sensor::Receiver) -> DevicesHandle {
-
-    let mut devices = Devices { devices: HashMap::new() };
+pub fn start(
+    mut mqtt_rx: mqtt::Receiver,
+    mut presence_rx: presence::Receiver,
+    mut light_sensor_rx: light_sensor::Receiver,
+) -> DevicesHandle {
+    let mut devices = Devices {
+        devices: HashMap::new(),
+    };
 
     let (tx, mut rx) = mpsc::channel(100);
 
@@ -132,15 +159,20 @@ pub fn start(mut mqtt_rx: mqtt::Receiver, mut presence_rx: presence::Receiver, m
 impl Devices {
     fn handle_cmd(&mut self, cmd: Command) {
         match cmd {
-            Command::Fullfillment { google_home, payload, tx } => {
-                let result = google_home.handle_request(payload, &mut self.as_google_home_devices());
+            Command::Fullfillment {
+                google_home,
+                payload,
+                tx,
+            } => {
+                let result =
+                    google_home.handle_request(payload, &mut self.as_google_home_devices());
                 tx.send(result).ok();
-            },
+            }
             Command::AddDevice { device, tx } => {
                 self.add_device(device);
 
                 tx.send(()).ok();
-            },
+            }
         }
     }
 

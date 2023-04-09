@@ -1,6 +1,6 @@
-pub mod sync;
-pub mod query;
 pub mod execute;
+pub mod query;
+pub mod sync;
 
 use serde::Deserialize;
 

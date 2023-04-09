@@ -1,5 +1,5 @@
-use thiserror::Error;
 use serde::Serialize;
+use thiserror::Error;
 
 #[derive(Debug, Hash, PartialEq, Eq, Copy, Clone, Serialize, Error)]
 #[serde(rename_all = "camelCase")]
@@ -16,8 +16,7 @@ pub enum DeviceError {
 
 #[derive(Debug, Hash, PartialEq, Eq, Copy, Clone, Serialize, Error)]
 #[serde(rename_all = "camelCase")]
-pub enum DeviceException {
-}
+pub enum DeviceException {}
 
 #[derive(Debug, Hash, PartialEq, Eq, Clone, Copy, Serialize, Error)]
 #[serde(untagged)]

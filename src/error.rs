@@ -1,13 +1,13 @@
-use std::{fmt, error, result};
+use std::{error, fmt, result};
 
+use axum::{http::status::InvalidStatusCode, response::IntoResponse};
 use rumqttc::ClientError;
+use serde::{Deserialize, Serialize};
 use thiserror::Error;
-use axum::{response::IntoResponse, http::status::InvalidStatusCode};
-use serde::{Serialize, Deserialize};
 
 #[derive(Debug, Clone)]
 pub struct MissingEnv {
-    keys: Vec<String>
+    keys: Vec<String>,
 }
 
 // TODO: Would be nice to somehow get the line number of the missing keys
@@ -45,9 +45,10 @@ impl fmt::Display for MissingEnv {
             write!(f, " '{}'", self.keys[0])?;
         } else {
             write!(f, "s '{}'", self.keys[0])?;
-            self.keys.iter().skip(1).try_for_each(|key| {
-                write!(f, ", '{key}'")
-            })?;
+            self.keys
+                .iter()
+                .skip(1)
+                .try_for_each(|key| write!(f, ", '{key}'"))?;
         }
 
         Ok(())
@@ -63,19 +64,21 @@ pub enum ConfigParseError {
     #[error(transparent)]
     IoError(#[from] std::io::Error),
     #[error(transparent)]
-    DeserializeError(#[from] toml::de::Error)
+    DeserializeError(#[from] toml::de::Error),
 }
 
 // TODO: Would be nice to somehow get the line number of the expected wildcard topic
 #[derive(Debug, Error)]
 #[error("Topic '{topic}' is expected to be a wildcard topic")]
 pub struct MissingWildcard {
-    topic: String
+    topic: String,
 }
 
 impl MissingWildcard {
     pub fn new(topic: &str) -> Self {
-        Self { topic: topic.to_owned() }
+        Self {
+            topic: topic.to_owned(),
+        }
     }
 }
 
@@ -84,7 +87,7 @@ pub enum DeviceError {
     #[error(transparent)]
     SubscribeError(#[from] ClientError),
     #[error("Expected device '{0}' to implement OnOff trait")]
-    OnOffExpected(String)
+    OnOffExpected(String),
 }
 
 #[derive(Debug, Error)]
@@ -118,7 +121,10 @@ pub struct ApiError {
 
 impl ApiError {
     pub fn new(status_code: axum::http::StatusCode, source: Box<dyn std::error::Error>) -> Self {
-        Self { status_code, source }
+        Self {
+            status_code,
+            source,
+        }
     }
 }
 
@@ -136,7 +142,11 @@ impl From<ApiError> for ApiErrorJson {
 
 impl IntoResponse for ApiError {
     fn into_response(self) -> axum::response::Response {
-        (self.status_code, serde_json::to_string::<ApiErrorJson>(&self.into()).unwrap()).into_response()
+        (
+            self.status_code,
+            serde_json::to_string::<ApiErrorJson>(&self.into()).unwrap(),
+        )
+            .into_response()
     }
 }
 
@@ -159,6 +169,9 @@ impl TryFrom<ApiErrorJson> for ApiError {
         let status_code = axum::http::StatusCode::from_u16(value.error.code)?;
         let source = value.error.reason.into();
 
-        Ok(Self { status_code, source })
+        Ok(Self {
+            status_code,
+            source,
+        })
     }
 }

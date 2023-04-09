@@ -1,12 +1,12 @@
-use std::time::{UNIX_EPOCH, SystemTime};
+use std::time::{SystemTime, UNIX_EPOCH};
 
-use bytes::Bytes;
-use thiserror::Error;
 use async_trait::async_trait;
-use serde::{Serialize, Deserialize};
+use bytes::Bytes;
+use serde::{Deserialize, Serialize};
+use thiserror::Error;
 use tracing::{debug, warn};
 
-use rumqttc::{Publish, Event, Incoming, EventLoop};
+use rumqttc::{Event, EventLoop, Incoming, Publish};
 use tokio::sync::broadcast;
 
 #[async_trait]
@@ -46,13 +46,13 @@ impl Mqtt {
                 match notification {
                     Ok(Event::Incoming(Incoming::Publish(p))) => {
                         self.tx.send(p).ok();
-                    },
+                    }
                     Ok(..) => continue,
                     Err(err) => {
                         // Something has gone wrong
                         // We stay in the loop as that will attempt to reconnect
                         warn!("{}", err);
-                    },
+                    }
                 }
             }
         });
@@ -61,12 +61,14 @@ impl Mqtt {
 
 #[derive(Debug, Serialize, Deserialize)]
 pub struct OnOffMessage {
-    state: String
+    state: String,
 }
 
 impl OnOffMessage {
     pub fn new(state: bool) -> Self {
-        Self { state: if state {"ON"} else {"OFF"}.into() }
+        Self {
+            state: if state { "ON" } else { "OFF" }.into(),
+        }
     }
 
     pub fn state(&self) -> bool {
@@ -85,7 +87,7 @@ impl TryFrom<&Publish> for OnOffMessage {
 
 #[derive(Debug, Deserialize)]
 pub struct ActivateMessage {
-    activate: bool
+    activate: bool,
 }
 
 impl ActivateMessage {
@@ -115,7 +117,7 @@ pub enum RemoteAction {
 
 #[derive(Debug, Deserialize)]
 pub struct RemoteMessage {
-    action: RemoteAction
+    action: RemoteAction,
 }
 
 impl RemoteMessage {
@@ -141,7 +143,15 @@ pub struct PresenceMessage {
 
 impl PresenceMessage {
     pub fn new(state: bool) -> Self {
-        Self { state, updated: Some(SystemTime::now().duration_since(UNIX_EPOCH).expect("Time is after UNIX EPOCH").as_millis()) }
+        Self {
+            state,
+            updated: Some(
+                SystemTime::now()
+                    .duration_since(UNIX_EPOCH)
+                    .expect("Time is after UNIX EPOCH")
+                    .as_millis(),
+            ),
+        }
     }
 
     pub fn present(&self) -> bool {
@@ -206,7 +216,15 @@ pub struct DarknessMessage {
 
 impl DarknessMessage {
     pub fn new(state: bool) -> Self {
-        Self { state, updated: Some(SystemTime::now().duration_since(UNIX_EPOCH).expect("Time is after UNIX EPOCH").as_millis()) }
+        Self {
+            state,
+            updated: Some(
+                SystemTime::now()
+                    .duration_since(UNIX_EPOCH)
+                    .expect("Time is after UNIX EPOCH")
+                    .as_millis(),
+            ),
+        }
     }
 
     pub fn present(&self) -> bool {
@@ -222,4 +240,3 @@ impl TryFrom<&Publish> for DarknessMessage {
             .or(Err(ParseError::InvalidPayload(message.payload.clone())))
     }
 }
-

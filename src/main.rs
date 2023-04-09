@@ -1,22 +1,24 @@
 #![feature(async_closure)]
-use std::{ process, time::Duration, collections::HashMap };
+use std::{collections::HashMap, process, time::Duration};
 
-use axum::{extract::FromRef, http::StatusCode, routing::post, Json, Router, response::IntoResponse};
+use axum::{
+    extract::FromRef, http::StatusCode, response::IntoResponse, routing::post, Json, Router,
+};
 
 use automation::{
     auth::User,
     config::{Config, OpenIDConfig},
-    devices,
-    hue_bridge,
-    light_sensor, mqtt::Mqtt,
-    ntfy,
-    presence, error::ApiError, debug_bridge,
+    debug_bridge, devices,
+    error::ApiError,
+    hue_bridge, light_sensor,
+    mqtt::Mqtt,
+    ntfy, presence,
 };
 use dotenvy::dotenv;
-use rumqttc::{AsyncClient, MqttOptions, Transport, matches};
+use futures::future::join_all;
+use rumqttc::{matches, AsyncClient, MqttOptions, Transport};
 use tokio::task::JoinHandle;
 use tracing::{debug, error, info, metadata::LevelFilter};
-use futures::future::join_all;
 
 use google_home::{GoogleHome, Request};
 use tracing_subscriber::EnvFilter;
@@ -45,7 +47,6 @@ async fn main() {
     }
 }
 
-
 async fn app() -> anyhow::Result<()> {
     dotenv().ok();
 
@@ -73,8 +74,14 @@ async fn app() -> anyhow::Result<()> {
     // Create a mqtt client and wrap the eventloop
     let (client, eventloop) = AsyncClient::new(mqttoptions, 10);
     let mqtt = Mqtt::new(eventloop);
-    let presence = presence::start(config.presence.clone(), mqtt.subscribe(), client.clone()).await?;
-    let light_sensor = light_sensor::start(mqtt.subscribe(), config.light_sensor.clone(), client.clone()).await?;
+    let presence =
+        presence::start(config.presence.clone(), mqtt.subscribe(), client.clone()).await?;
+    let light_sensor = light_sensor::start(
+        mqtt.subscribe(),
+        config.light_sensor.clone(),
+        client.clone(),
+    )
+    .await?;
 
     // Start the ntfy service if it is configured
     let mut ntfy = None;
@@ -90,14 +97,22 @@ async fn app() -> anyhow::Result<()> {
 
     // Start the debug bridge if it is configured
     if let Some(config) = &config.debug_bridge {
-        debug_bridge::start(presence.clone(), light_sensor.clone(), config, client.clone());
+        debug_bridge::start(
+            presence.clone(),
+            light_sensor.clone(),
+            config,
+            client.clone(),
+        );
     }
 
     // Super hacky implementation for the washing machine, just for testing
     {
         let mut handle = None::<JoinHandle<()>>;
         let mut mqtt = mqtt.subscribe();
-        client.subscribe("zigbee2mqtt/bathroom/washing", rumqttc::QoS::AtLeastOnce).await.unwrap();
+        client
+            .subscribe("zigbee2mqtt/bathroom/washing", rumqttc::QoS::AtLeastOnce)
+            .await
+            .unwrap();
         tokio::spawn(async move {
             if let Some(ntfy) = ntfy {
                 loop {
@@ -107,7 +122,8 @@ async fn app() -> anyhow::Result<()> {
                         continue;
                     }
 
-                    let map: HashMap<String, serde_json::Value> = serde_json::from_slice(&message.payload).unwrap();
+                    let map: HashMap<String, serde_json::Value> =
+                        serde_json::from_slice(&message.payload).unwrap();
                     debug!("Test: {:?}", map);
 
                     let strength = match map.get("strength").map(|value| value.as_i64().unwrap()) {
@@ -127,20 +143,18 @@ async fn app() -> anyhow::Result<()> {
                         // Start a new timer, if the timer runs out we have not had an update of
                         // more then 15 in the last timeout period, assume we are done, notify user
                         let ntfy = ntfy.clone();
-                        handle = Some(
-                            tokio::spawn(async move {
-                                debug!("Starting timeout of 10 min for washing machine...");
-                                tokio::time::sleep(Duration::from_secs(10*60)).await;
-                                debug!("Notifying user!");
+                        handle = Some(tokio::spawn(async move {
+                            debug!("Starting timeout of 10 min for washing machine...");
+                            tokio::time::sleep(Duration::from_secs(10 * 60)).await;
+                            debug!("Notifying user!");
 
-                                let notification = ntfy::Notification::new()
-                                    .set_title("Laundy is done")
-                                    .set_message("Do not forget to hang it!")
-                                    .set_priority(ntfy::Priority::High);
+                            let notification = ntfy::Notification::new()
+                                .set_title("Laundy is done")
+                                .set_message("Do not forget to hang it!")
+                                .set_priority(ntfy::Priority::High);
 
-                                ntfy.send(notification).await.ok();
-                            })
-                        );
+                            ntfy.send(notification).await.ok();
+                        }));
                     }
                 }
             }
@@ -156,12 +170,17 @@ async fn app() -> anyhow::Result<()> {
             .map(|(identifier, device_config)| async {
                 // Force the async block to move identifier
                 let identifier = identifier;
-                let device = device_config.create(&identifier, &config, client.clone()).await?;
+                let device = device_config
+                    .create(&identifier, &config, client.clone())
+                    .await?;
                 devices.add_device(device).await?;
                 // We don't need a seperate error type in main
                 anyhow::Ok(())
-            })
-    ).await.into_iter().collect::<Result<_, _>>()?;
+            }),
+    )
+    .await
+    .into_iter()
+    .collect::<Result<_, _>>()?;
 
     // Actually start listening for mqtt message,
     // we wait until all the setup is done, as otherwise we might miss some messages
@@ -175,7 +194,10 @@ async fn app() -> anyhow::Result<()> {
             let gc = GoogleHome::new(&user.preferred_username);
             let result = match devices.fullfillment(gc, payload).await {
                 Ok(result) => result,
-                Err(err) => return ApiError::new(StatusCode::INTERNAL_SERVER_ERROR, err.into()).into_response(),
+                Err(err) => {
+                    return ApiError::new(StatusCode::INTERNAL_SERVER_ERROR, err.into())
+                        .into_response()
+                }
             };
 
             debug!(username = user.preferred_username, "{result:#?}");

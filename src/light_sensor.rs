@@ -1,9 +1,13 @@
 use async_trait::async_trait;
 use rumqttc::{matches, AsyncClient};
 use tokio::sync::watch;
-use tracing::{error, trace, debug};
+use tracing::{debug, error, trace};
 
-use crate::{config::{MqttDeviceConfig, LightSensorConfig}, mqtt::{self, OnMqtt, BrightnessMessage}, error::LightSensorError};
+use crate::{
+    config::{LightSensorConfig, MqttDeviceConfig},
+    error::LightSensorError,
+    mqtt::{self, BrightnessMessage, OnMqtt},
+};
 
 #[async_trait]
 pub trait OnDarkness {
@@ -24,12 +28,24 @@ struct LightSensor {
 impl LightSensor {
     fn new(mqtt: MqttDeviceConfig, min: isize, max: isize) -> Self {
         let (tx, is_dark) = watch::channel(false);
-        Self { is_dark, mqtt, min, max, tx }
+        Self {
+            is_dark,
+            mqtt,
+            min,
+            max,
+            tx,
+        }
     }
 }
 
-pub async fn start(mut mqtt_rx: mqtt::Receiver, config: LightSensorConfig, client: AsyncClient) -> Result<Receiver, LightSensorError> {
-    client.subscribe(config.mqtt.topic.clone(), rumqttc::QoS::AtLeastOnce).await?;
+pub async fn start(
+    mut mqtt_rx: mqtt::Receiver,
+    config: LightSensorConfig,
+    client: AsyncClient,
+) -> Result<Receiver, LightSensorError> {
+    client
+        .subscribe(config.mqtt.topic.clone(), rumqttc::QoS::AtLeastOnce)
+        .await?;
 
     let mut light_sensor = LightSensor::new(config.mqtt, config.min, config.max);
     let is_dark = light_sensor.is_dark.clone();
@@ -69,7 +85,12 @@ impl OnMqtt for LightSensor {
             trace!("It is light");
             false
         } else {
-            trace!("In between min ({}) and max ({}) value, keeping current state: {}", self.min, self.max, *self.is_dark.borrow());
+            trace!(
+                "In between min ({}) and max ({}) value, keeping current state: {}",
+                self.min,
+                self.max,
+                *self.is_dark.borrow()
+            );
             *self.is_dark.borrow()
         };
 

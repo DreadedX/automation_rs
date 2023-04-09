@@ -1,14 +1,14 @@
 use async_trait::async_trait;
 use google_home::traits;
-use rumqttc::{AsyncClient, matches};
-use tracing::{error, warn, debug};
+use rumqttc::{matches, AsyncClient};
+use tracing::{debug, error, warn};
 
 use crate::config::MqttDeviceConfig;
 use crate::error::DeviceError;
-use crate::mqtt::{OnMqtt, RemoteMessage, RemoteAction};
+use crate::mqtt::{OnMqtt, RemoteAction, RemoteMessage};
 use crate::presence::OnPresence;
 
-use super::{Device, DeviceBox, AsOnOff};
+use super::{AsOnOff, Device, DeviceBox};
 
 // TODO: Ideally we store am Arc to the childern devices,
 // that way they hook into everything just like all other devices
@@ -21,19 +21,31 @@ pub struct AudioSetup {
 }
 
 impl AudioSetup {
-    pub async fn build(identifier: &str, mqtt: MqttDeviceConfig, mixer: DeviceBox, speakers: DeviceBox, client: AsyncClient) -> Result<Self, DeviceError> {
+    pub async fn build(
+        identifier: &str,
+        mqtt: MqttDeviceConfig,
+        mixer: DeviceBox,
+        speakers: DeviceBox,
+        client: AsyncClient,
+    ) -> Result<Self, DeviceError> {
         // We expect the children devices to implement the OnOff trait
         let mixer_id = mixer.get_id().to_owned();
-        let mixer = AsOnOff::consume(mixer)
-            .ok_or_else(|| DeviceError::OnOffExpected(mixer_id))?;
+        let mixer = AsOnOff::consume(mixer).ok_or_else(|| DeviceError::OnOffExpected(mixer_id))?;
 
         let speakers_id = speakers.get_id().to_owned();
-        let speakers = AsOnOff::consume(speakers)
-            .ok_or_else(|| DeviceError::OnOffExpected(speakers_id))?;
+        let speakers =
+            AsOnOff::consume(speakers).ok_or_else(|| DeviceError::OnOffExpected(speakers_id))?;
 
-        client.subscribe(mqtt.topic.clone(), rumqttc::QoS::AtLeastOnce).await?;
+        client
+            .subscribe(mqtt.topic.clone(), rumqttc::QoS::AtLeastOnce)
+            .await?;
 
-        Ok(Self { identifier: identifier.to_owned(), mqtt, mixer, speakers })
+        Ok(Self {
+            identifier: identifier.to_owned(),
+            mqtt,
+            mixer,
+            speakers,
+        })
     }
 }
 

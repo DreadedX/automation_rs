@@ -1,12 +1,12 @@
 #![allow(incomplete_features)]
 #![feature(specialization)]
-pub mod devices;
-pub mod mqtt;
-pub mod config;
-pub mod presence;
-pub mod ntfy;
-pub mod light_sensor;
-pub mod hue_bridge;
 pub mod auth;
-pub mod error;
+pub mod config;
 pub mod debug_bridge;
+pub mod devices;
+pub mod error;
+pub mod hue_bridge;
+pub mod light_sensor;
+pub mod mqtt;
+pub mod ntfy;
+pub mod presence;

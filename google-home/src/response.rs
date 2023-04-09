@@ -1,6 +1,6 @@
-pub mod sync;
-pub mod query;
 pub mod execute;
+pub mod query;
+pub mod sync;
 
 use serde::Serialize;
 
@@ -13,7 +13,10 @@ pub struct Response {
 
 impl Response {
     pub fn new(request_id: &str, payload: ResponsePayload) -> Self {
-        Self { request_id: request_id.to_owned(), payload }
+        Self {
+            request_id: request_id.to_owned(),
+            payload,
+        }
     }
 }
 

@@ -1,12 +1,15 @@
 use std::collections::HashMap;
 
 use async_trait::async_trait;
-use tokio::sync::mpsc;
-use tracing::{warn, error, debug};
 use serde::Serialize;
 use serde_repr::*;
+use tokio::sync::mpsc;
+use tracing::{debug, error, warn};
 
-use crate::{presence::{self, OnPresence}, config::NtfyConfig};
+use crate::{
+    config::NtfyConfig,
+    presence::{self, OnPresence},
+};
 
 pub type Sender = mpsc::Sender<Notification>;
 pub type Receiver = mpsc::Receiver<Notification>;
@@ -32,7 +35,7 @@ pub enum Priority {
 pub enum ActionType {
     Broadcast {
         #[serde(skip_serializing_if = "HashMap::is_empty")]
-        extras: HashMap<String, String>
+        extras: HashMap<String, String>,
     },
     // View,
     // Http
@@ -69,7 +72,13 @@ pub struct Notification {
 
 impl Notification {
     pub fn new() -> Self {
-        Self { title: None, message: None, tags: Vec::new(), priority: None, actions: Vec::new() }
+        Self {
+            title: None,
+            message: None,
+            tags: Vec::new(),
+            priority: None,
+            actions: Vec::new(),
+        }
     }
 
     pub fn set_title(mut self, title: &str) -> Self {
@@ -98,7 +107,10 @@ impl Notification {
     }
 
     fn finalize(self, topic: &str) -> NotificationFinal {
-        NotificationFinal { topic: topic.to_owned(), inner: self }
+        NotificationFinal {
+            topic: topic.to_owned(),
+            inner: self,
+        }
     }
 }
 
@@ -110,7 +122,11 @@ impl Default for Notification {
 
 impl Ntfy {
     fn new(base_url: &str, topic: &str, tx: Sender) -> Self {
-        Self { base_url: base_url.to_owned(), topic: topic.to_owned(), tx }
+        Self {
+            base_url: base_url.to_owned(),
+            topic: topic.to_owned(),
+            tx,
+        }
     }
 
     async fn send(&self, notification: Notification) {
@@ -170,7 +186,7 @@ impl OnPresence for Ntfy {
         let action = Action {
             action: ActionType::Broadcast { extras },
             label: if presence { "Set away" } else { "Set home" }.to_owned(),
-            clear: Some(true)
+            clear: Some(true),
         };
 
         // Create the notification

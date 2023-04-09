@@ -10,7 +10,7 @@ pub struct Payload {
 #[serde(rename_all = "camelCase")]
 pub struct Command {
     pub devices: Vec<Device>,
-    pub execution: Vec<CommandType>
+    pub execution: Vec<CommandType>,
 }
 
 #[derive(Debug, Deserialize)]
@@ -24,23 +24,18 @@ pub struct Device {
 #[serde(tag = "command", content = "params")]
 pub enum CommandType {
     #[serde(rename = "action.devices.commands.OnOff")]
-    OnOff {
-        on: bool
-    },
+    OnOff { on: bool },
     #[serde(rename = "action.devices.commands.ActivateScene")]
-    ActivateScene {
-        deactivate: bool
-    }
+    ActivateScene { deactivate: bool },
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::request::{Request, Intent};
+    use crate::request::{Intent, Request};
 
     #[test]
     fn deserialize() {
-
         let json = r#"{
   "requestId": "ff36a3cc-ec34-11e6-b1a0-64510650abcf",
   "inputs": [
@@ -86,7 +81,10 @@ mod tests {
 
         println!("{:?}", req);
 
-        assert_eq!(req.request_id, "ff36a3cc-ec34-11e6-b1a0-64510650abcf".to_owned());
+        assert_eq!(
+            req.request_id,
+            "ff36a3cc-ec34-11e6-b1a0-64510650abcf".to_owned()
+        );
         assert_eq!(req.inputs.len(), 1);
         match &req.inputs[0] {
             Intent::Execute(payload) => {
@@ -96,11 +94,11 @@ mod tests {
                 assert_eq!(payload.commands[0].devices[1].id, "456");
                 assert_eq!(payload.commands[0].execution.len(), 1);
                 match payload.commands[0].execution[0] {
-                    CommandType::OnOff{on} => assert!(on),
-                    _ => panic!("Expected OnOff")
+                    CommandType::OnOff { on } => assert!(on),
+                    _ => panic!("Expected OnOff"),
                 }
-            },
-            _ => panic!("Expected Execute intent")
+            }
+            _ => panic!("Expected Execute intent"),
         };
     }
 }

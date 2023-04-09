@@ -1,12 +1,22 @@
 use std::net::Ipv4Addr;
 
 use async_trait::async_trait;
-use google_home::{GoogleHomeDevice, types::Type, device, traits::{self, Scene}, errors::ErrorCode};
-use tracing::{debug, error};
-use rumqttc::{AsyncClient, Publish, matches};
 use eui48::MacAddress;
+use google_home::{
+    device,
+    errors::ErrorCode,
+    traits::{self, Scene},
+    types::Type,
+    GoogleHomeDevice,
+};
+use rumqttc::{matches, AsyncClient, Publish};
+use tracing::{debug, error};
 
-use crate::{config::{InfoConfig, MqttDeviceConfig}, mqtt::{OnMqtt, ActivateMessage}, error::DeviceError};
+use crate::{
+    config::{InfoConfig, MqttDeviceConfig},
+    error::DeviceError,
+    mqtt::{ActivateMessage, OnMqtt},
+};
 
 use super::Device;
 
@@ -20,11 +30,26 @@ pub struct WakeOnLAN {
 }
 
 impl WakeOnLAN {
-    pub async fn build(identifier: &str, info: InfoConfig, mqtt: MqttDeviceConfig, mac_address: MacAddress, broadcast_ip: Ipv4Addr, client: AsyncClient) -> Result<Self, DeviceError> {
+    pub async fn build(
+        identifier: &str,
+        info: InfoConfig,
+        mqtt: MqttDeviceConfig,
+        mac_address: MacAddress,
+        broadcast_ip: Ipv4Addr,
+        client: AsyncClient,
+    ) -> Result<Self, DeviceError> {
         // TODO: Handle potential errors here
-        client.subscribe(mqtt.topic.clone(), rumqttc::QoS::AtLeastOnce).await?;
+        client
+            .subscribe(mqtt.topic.clone(), rumqttc::QoS::AtLeastOnce)
+            .await?;
 
-        Ok(Self { identifier: identifier.to_owned(), info, mqtt, mac_address, broadcast_ip })
+        Ok(Self {
+            identifier: identifier.to_owned(),
+            info,
+            mqtt,
+            mac_address,
+            broadcast_ip,
+        })
     }
 }
 
@@ -81,20 +106,31 @@ impl GoogleHomeDevice for WakeOnLAN {
 impl traits::Scene for WakeOnLAN {
     fn set_active(&self, activate: bool) -> Result<(), ErrorCode> {
         if activate {
-            debug!(id = self.identifier, "Activating Computer: {} (Sending to {})", self.mac_address, self.broadcast_ip);
-            let wol = wakey::WolPacket::from_bytes(&self.mac_address.to_array()).map_err(|err| {
-                error!(id = self.identifier, "invalid mac address: {err}");
-                google_home::errors::DeviceError::TransientError
-            })?;
+            debug!(
+                id = self.identifier,
+                "Activating Computer: {} (Sending to {})", self.mac_address, self.broadcast_ip
+            );
+            let wol =
+                wakey::WolPacket::from_bytes(&self.mac_address.to_array()).map_err(|err| {
+                    error!(id = self.identifier, "invalid mac address: {err}");
+                    google_home::errors::DeviceError::TransientError
+                })?;
 
-            wol.send_magic_to((Ipv4Addr::new(0, 0, 0, 0), 0), (self.broadcast_ip, 9)).map_err(|err| {
-                error!(id = self.identifier, "Failed to activate computer: {err}");
-                google_home::errors::DeviceError::TransientError.into()
-            }).map(|_| debug!(id = self.identifier, "Success!"))
+            wol.send_magic_to((Ipv4Addr::new(0, 0, 0, 0), 0), (self.broadcast_ip, 9))
+                .map_err(|err| {
+                    error!(id = self.identifier, "Failed to activate computer: {err}");
+                    google_home::errors::DeviceError::TransientError.into()
+                })
+                .map(|_| debug!(id = self.identifier, "Success!"))
         } else {
-            debug!(id = self.identifier, "Trying to deactive computer, this is not currently supported");
+            debug!(
+                id = self.identifier,
+                "Trying to deactive computer, this is not currently supported"
+            );
             // We do not support deactivating this scene
-            Err(ErrorCode::DeviceError(google_home::errors::DeviceError::ActionNotAvailable))
+            Err(ErrorCode::DeviceError(
+                google_home::errors::DeviceError::ActionNotAvailable,
+            ))
         }
     }
 }

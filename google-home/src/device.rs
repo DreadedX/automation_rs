@@ -1,6 +1,12 @@
 use serde::Serialize;
 
-use crate::{response, types::Type, traits::{AsOnOff, Trait, AsScene}, errors::{DeviceError, ErrorCode}, request::execute::CommandType};
+use crate::{
+    errors::{DeviceError, ErrorCode},
+    request::execute::CommandType,
+    response,
+    traits::{AsOnOff, AsScene, Trait},
+    types::Type,
+};
 
 pub trait GoogleHomeDevice: AsOnOff + AsScene {
     fn get_device_type(&self) -> Type;
@@ -19,11 +25,10 @@ pub trait GoogleHomeDevice: AsOnOff + AsScene {
         None
     }
 
-
-
     fn sync(&self) -> response::sync::Device {
         let name = self.get_device_name();
-        let mut device = response::sync::Device::new(self.get_id(), &name.name, self.get_device_type());
+        let mut device =
+            response::sync::Device::new(self.get_id(), &name.name, self.get_device_type());
 
         device.name = name;
         device.will_report_state = self.will_report_state();
@@ -60,9 +65,7 @@ pub trait GoogleHomeDevice: AsOnOff + AsScene {
 
         // OnOff
         if let Some(on_off) = AsOnOff::cast(self) {
-            device.state.on = on_off.is_on()
-                .map_err(|err| device.set_error(err))
-                .ok();
+            device.state.on = on_off.is_on().map_err(|err| device.set_error(err)).ok();
         }
 
         device
@@ -75,13 +78,13 @@ pub trait GoogleHomeDevice: AsOnOff + AsScene {
                     .ok_or::<ErrorCode>(DeviceError::ActionNotAvailable.into())?;
 
                 on_off.set_on(*on)?;
-            },
+            }
             CommandType::ActivateScene { deactivate } => {
                 let scene = AsScene::cast_mut(self)
                     .ok_or::<ErrorCode>(DeviceError::ActionNotAvailable.into())?;
 
                 scene.set_active(!deactivate)?;
-            },
+            }
         }
 
         Ok(())
@@ -100,7 +103,11 @@ pub struct Name {
 
 impl Name {
     pub fn new(name: &str) -> Self {
-        Self { default_names: Vec::new(), name: name.into(), nicknames: Vec::new() }
+        Self {
+            default_names: Vec::new(),
+            name: name.into(),
+            nicknames: Vec::new(),
+        }
     }
 
     pub fn add_default_name(&mut self, name: &str) {

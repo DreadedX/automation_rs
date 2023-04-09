@@ -2,7 +2,12 @@ use std::collections::HashMap;
 
 use thiserror::Error;
 
-use crate::{request::{Request, Intent, self}, device::GoogleHomeDevice, response::{sync, ResponsePayload, query, execute, Response, self, State}, errors::{DeviceError, ErrorCode}};
+use crate::{
+    device::GoogleHomeDevice,
+    errors::{DeviceError, ErrorCode},
+    request::{self, Intent, Request},
+    response::{self, execute, query, sync, Response, ResponsePayload, State},
+};
 
 #[derive(Debug)]
 pub struct GoogleHome {
@@ -13,15 +18,21 @@ pub struct GoogleHome {
 #[derive(Debug, Error)]
 pub enum FullfillmentError {
     #[error("Expected at least one ResponsePayload")]
-    ExpectedOnePayload
+    ExpectedOnePayload,
 }
 
 impl GoogleHome {
     pub fn new(user_id: &str) -> Self {
-        Self { user_id: user_id.into() }
+        Self {
+            user_id: user_id.into(),
+        }
     }
 
-    pub fn handle_request(&self, request: Request, devices: &mut HashMap<&str, &mut dyn GoogleHomeDevice>) -> Result<Response, FullfillmentError> {
+    pub fn handle_request(
+        &self,
+        request: Request,
+        devices: &mut HashMap<&str, &mut dyn GoogleHomeDevice>,
+    ) -> Result<Response, FullfillmentError> {
         // TODO: What do we do if we actually get more then one thing in the input array, right now
         // we only respond to the first thing
         let payload = request
@@ -30,8 +41,11 @@ impl GoogleHome {
             .map(|input| match input {
                 Intent::Sync => ResponsePayload::Sync(self.sync(devices)),
                 Intent::Query(payload) => ResponsePayload::Query(self.query(payload, devices)),
-                Intent::Execute(payload) => ResponsePayload::Execute(self.execute(payload, devices)),
-            }).next();
+                Intent::Execute(payload) => {
+                    ResponsePayload::Execute(self.execute(payload, devices))
+                }
+            })
+            .next();
 
         payload
             .ok_or(FullfillmentError::ExpectedOnePayload)
@@ -48,83 +62,111 @@ impl GoogleHome {
         resp_payload
     }
 
-    fn query(&self, payload: request::query::Payload, devices: &HashMap<&str, &mut dyn GoogleHomeDevice>) -> query::Payload {
+    fn query(
+        &self,
+        payload: request::query::Payload,
+        devices: &HashMap<&str, &mut dyn GoogleHomeDevice>,
+    ) -> query::Payload {
         let mut resp_payload = query::Payload::new();
-        resp_payload.devices = payload.devices
+        resp_payload.devices = payload
+            .devices
             .into_iter()
             .map(|device| device.id)
             .map(|id| {
-                let device = devices.get(id.as_str())
-                    .map_or_else(|| {
+                let device = devices.get(id.as_str()).map_or_else(
+                    || {
                         let mut device = query::Device::new();
                         device.set_offline();
                         device.set_error(DeviceError::DeviceNotFound.into());
 
                         device
-                    }, |device| device.query());
+                    },
+                    |device| device.query(),
+                );
 
                 (id, device)
-            }).collect();
+            })
+            .collect();
 
         resp_payload
-
     }
 
-    fn execute(&self, payload: request::execute::Payload, devices: &mut HashMap<&str, &mut dyn GoogleHomeDevice>) -> execute::Payload {
+    fn execute(
+        &self,
+        payload: request::execute::Payload,
+        devices: &mut HashMap<&str, &mut dyn GoogleHomeDevice>,
+    ) -> execute::Payload {
         let mut resp_payload = response::execute::Payload::new();
 
-        payload.commands
-            .into_iter()
-            .for_each(|command| {
-                let mut success = response::execute::Command::new(execute::Status::Success);
-                success.states = Some(execute::States { online: true, state: State::default() });
-                let mut offline = response::execute::Command::new(execute::Status::Offline);
-                offline.states = Some(execute::States { online: false, state: State::default() });
-                let mut errors: HashMap<ErrorCode, response::execute::Command> = HashMap::new();
+        payload.commands.into_iter().for_each(|command| {
+            let mut success = response::execute::Command::new(execute::Status::Success);
+            success.states = Some(execute::States {
+                online: true,
+                state: State::default(),
+            });
+            let mut offline = response::execute::Command::new(execute::Status::Offline);
+            offline.states = Some(execute::States {
+                online: false,
+                state: State::default(),
+            });
+            let mut errors: HashMap<ErrorCode, response::execute::Command> = HashMap::new();
 
-                command.devices
-                    .into_iter()
-                    .map(|device| device.id)
-                    .map(|id| {
-                        devices.get_mut(id.as_str())
-                            .map_or((id.clone(), Err(DeviceError::DeviceNotFound.into())), |device| {
-                                if !device.is_online() {
-                                    return (id, Ok(false));
-                                }
+            command
+                .devices
+                .into_iter()
+                .map(|device| device.id)
+                .map(|id| {
+                    devices.get_mut(id.as_str()).map_or(
+                        (id.clone(), Err(DeviceError::DeviceNotFound.into())),
+                        |device| {
+                            if !device.is_online() {
+                                return (id, Ok(false));
+                            }
 
-                                let results = command.execution.iter().map(|cmd| {
+                            let results = command
+                                .execution
+                                .iter()
+                                .map(|cmd| {
                                     // TODO: We should also return the state after update in the state
                                     // struct, however that will make things WAY more complicated
                                     device.execute(cmd)
-                                }).collect::<Result<Vec<_>, ErrorCode>>();
+                                })
+                                .collect::<Result<Vec<_>, ErrorCode>>();
 
-                                // TODO: We only get one error not all errors
-                                if let Err(err) = results {
-                                    (id, Err(err))
-                                } else {
-                                    (id, Ok(true))
+                            // TODO: We only get one error not all errors
+                            if let Err(err) = results {
+                                (id, Err(err))
+                            } else {
+                                (id, Ok(true))
+                            }
+                        },
+                    )
+                })
+                .for_each(|(id, state)| {
+                    match state {
+                        Ok(true) => success.add_id(&id),
+                        Ok(false) => offline.add_id(&id),
+                        Err(err) => errors
+                            .entry(err)
+                            .or_insert_with(|| match &err {
+                                ErrorCode::DeviceError(_) => {
+                                    response::execute::Command::new(execute::Status::Error)
+                                }
+                                ErrorCode::DeviceException(_) => {
+                                    response::execute::Command::new(execute::Status::Exceptions)
                                 }
                             })
-                    }).for_each(|(id, state)| {
-                        match state {
-                            Ok(true) => success.add_id(&id),
-                            Ok(false) => offline.add_id(&id),
-                            Err(err) => errors.entry(err).or_insert_with(|| {
-                                match &err {
-                                    ErrorCode::DeviceError(_) => response::execute::Command::new(execute::Status::Error),
-                                    ErrorCode::DeviceException(_) => response::execute::Command::new(execute::Status::Exceptions),
-                                }
-                            }).add_id(&id),
-                        };
-                    });
+                            .add_id(&id),
+                    };
+                });
 
-                resp_payload.add_command(success);
-                resp_payload.add_command(offline);
-                for (error, mut cmd) in errors {
-                    cmd.error_code = Some(error);
-                    resp_payload.add_command(cmd);
-                }
-            });
+            resp_payload.add_command(success);
+            resp_payload.add_command(offline);
+            for (error, mut cmd) in errors {
+                cmd.error_code = Some(error);
+                resp_payload.add_command(cmd);
+            }
+        });
 
         resp_payload
     }
@@ -133,7 +175,12 @@ impl GoogleHome {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::{request::Request, device::{GoogleHomeDevice, self}, types, traits, errors::ErrorCode};
+    use crate::{
+        device::{self, GoogleHomeDevice},
+        errors::ErrorCode,
+        request::Request,
+        traits, types,
+    };
 
     #[derive(Debug)]
     struct TestOutlet {
@@ -143,7 +190,10 @@ mod tests {
 
     impl TestOutlet {
         fn new(name: &str) -> Self {
-            Self { name: name.into(), on: false }
+            Self {
+                name: name.into(),
+                on: false,
+            }
         }
     }
 

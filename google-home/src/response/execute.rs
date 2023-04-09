@@ -1,6 +1,6 @@
 use serde::Serialize;
 
-use crate::{response::State, errors::ErrorCode};
+use crate::{errors::ErrorCode, response::State};
 
 #[derive(Debug, Serialize)]
 #[serde(rename_all = "camelCase")]
@@ -14,7 +14,11 @@ pub struct Payload {
 
 impl Payload {
     pub fn new() -> Self {
-        Self { error_code: None, debug_string: None, commands: Vec::new() }
+        Self {
+            error_code: None,
+            debug_string: None,
+            commands: Vec::new(),
+        }
     }
 
     pub fn add_command(&mut self, command: Command) {
@@ -44,7 +48,12 @@ pub struct Command {
 
 impl Command {
     pub fn new(status: Status) -> Self {
-        Self { error_code: None, ids: Vec::new(), status, states: None }
+        Self {
+            error_code: None,
+            ids: Vec::new(),
+            status,
+            states: None,
+        }
     }
 
     pub fn add_id(&mut self, id: &str) {
@@ -78,7 +87,10 @@ pub enum Status {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::{response::{Response, ResponsePayload, State}, errors::DeviceError};
+    use crate::{
+        errors::DeviceError,
+        response::{Response, ResponsePayload, State},
+    };
 
     #[test]
     fn serialize() {
@@ -98,7 +110,10 @@ mod tests {
         command.ids.push("456".into());
         execute_resp.add_command(command);
 
-        let resp = Response::new("ff36a3cc-ec34-11e6-b1a0-64510650abcf", ResponsePayload::Execute(execute_resp));
+        let resp = Response::new(
+            "ff36a3cc-ec34-11e6-b1a0-64510650abcf",
+            ResponsePayload::Execute(execute_resp),
+        );
 
         let json = serde_json::to_string(&resp).unwrap();
 

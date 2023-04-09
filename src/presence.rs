@@ -1,11 +1,15 @@
 use std::collections::HashMap;
 
 use async_trait::async_trait;
+use rumqttc::{has_wildcards, matches, AsyncClient};
 use tokio::sync::watch;
 use tracing::{debug, error};
-use rumqttc::{AsyncClient, matches, has_wildcards};
 
-use crate::{mqtt::{OnMqtt, PresenceMessage, self}, config::MqttDeviceConfig, error::{MissingWildcard, PresenceError}};
+use crate::{
+    config::MqttDeviceConfig,
+    error::{MissingWildcard, PresenceError},
+    mqtt::{self, OnMqtt, PresenceMessage},
+};
 
 #[async_trait]
 pub trait OnPresence {
@@ -29,13 +33,24 @@ impl Presence {
         }
 
         let (tx, overall_presence) = watch::channel(false);
-        Ok(Self { devices: HashMap::new(), overall_presence, mqtt, tx })
+        Ok(Self {
+            devices: HashMap::new(),
+            overall_presence,
+            mqtt,
+            tx,
+        })
     }
 }
 
-pub async fn start(mqtt: MqttDeviceConfig, mut mqtt_rx: mqtt::Receiver, client: AsyncClient) -> Result<Receiver, PresenceError> {
+pub async fn start(
+    mqtt: MqttDeviceConfig,
+    mut mqtt_rx: mqtt::Receiver,
+    client: AsyncClient,
+) -> Result<Receiver, PresenceError> {
     // Subscribe to the relevant topics on mqtt
-    client.subscribe(mqtt.topic.clone(), rumqttc::QoS::AtLeastOnce).await?;
+    client
+        .subscribe(mqtt.topic.clone(), rumqttc::QoS::AtLeastOnce)
+        .await?;
 
     let mut presence = Presence::build(mqtt)?;
     let overall_presence = presence.overall_presence.clone();
@@ -59,7 +74,12 @@ impl OnMqtt for Presence {
             return;
         }
 
-        let offset = self.mqtt.topic.find('+').or(self.mqtt.topic.find('#')).expect("Presence::new fails if it does not contain wildcards");
+        let offset = self
+            .mqtt
+            .topic
+            .find('+')
+            .or(self.mqtt.topic.find('#'))
+            .expect("Presence::new fails if it does not contain wildcards");
         let device_name = &message.topic[offset..];
 
         if message.payload.is_empty() {

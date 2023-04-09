@@ -1,11 +1,16 @@
 use std::time::Duration;
 
 use async_trait::async_trait;
-use rumqttc::{AsyncClient, matches};
+use rumqttc::{matches, AsyncClient};
 use tokio::task::JoinHandle;
-use tracing::{error, debug, warn};
+use tracing::{debug, error, warn};
 
-use crate::{config::{MqttDeviceConfig, PresenceDeviceConfig}, mqtt::{OnMqtt, ContactMessage, PresenceMessage}, presence::OnPresence, error::DeviceError};
+use crate::{
+    config::{MqttDeviceConfig, PresenceDeviceConfig},
+    error::DeviceError,
+    mqtt::{ContactMessage, OnMqtt, PresenceMessage},
+    presence::OnPresence,
+};
 
 use super::Device;
 
@@ -22,8 +27,15 @@ pub struct ContactSensor {
 }
 
 impl ContactSensor {
-    pub async fn build(identifier: &str, mqtt: MqttDeviceConfig, presence: Option<PresenceDeviceConfig>, client: AsyncClient) -> Result<Self, DeviceError> {
-        client.subscribe(mqtt.topic.clone(), rumqttc::QoS::AtLeastOnce).await?;
+    pub async fn build(
+        identifier: &str,
+        mqtt: MqttDeviceConfig,
+        presence: Option<PresenceDeviceConfig>,
+        client: AsyncClient,
+    ) -> Result<Self, DeviceError> {
+        client
+            .subscribe(mqtt.topic.clone(), rumqttc::QoS::AtLeastOnce)
+            .await?;
 
         Ok(Self {
             identifier: identifier.to_owned(),
@@ -62,7 +74,7 @@ impl OnMqtt for ContactSensor {
             Err(err) => {
                 error!(id = self.identifier, "Failed to parse message: {err}");
                 return;
-            },
+            }
         };
 
         if is_closed == self.is_closed {
@@ -97,7 +109,13 @@ impl OnMqtt for ContactSensor {
             // This is to prevent the house from being marked as present for however long the
             // timeout is set when leaving the house
             if !self.overall_presence {
-                self.client.publish(topic.clone(), rumqttc::QoS::AtLeastOnce, false, serde_json::to_string(&PresenceMessage::new(true)).unwrap())
+                self.client
+                    .publish(
+                        topic.clone(),
+                        rumqttc::QoS::AtLeastOnce,
+                        false,
+                        serde_json::to_string(&PresenceMessage::new(true)).unwrap(),
+                    )
                     .await
                     .map_err(|err| warn!("Failed to publish presence on {topic}: {err}"))
                     .ok();
@@ -107,17 +125,16 @@ impl OnMqtt for ContactSensor {
             let client = self.client.clone();
             let id = self.identifier.clone();
             let timeout = Duration::from_secs(presence.timeout);
-            self.handle = Some(
-                tokio::spawn(async move {
-                    debug!(id, "Starting timeout ({timeout:?}) for contact sensor...");
-                    tokio::time::sleep(timeout).await;
-                    debug!(id, "Removing door device!");
-                    client.publish(topic.clone(), rumqttc::QoS::AtLeastOnce, false, "")
-                        .await
-                        .map_err(|err| warn!("Failed to publish presence on {topic}: {err}"))
-                        .ok();
-                })
-            );
+            self.handle = Some(tokio::spawn(async move {
+                debug!(id, "Starting timeout ({timeout:?}) for contact sensor...");
+                tokio::time::sleep(timeout).await;
+                debug!(id, "Removing door device!");
+                client
+                    .publish(topic.clone(), rumqttc::QoS::AtLeastOnce, false, "")
+                    .await
+                    .map_err(|err| warn!("Failed to publish presence on {topic}: {err}"))
+                    .ok();
+            }));
         }
     }
 }

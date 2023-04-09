@@ -2,9 +2,13 @@ use std::net::SocketAddr;
 
 use async_trait::async_trait;
 use serde::Serialize;
-use tracing::{warn, error, trace};
+use tracing::{error, trace, warn};
 
-use crate::{config::{HueBridgeConfig, Flags}, presence::{OnPresence, self}, light_sensor::{OnDarkness, self}};
+use crate::{
+    config::{Flags, HueBridgeConfig},
+    light_sensor::{self, OnDarkness},
+    presence::{self, OnPresence},
+};
 
 pub enum Flag {
     Presence,
@@ -19,12 +23,16 @@ struct HueBridge {
 
 #[derive(Debug, Serialize)]
 struct FlagMessage {
-    flag: bool
+    flag: bool,
 }
 
 impl HueBridge {
     pub fn new(addr: SocketAddr, login: &str, flags: Flags) -> Self {
-        Self { addr, login: login.to_owned(), flags }
+        Self {
+            addr,
+            login: login.to_owned(),
+            flags,
+        }
     }
 
     pub async fn set_flag(&self, flag: Flag, value: bool) {
@@ -33,7 +41,10 @@ impl HueBridge {
             Flag::Darkness => self.flags.darkness,
         };
 
-        let url = format!("http://{}/api/{}/sensors/{flag}/state", self.addr, self.login);
+        let url = format!(
+            "http://{}/api/{}/sensors/{flag}/state",
+            self.addr, self.login
+        );
         let res = reqwest::Client::new()
             .put(url)
             .json(&FlagMessage { flag: value })
@@ -46,7 +57,7 @@ impl HueBridge {
                 if !status.is_success() {
                     warn!(flag, "Status code is not success: {status}");
                 }
-            },
+            }
             Err(err) => {
                 error!(flag, "Error: {err}");
             }
@@ -54,8 +65,13 @@ impl HueBridge {
     }
 }
 
-pub fn start(mut presence_rx: presence::Receiver, mut light_sensor_rx: light_sensor::Receiver, config: &HueBridgeConfig) {
-    let mut hue_bridge = HueBridge::new((config.ip, 80).into(), &config.login, config.flags.clone());
+pub fn start(
+    mut presence_rx: presence::Receiver,
+    mut light_sensor_rx: light_sensor::Receiver,
+    config: &HueBridgeConfig,
+) {
+    let mut hue_bridge =
+        HueBridge::new((config.ip, 80).into(), &config.login, config.flags.clone());
 
     tokio::spawn(async move {
         loop {

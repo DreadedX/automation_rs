@@ -3,8 +3,8 @@ use serde::Serialize;
 use crate::attributes::Attributes;
 use crate::device;
 use crate::errors::ErrorCode;
-use crate::types::Type;
 use crate::traits::Trait;
+use crate::types::Type;
 
 #[derive(Debug, Serialize)]
 #[serde(rename_all = "camelCase")]
@@ -19,7 +19,12 @@ pub struct Payload {
 
 impl Payload {
     pub fn new(agent_user_id: &str) -> Self {
-        Self { agent_user_id: agent_user_id.into(), error_code: None, debug_string: None, devices: Vec::new() }
+        Self {
+            agent_user_id: agent_user_id.into(),
+            error_code: None,
+            debug_string: None,
+            devices: Vec::new(),
+        }
     }
 
     pub fn add_device(&mut self, device: Device) {
@@ -64,7 +69,11 @@ impl Device {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::{response::{Response, ResponsePayload}, types::Type, traits::Trait};
+    use crate::{
+        response::{Response, ResponsePayload},
+        traits::Trait,
+        types::Type,
+    };
 
     #[test]
     fn serialize() {
@@ -85,7 +94,10 @@ mod tests {
 
         sync_resp.add_device(device);
 
-        let resp = Response::new("ff36a3cc-ec34-11e6-b1a0-64510650abcf", ResponsePayload::Sync(sync_resp));
+        let resp = Response::new(
+            "ff36a3cc-ec34-11e6-b1a0-64510650abcf",
+            ResponsePayload::Sync(sync_resp),
+        );
 
         let json = serde_json::to_string(&resp).unwrap();
 

@@ -1,9 +1,16 @@
-use std::{net::{SocketAddr, Ipv4Addr, TcpStream}, io::{Write, Read}, str::Utf8Error};
+use std::{
+    io::{Read, Write},
+    net::{Ipv4Addr, SocketAddr, TcpStream},
+    str::Utf8Error,
+};
 
-use thiserror::Error;
 use bytes::{Buf, BufMut};
-use google_home::{traits, errors::{self, DeviceError}};
-use serde::{Serialize, Deserialize};
+use google_home::{
+    errors::{self, DeviceError},
+    traits,
+};
+use serde::{Deserialize, Serialize};
+use thiserror::Error;
 
 use super::Device;
 
@@ -15,7 +22,10 @@ pub struct KasaOutlet {
 
 impl KasaOutlet {
     pub fn new(identifier: &str, ip: Ipv4Addr) -> Self {
-        Self { identifier: identifier.to_owned(), addr: (ip, 9999).into() }
+        Self {
+            identifier: identifier.to_owned(),
+            addr: (ip, 9999).into(),
+        }
     }
 }
 
@@ -50,9 +60,9 @@ impl Request {
     fn get_sysinfo() -> Self {
         Self {
             system: RequestSystem {
-                get_sysinfo: Some(RequestSysinfo{}),
-                set_relay_state: None
-            }
+                get_sysinfo: Some(RequestSysinfo {}),
+                set_relay_state: None,
+            },
         }
     }
 
@@ -61,9 +71,9 @@ impl Request {
             system: RequestSystem {
                 get_sysinfo: None,
                 set_relay_state: Some(RequestRelayState {
-                    state: if on { 1 } else { 0 }
-                })
-            }
+                    state: if on { 1 } else { 0 },
+                }),
+            },
         }
     }
 
@@ -153,8 +163,7 @@ impl From<serde_json::Error> for ResponseError {
 impl Response {
     fn get_current_relay_state(&self) -> Result<bool, ResponseError> {
         if let Some(sysinfo) = &self.system.get_sysinfo {
-            return sysinfo.err_code.ok()
-                .map(|_| sysinfo.relay_state == 1);
+            return sysinfo.err_code.ok().map(|_| sysinfo.relay_state == 1);
         }
 
         Err(ResponseError::SysinfoNotFound)
@@ -189,15 +198,21 @@ impl Response {
 
 impl traits::OnOff for KasaOutlet {
     fn is_on(&self) -> Result<bool, errors::ErrorCode> {
-        let mut stream = TcpStream::connect(self.addr).or::<DeviceError>(Err(DeviceError::DeviceOffline))?;
+        let mut stream =
+            TcpStream::connect(self.addr).or::<DeviceError>(Err(DeviceError::DeviceOffline))?;
 
         let body = Request::get_sysinfo().encrypt();
-        stream.write_all(&body).and(stream.flush()).or::<DeviceError>(Err(DeviceError::TransientError))?;
+        stream
+            .write_all(&body)
+            .and(stream.flush())
+            .or::<DeviceError>(Err(DeviceError::TransientError))?;
 
         let mut received = Vec::new();
         let mut rx_bytes = [0; 1024];
         loop {
-            let read = stream.read(&mut rx_bytes).or::<errors::ErrorCode>(Err(DeviceError::TransientError.into()))?;
+            let read = stream
+                .read(&mut rx_bytes)
+                .or::<errors::ErrorCode>(Err(DeviceError::TransientError.into()))?;
 
             received.extend_from_slice(&rx_bytes[..read]);
 
@@ -206,16 +221,22 @@ impl traits::OnOff for KasaOutlet {
             }
         }
 
-        let resp = Response::decrypt(received.into()).or::<errors::ErrorCode>(Err(DeviceError::TransientError.into()))?;
+        let resp = Response::decrypt(received.into())
+            .or::<errors::ErrorCode>(Err(DeviceError::TransientError.into()))?;
 
-        resp.get_current_relay_state().or(Err(DeviceError::TransientError.into()))
+        resp.get_current_relay_state()
+            .or(Err(DeviceError::TransientError.into()))
     }
 
     fn set_on(&mut self, on: bool) -> Result<(), errors::ErrorCode> {
-        let mut stream = TcpStream::connect(self.addr).or::<DeviceError>(Err(DeviceError::DeviceOffline))?;
+        let mut stream =
+            TcpStream::connect(self.addr).or::<DeviceError>(Err(DeviceError::DeviceOffline))?;
 
         let body = Request::set_relay_state(on).encrypt();
-        stream.write_all(&body).and(stream.flush()).or::<DeviceError>(Err(DeviceError::TransientError))?;
+        stream
+            .write_all(&body)
+            .and(stream.flush())
+            .or::<DeviceError>(Err(DeviceError::TransientError))?;
 
         let mut received = Vec::new();
         let mut rx_bytes = [0; 1024];
@@ -232,9 +253,10 @@ impl traits::OnOff for KasaOutlet {
             }
         }
 
-        let resp = Response::decrypt(received.into()).or::<errors::ErrorCode>(Err(DeviceError::TransientError.into()))?;
+        let resp = Response::decrypt(received.into())
+            .or::<errors::ErrorCode>(Err(DeviceError::TransientError.into()))?;
 
-        resp.check_set_relay_success().or(Err(DeviceError::TransientError.into()))
+        resp.check_set_relay_success()
+            .or(Err(DeviceError::TransientError.into()))
     }
 }
-

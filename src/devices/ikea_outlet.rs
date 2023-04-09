@@ -1,11 +1,16 @@
-use std::time::Duration;
 use async_trait::async_trait;
 use google_home::errors::ErrorCode;
-use google_home::{GoogleHomeDevice, device, types::Type, traits::{self, OnOff}};
-use rumqttc::{AsyncClient, Publish, matches};
-use tracing::{debug, error, warn};
-use tokio::task::JoinHandle;
+use google_home::{
+    device,
+    traits::{self, OnOff},
+    types::Type,
+    GoogleHomeDevice,
+};
 use pollster::FutureExt as _;
+use rumqttc::{matches, AsyncClient, Publish};
+use std::time::Duration;
+use tokio::task::JoinHandle;
+use tracing::{debug, error, warn};
 
 use crate::config::{InfoConfig, MqttDeviceConfig, OutletType};
 use crate::devices::Device;
@@ -27,11 +32,29 @@ pub struct IkeaOutlet {
 }
 
 impl IkeaOutlet {
-    pub async fn build(identifier: &str, info: InfoConfig, mqtt: MqttDeviceConfig, outlet_type: OutletType, timeout: Option<u64>, client: AsyncClient) -> Result<Self, DeviceError> {
+    pub async fn build(
+        identifier: &str,
+        info: InfoConfig,
+        mqtt: MqttDeviceConfig,
+        outlet_type: OutletType,
+        timeout: Option<u64>,
+        client: AsyncClient,
+    ) -> Result<Self, DeviceError> {
         // TODO: Handle potential errors here
-        client.subscribe(mqtt.topic.clone(), rumqttc::QoS::AtLeastOnce).await?;
+        client
+            .subscribe(mqtt.topic.clone(), rumqttc::QoS::AtLeastOnce)
+            .await?;
 
-        Ok(Self{ identifier: identifier.to_owned(), info, mqtt, outlet_type, timeout, client, last_known_state: false, handle: None })
+        Ok(Self {
+            identifier: identifier.to_owned(),
+            info,
+            mqtt,
+            outlet_type,
+            timeout,
+            client,
+            last_known_state: false,
+            handle: None,
+        })
     }
 }
 
@@ -40,7 +63,13 @@ async fn set_on(client: AsyncClient, topic: &str, on: bool) {
 
     let topic = format!("{}/set", topic);
     // TODO: Handle potential errors here
-    client.publish(topic.clone(), rumqttc::QoS::AtLeastOnce, false, serde_json::to_string(&message).unwrap())
+    client
+        .publish(
+            topic.clone(),
+            rumqttc::QoS::AtLeastOnce,
+            false,
+            serde_json::to_string(&message).unwrap(),
+        )
         .await
         .map_err(|err| warn!("Failed to update state on {topic}: {err}"))
         .ok();
@@ -94,17 +123,15 @@ impl OnMqtt for IkeaOutlet {
             let client = self.client.clone();
             let topic = self.mqtt.topic.clone();
             let id = self.identifier.clone();
-            self.handle = Some(
-                tokio::spawn(async move {
-                    debug!(id, "Starting timeout ({timeout:?}) for kettle...");
-                    tokio::time::sleep(timeout).await;
-                    debug!(id, "Turning kettle off!");
-                    // TODO: Idealy we would call self.set_on(false), however since we want to do
-                    // it after a timeout we have to put it in a seperate task.
-                    // I don't think we can really get around calling outside function
-                    set_on(client, &topic, false).await;
-                })
-            );
+            self.handle = Some(tokio::spawn(async move {
+                debug!(id, "Starting timeout ({timeout:?}) for kettle...");
+                tokio::time::sleep(timeout).await;
+                debug!(id, "Turning kettle off!");
+                // TODO: Idealy we would call self.set_on(false), however since we want to do
+                // it after a timeout we have to put it in a seperate task.
+                // I don't think we can really get around calling outside function
+                set_on(client, &topic, false).await;
+            }));
         }
     }
 }

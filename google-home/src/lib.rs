@@ -1,18 +1,18 @@
 #![allow(incomplete_features)]
 #![feature(specialization)]
-mod fullfillment;
 pub mod device;
+mod fullfillment;
 
 mod request;
 mod response;
 
-pub mod types;
-pub mod traits;
-pub mod errors;
 mod attributes;
+pub mod errors;
+pub mod traits;
+pub mod types;
 
-pub use fullfillment::GoogleHome;
+pub use device::GoogleHomeDevice;
 pub use fullfillment::FullfillmentError;
+pub use fullfillment::GoogleHome;
 pub use request::Request;
 pub use response::Response;
-pub use device::GoogleHomeDevice;

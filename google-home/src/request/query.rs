@@ -15,11 +15,10 @@ pub struct Device {
 
 #[cfg(test)]
 mod tests {
-    use crate::request::{Request, Intent};
+    use crate::request::{Intent, Request};
 
     #[test]
     fn deserialize() {
-
         let json = r#"{
   "requestId": "ff36a3cc-ec34-11e6-b1a0-64510650abcf",
   "inputs": [
@@ -53,15 +52,18 @@ mod tests {
 
         println!("{:?}", req);
 
-        assert_eq!(req.request_id, "ff36a3cc-ec34-11e6-b1a0-64510650abcf".to_owned());
+        assert_eq!(
+            req.request_id,
+            "ff36a3cc-ec34-11e6-b1a0-64510650abcf".to_owned()
+        );
         assert_eq!(req.inputs.len(), 1);
         match &req.inputs[0] {
             Intent::Query(payload) => {
                 assert_eq!(payload.devices.len(), 2);
                 assert_eq!(payload.devices[0].id, "123");
                 assert_eq!(payload.devices[1].id, "456");
-            },
-            _ => panic!("Expected Query intent")
+            }
+            _ => panic!("Expected Query intent"),
         };
     }
 }

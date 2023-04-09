@@ -2,7 +2,7 @@ use std::collections::HashMap;
 
 use serde::Serialize;
 
-use crate::{response::State, errors::ErrorCode};
+use crate::{errors::ErrorCode, response::State};
 
 #[derive(Debug, Serialize)]
 #[serde(rename_all = "camelCase")]
@@ -16,7 +16,11 @@ pub struct Payload {
 
 impl Payload {
     pub fn new() -> Self {
-        Self { error_code: None, debug_string: None, devices: HashMap::new() }
+        Self {
+            error_code: None,
+            debug_string: None,
+            devices: HashMap::new(),
+        }
     }
 
     pub fn add_device(&mut self, id: &str, device: Device) {
@@ -53,7 +57,12 @@ pub struct Device {
 
 impl Device {
     pub fn new() -> Self {
-        Self { online: true, status: Status::Success, error_code: None, state: State::default() }
+        Self {
+            online: true,
+            status: Status::Success,
+            error_code: None,
+            state: State::default(),
+        }
     }
 
     pub fn set_offline(&mut self) {
@@ -93,7 +102,10 @@ mod tests {
         device.state.on = Some(false);
         query_resp.add_device("456", device);
 
-        let resp = Response::new("ff36a3cc-ec34-11e6-b1a0-64510650abcf", ResponsePayload::Query(query_resp));
+        let resp = Response::new(
+            "ff36a3cc-ec34-11e6-b1a0-64510650abcf",
+            ResponsePayload::Query(query_resp),
+        );
 
         let json = serde_json::to_string(&resp).unwrap();
 
