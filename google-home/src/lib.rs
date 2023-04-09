@@ -1,3 +1,4 @@
+#![allow(incomplete_features)]
 #![feature(specialization)]
 mod fullfillment;
 pub mod device;
