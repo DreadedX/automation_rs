@@ -21,16 +21,16 @@ impl GoogleHome {
         Self { user_id: user_id.into() }
     }
 
-    pub fn handle_request(&self, request: Request, mut devices: &mut HashMap<&str, &mut dyn GoogleHomeDevice>) -> Result<Response, FullfillmentError> {
+    pub fn handle_request(&self, request: Request, devices: &mut HashMap<&str, &mut dyn GoogleHomeDevice>) -> Result<Response, FullfillmentError> {
         // TODO: What do we do if we actually get more then one thing in the input array, right now
         // we only respond to the first thing
         let payload = request
             .inputs
             .into_iter()
             .map(|input| match input {
-                Intent::Sync => ResponsePayload::Sync(self.sync(&devices)),
-                Intent::Query(payload) => ResponsePayload::Query(self.query(payload, &devices)),
-                Intent::Execute(payload) => ResponsePayload::Execute(self.execute(payload, &mut devices)),
+                Intent::Sync => ResponsePayload::Sync(self.sync(devices)),
+                Intent::Query(payload) => ResponsePayload::Query(self.query(payload, devices)),
+                Intent::Execute(payload) => ResponsePayload::Execute(self.execute(payload, devices)),
             }).next();
 
         payload
@@ -45,7 +45,7 @@ impl GoogleHome {
             .map(|(_, device)| device.sync())
             .collect::<Vec<_>>();
 
-        return resp_payload;
+        resp_payload
     }
 
     fn query(&self, payload: request::query::Payload, devices: &HashMap<&str, &mut dyn GoogleHomeDevice>) -> query::Payload {
@@ -63,10 +63,10 @@ impl GoogleHome {
                         device
                     }, |device| device.query());
 
-                return (id, device);
+                (id, device)
             }).collect();
 
-        return resp_payload;
+        resp_payload
 
     }
 
@@ -100,9 +100,9 @@ impl GoogleHome {
 
                                 // TODO: We only get one error not all errors
                                 if let Err(err) = results {
-                                    return (id, Err(err));
+                                    (id, Err(err))
                                 } else {
-                                    return (id, Ok(true));
+                                    (id, Ok(true))
                                 }
                             })
                     }).for_each(|(id, state)| {
@@ -126,7 +126,7 @@ impl GoogleHome {
                 }
             });
 
-        return resp_payload;
+        resp_payload
     }
 }
 
@@ -157,11 +157,11 @@ mod tests {
             name.add_default_name("Outlet");
             name.add_nickname("Nightlight");
 
-            return name;
+            name
         }
 
         fn get_id(&self) -> &str {
-            return &self.name;
+            &self.name
         }
 
         fn is_online(&self) -> bool {
@@ -212,7 +212,7 @@ mod tests {
         }
 
         fn get_id(&self) -> &str {
-            return "living/party_mode";
+            "living/party_mode"
         }
 
         fn is_online(&self) -> bool {

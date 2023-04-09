@@ -25,11 +25,11 @@ struct Presence {
 impl Presence {
     fn build(mqtt: MqttDeviceConfig) -> Result<Self, MissingWildcard> {
         if !has_wildcards(&mqtt.topic) {
-            return Err(MissingWildcard::new(&mqtt.topic).into());
+            return Err(MissingWildcard::new(&mqtt.topic));
         }
 
         let (tx, overall_presence) = watch::channel(false);
-        Ok(Self { devices: HashMap::new(), overall_presence: overall_presence.clone(), mqtt, tx })
+        Ok(Self { devices: HashMap::new(), overall_presence, mqtt, tx })
     }
 }
 
@@ -62,7 +62,7 @@ impl OnMqtt for Presence {
         let offset = self.mqtt.topic.find('+').or(self.mqtt.topic.find('#')).expect("Presence::new fails if it does not contain wildcards");
         let device_name = &message.topic[offset..];
 
-        if message.payload.len() == 0 {
+        if message.payload.is_empty() {
             // Remove the device from the map
             debug!("State of device [{device_name}] has been removed");
             self.devices.remove(device_name);

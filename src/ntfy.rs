@@ -102,6 +102,12 @@ impl Notification {
     }
 }
 
+impl Default for Notification {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl Ntfy {
     fn new(base_url: &str, topic: &str, tx: Sender) -> Self {
         Self { base_url: base_url.to_owned(), topic: topic.to_owned(), tx }
@@ -148,7 +154,7 @@ pub fn start(mut presence_rx: presence::Receiver, config: &NtfyConfig) -> Sender
         }
     });
 
-    return tx;
+    tx
 }
 
 #[async_trait]

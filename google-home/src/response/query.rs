@@ -24,6 +24,12 @@ impl Payload {
     }
 }
 
+impl Default for Payload {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 #[derive(Debug, Serialize)]
 #[serde(rename_all = "SCREAMING_SNAKE_CASE")]
 pub enum Status {
@@ -61,6 +67,12 @@ impl Device {
             ErrorCode::DeviceException(_) => Status::Exceptions,
         };
         self.error_code = Some(err);
+    }
+}
+
+impl Default for Device {
+    fn default() -> Self {
+        Self::new()
     }
 }
 

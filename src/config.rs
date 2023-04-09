@@ -142,7 +142,7 @@ impl PresenceDeviceConfig {
     fn generate_topic(mut self, class: &str, identifier: &str, config: &Config) -> Result<PresenceDeviceConfig, MissingWildcard> {
         if self.mqtt.is_none() {
             if !has_wildcards(&config.presence.topic) {
-                return Err(MissingWildcard::new(&config.presence.topic).into());
+                return Err(MissingWildcard::new(&config.presence.topic));
             }
 
             // TODO: This is not perfect, if the topic is some/+/thing/# this will fail
@@ -243,17 +243,17 @@ impl Device {
         let device = match self {
             Device::IkeaOutlet { info, mqtt, outlet_type, timeout } => {
                 trace!(id = identifier, "IkeaOutlet [{} in {:?}]", info.name, info.room);
-                IkeaOutlet::build(&identifier, info, mqtt, outlet_type, timeout, client).await
+                IkeaOutlet::build(identifier, info, mqtt, outlet_type, timeout, client).await
                     .map(device_box)?
             },
             Device::WakeOnLAN { info, mqtt, mac_address, broadcast_ip } => {
                 trace!(id = identifier, "WakeOnLan [{} in {:?}]", info.name, info.room);
-                WakeOnLAN::build(&identifier, info, mqtt, mac_address, broadcast_ip, client).await
+                WakeOnLAN::build(identifier, info, mqtt, mac_address, broadcast_ip, client).await
                     .map(device_box)?
             },
             Device::KasaOutlet { ip } => {
                 trace!(id = identifier, "KasaOutlet [{}]", identifier);
-                device_box(KasaOutlet::new(&identifier, ip))
+                device_box(KasaOutlet::new(identifier, ip))
             }
             Device::AudioSetup { mqtt, mixer, speakers } => {
                 trace!(id = identifier, "AudioSetup [{}]", identifier);
@@ -263,16 +263,16 @@ impl Device {
                 let speakers_id = format!("{}.speakers", identifier);
                 let speakers = (*speakers).create(&speakers_id, config, client.clone()).await?;
 
-                AudioSetup::build(&identifier, mqtt, mixer, speakers, client).await
+                AudioSetup::build(identifier, mqtt, mixer, speakers, client).await
                     .map(device_box)?
             },
             Device::ContactSensor { mqtt, presence } => {
                 trace!(id = identifier, "ContactSensor [{}]", identifier);
                 let presence = presence
-                    .map(|p| p.generate_topic("contact", &identifier, &config))
+                    .map(|p| p.generate_topic("contact", identifier, config))
                     .transpose()?;
 
-                ContactSensor::build(&identifier, mqtt, presence, client).await
+                ContactSensor::build(identifier, mqtt, presence, client).await
                     .map(device_box)?
             },
         };

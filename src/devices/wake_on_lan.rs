@@ -62,7 +62,7 @@ impl GoogleHomeDevice for WakeOnLAN {
         let mut name = device::Name::new(&self.info.name);
         name.add_default_name("Computer");
 
-        return name;
+        name
     }
 
     fn get_id(&self) -> &str {

@@ -126,7 +126,7 @@ pub fn start(mut mqtt_rx: mqtt::Receiver, mut presence_rx: presence::Receiver, m
         }
     });
 
-    return DevicesHandle { tx };
+    DevicesHandle { tx }
 }
 
 impl Devices {

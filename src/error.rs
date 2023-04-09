@@ -21,7 +21,7 @@ impl MissingEnv {
     }
 
     pub fn has_missing(self) -> result::Result<(), Self> {
-        if self.keys.len() > 0 {
+        if !self.keys.is_empty() {
             Err(self)
         } else {
             Ok(())
@@ -29,19 +29,25 @@ impl MissingEnv {
     }
 }
 
+impl Default for MissingEnv {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl fmt::Display for MissingEnv {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         write!(f, "Missing environment variable")?;
-        if self.keys.len() == 0 {
+        if self.keys.is_empty() {
             unreachable!("This error should only be returned if there are actually missing environment variables");
         }
         if self.keys.len() == 1 {
             write!(f, " '{}'", self.keys[0])?;
         } else {
             write!(f, "s '{}'", self.keys[0])?;
-            self.keys.iter().skip(1).map(|key| {
+            self.keys.iter().skip(1).try_for_each(|key| {
                 write!(f, ", '{key}'")
-            }).collect::<fmt::Result>()?;
+            })?;
         }
 
         Ok(())

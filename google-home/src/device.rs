@@ -23,7 +23,7 @@ pub trait GoogleHomeDevice: AsOnOff + AsScene {
 
     fn sync(&self) -> response::sync::Device {
         let name = self.get_device_name();
-        let mut device = response::sync::Device::new(&self.get_id(), &name.name, self.get_device_type());
+        let mut device = response::sync::Device::new(self.get_id(), &name.name, self.get_device_type());
 
         device.name = name;
         device.will_report_state = self.will_report_state();
@@ -49,7 +49,7 @@ pub trait GoogleHomeDevice: AsOnOff + AsScene {
 
         device.traits = traits;
 
-        return device;
+        device
     }
 
     fn query(&self) -> response::query::Device {
@@ -65,7 +65,7 @@ pub trait GoogleHomeDevice: AsOnOff + AsScene {
                 .ok();
         }
 
-        return device;
+        device
     }
 
     fn execute(&mut self, command: &CommandType) -> Result<(), ErrorCode> {
@@ -84,7 +84,7 @@ pub trait GoogleHomeDevice: AsOnOff + AsScene {
             },
         }
 
-        return Ok(());
+        Ok(())
     }
 }
 

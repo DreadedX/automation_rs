@@ -61,7 +61,7 @@ pub fn start(mut presence_rx: presence::Receiver, mut light_sensor_rx: light_sen
         loop {
             tokio::select! {
                 res = presence_rx.changed() => {
-                    if !res.is_ok() {
+                    if res.is_err() {
                         break;
                     }
 
@@ -69,7 +69,7 @@ pub fn start(mut presence_rx: presence::Receiver, mut light_sensor_rx: light_sen
                     hue_bridge.on_presence(presence).await;
                 }
                 res = light_sensor_rx.changed() => {
-                    if !res.is_ok() {
+                    if res.is_err() {
                         break;
                     }
 

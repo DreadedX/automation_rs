@@ -96,7 +96,7 @@ mod tests {
                 assert_eq!(payload.commands[0].devices[1].id, "456");
                 assert_eq!(payload.commands[0].execution.len(), 1);
                 match payload.commands[0].execution[0] {
-                    CommandType::OnOff{on} => assert_eq!(on, true),
+                    CommandType::OnOff{on} => assert!(on),
                     _ => panic!("Expected OnOff")
                 }
             },

@@ -24,6 +24,12 @@ impl Payload {
     }
 }
 
+impl Default for Payload {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 #[derive(Debug, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct Command {
@@ -78,8 +84,7 @@ mod tests {
     fn serialize() {
         let mut execute_resp = Payload::new();
 
-        let mut state = State::default();
-        state.on = Some(true);
+        let state = State { on: Some(true) };
         let mut command = Command::new(Status::Success);
         command.states = Some(States {
             online: true,

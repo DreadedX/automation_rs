@@ -76,11 +76,11 @@ impl Request {
         encrypted.put_u32(data.len() as u32);
 
         for c in data {
-            key = key ^ c;
+            key ^= c;
             encrypted.put_u8(key);
         }
 
-        return encrypted.freeze();
+        encrypted.freeze()
     }
 }
 
@@ -157,7 +157,7 @@ impl Response {
                 .map(|_| sysinfo.relay_state == 1);
         }
 
-        return Err(ResponseError::SysinfoNotFound);
+        Err(ResponseError::SysinfoNotFound)
     }
 
     fn check_set_relay_success(&self) -> Result<(), ResponseError> {
@@ -165,13 +165,13 @@ impl Response {
             return set_relay_state.err_code.ok();
         }
 
-        return Err(ResponseError::RelayStateNotFound);
+        Err(ResponseError::RelayStateNotFound)
     }
 
     fn decrypt(mut data: bytes::Bytes) -> Result<Self, ResponseError> {
         let mut key: u8 = 171;
         if data.len() < 4 {
-            return Err(ResponseError::ToShort.into());
+            return Err(ResponseError::ToShort);
         }
 
         let length = data.get_u32();
@@ -189,10 +189,10 @@ impl Response {
 
 impl traits::OnOff for KasaOutlet {
     fn is_on(&self) -> Result<bool, errors::ErrorCode> {
-        let mut stream = TcpStream::connect(self.addr).or::<DeviceError>(Err(DeviceError::DeviceOffline.into()))?;
+        let mut stream = TcpStream::connect(self.addr).or::<DeviceError>(Err(DeviceError::DeviceOffline))?;
 
         let body = Request::get_sysinfo().encrypt();
-        stream.write_all(&body).and(stream.flush()).or::<DeviceError>(Err(DeviceError::TransientError.into()))?;
+        stream.write_all(&body).and(stream.flush()).or::<DeviceError>(Err(DeviceError::TransientError))?;
 
         let mut received = Vec::new();
         let mut rx_bytes = [0; 1024];
@@ -212,10 +212,10 @@ impl traits::OnOff for KasaOutlet {
     }
 
     fn set_on(&mut self, on: bool) -> Result<(), errors::ErrorCode> {
-        let mut stream = TcpStream::connect(self.addr).or::<DeviceError>(Err(DeviceError::DeviceOffline.into()))?;
+        let mut stream = TcpStream::connect(self.addr).or::<DeviceError>(Err(DeviceError::DeviceOffline))?;
 
         let body = Request::set_relay_state(on).encrypt();
-        stream.write_all(&body).and(stream.flush()).or::<DeviceError>(Err(DeviceError::TransientError.into()))?;
+        stream.write_all(&body).and(stream.flush()).or::<DeviceError>(Err(DeviceError::TransientError))?;
 
         let mut received = Vec::new();
         let mut rx_bytes = [0; 1024];

@@ -24,7 +24,7 @@ struct LightSensor {
 impl LightSensor {
     fn new(mqtt: MqttDeviceConfig, min: isize, max: isize) -> Self {
         let (tx, is_dark) = watch::channel(false);
-        Self { is_dark: is_dark.clone(), mqtt, min, max, tx }
+        Self { is_dark, mqtt, min, max, tx }
     }
 }
 
