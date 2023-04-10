@@ -25,6 +25,7 @@ use crate::{
     presence::{self, OnPresence},
 };
 
+impl_cast::impl_setup!();
 impl_cast::impl_cast!(Device, OnMqtt);
 impl_cast::impl_cast!(Device, OnPresence);
 impl_cast::impl_cast!(Device, OnDarkness);
@@ -32,14 +33,15 @@ impl_cast::impl_cast!(Device, GoogleHomeDevice);
 impl_cast::impl_cast!(Device, OnOff);
 
 pub trait Device:
-    AsGoogleHomeDevice
-    + AsOnMqtt
-    + AsOnPresence
-    + AsOnDarkness
-    + AsOnOff
+    As<dyn GoogleHomeDevice>
+    + As<dyn OnMqtt>
+    + As<dyn OnPresence>
+    + As<dyn OnDarkness>
+    + As<dyn OnOff>
     + std::fmt::Debug
     + Sync
     + Send
+    + 'static
 {
     fn get_id(&self) -> &str;
 }
@@ -47,7 +49,7 @@ pub trait Device:
 // TODO: Add an inner type that we can wrap with Arc<RwLock<>> to make this type a little bit nicer
 // to work with
 struct Devices {
-    devices: HashMap<String, DeviceBox>,
+    devices: HashMap<String, Box<dyn Device>>,
 }
 
 macro_rules! get_cast {
@@ -57,7 +59,7 @@ macro_rules! get_cast {
                 self.devices
                     .iter_mut()
                     .filter_map(|(id, device)| {
-                        [< As $trait >]::cast_mut(device.as_mut())
+                        As::<dyn $trait>::cast_mut(device.as_mut())
                             .map(|listener| (id.as_str(), listener))
                     }).collect()
             }
@@ -73,12 +75,10 @@ pub enum Command {
         tx: oneshot::Sender<Result<google_home::Response, FullfillmentError>>,
     },
     AddDevice {
-        device: DeviceBox,
+        device: Box<dyn Device>,
         tx: oneshot::Sender<()>,
     },
 }
-
-pub type DeviceBox = Box<dyn Device>;
 
 #[derive(Clone)]
 pub struct DevicesHandle {
@@ -113,7 +113,7 @@ impl DevicesHandle {
         Ok(rx.await??)
     }
 
-    pub async fn add_device(&self, device: DeviceBox) -> Result<(), DevicesError> {
+    pub async fn add_device(&self, device: Box<dyn Device>) -> Result<(), DevicesError> {
         let (tx, rx) = oneshot::channel();
         self.tx.send(Command::AddDevice { device, tx }).await?;
         Ok(rx.await?)
@@ -176,7 +176,7 @@ impl Devices {
         }
     }
 
-    fn add_device(&mut self, device: DeviceBox) {
+    fn add_device(&mut self, device: Box<dyn Device>) {
         debug!(id = device.get_id(), "Adding device");
         self.devices.insert(device.get_id().to_owned(), device);
     }

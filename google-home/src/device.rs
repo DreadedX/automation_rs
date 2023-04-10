@@ -4,11 +4,11 @@ use crate::{
     errors::{DeviceError, ErrorCode},
     request::execute::CommandType,
     response,
-    traits::{AsOnOff, AsScene, Trait},
+    traits::{As, OnOff, Scene, Trait},
     types::Type,
 };
 
-pub trait GoogleHomeDevice: AsOnOff + AsScene {
+pub trait GoogleHomeDevice: As<dyn OnOff> + As<dyn Scene> + 'static {
     fn get_device_type(&self) -> Type;
     fn get_device_name(&self) -> Name;
     fn get_id(&self) -> &str;
@@ -40,14 +40,14 @@ pub trait GoogleHomeDevice: AsOnOff + AsScene {
 
         let mut traits = Vec::new();
         // OnOff
-        if let Some(on_off) = AsOnOff::cast(self) {
+        if let Some(on_off) = As::<dyn OnOff>::cast(self) {
             traits.push(Trait::OnOff);
             device.attributes.command_only_on_off = on_off.is_command_only();
             device.attributes.query_only_on_off = on_off.is_query_only();
         }
 
         // Scene
-        if let Some(scene) = AsScene::cast(self) {
+        if let Some(scene) = As::<dyn Scene>::cast(self) {
             traits.push(Trait::Scene);
             device.attributes.scene_reversible = scene.is_scene_reversible();
         }
@@ -64,7 +64,7 @@ pub trait GoogleHomeDevice: AsOnOff + AsScene {
         }
 
         // OnOff
-        if let Some(on_off) = AsOnOff::cast(self) {
+        if let Some(on_off) = As::<dyn OnOff>::cast(self) {
             device.state.on = on_off.is_on().map_err(|err| device.set_error(err)).ok();
         }
 
@@ -74,13 +74,13 @@ pub trait GoogleHomeDevice: AsOnOff + AsScene {
     fn execute(&mut self, command: &CommandType) -> Result<(), ErrorCode> {
         match command {
             CommandType::OnOff { on } => {
-                let on_off = AsOnOff::cast_mut(self)
+                let on_off = As::<dyn OnOff>::cast_mut(self)
                     .ok_or::<ErrorCode>(DeviceError::ActionNotAvailable.into())?;
 
                 on_off.set_on(*on)?;
             }
             CommandType::ActivateScene { deactivate } => {
-                let scene = AsScene::cast_mut(self)
+                let scene = As::<dyn Scene>::cast_mut(self)
                     .ok_or::<ErrorCode>(DeviceError::ActionNotAvailable.into())?;
 
                 scene.set_active(!deactivate)?;

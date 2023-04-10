@@ -10,7 +10,11 @@ pub enum Trait {
     Scene,
 }
 
-pub trait OnOff: std::fmt::Debug {
+impl_cast::impl_setup!();
+impl_cast::impl_cast!(GoogleHomeDevice, OnOff);
+impl_cast::impl_cast!(GoogleHomeDevice, Scene);
+
+pub trait OnOff: std::fmt::Debug + Sync + Send + 'static {
     fn is_command_only(&self) -> Option<bool> {
         None
     }
@@ -23,13 +27,11 @@ pub trait OnOff: std::fmt::Debug {
     fn is_on(&self) -> Result<bool, ErrorCode>;
     fn set_on(&mut self, on: bool) -> Result<(), ErrorCode>;
 }
-impl_cast::impl_cast!(GoogleHomeDevice, OnOff);
 
-pub trait Scene: std::fmt::Debug {
+pub trait Scene: std::fmt::Debug + Sync + Send + 'static {
     fn is_scene_reversible(&self) -> Option<bool> {
         None
     }
 
     fn set_active(&self, activate: bool) -> Result<(), ErrorCode>;
 }
-impl_cast::impl_cast!(GoogleHomeDevice, Scene);

@@ -10,7 +10,7 @@ use crate::{
 };
 
 #[async_trait]
-pub trait OnDarkness {
+pub trait OnDarkness: Sync + Send + 'static {
     async fn on_darkness(&mut self, dark: bool);
 }
 

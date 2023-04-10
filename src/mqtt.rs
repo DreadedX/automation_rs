@@ -10,7 +10,7 @@ use rumqttc::{Event, EventLoop, Incoming, Publish};
 use tokio::sync::broadcast;
 
 #[async_trait]
-pub trait OnMqtt {
+pub trait OnMqtt: Sync + Send + 'static {
     async fn on_mqtt(&mut self, message: &Publish);
 }
 

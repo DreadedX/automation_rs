@@ -12,7 +12,7 @@ use serde::Deserialize;
 use tracing::{debug, trace};
 
 use crate::{
-    devices::{self, AudioSetup, ContactSensor, DeviceBox, IkeaOutlet, KasaOutlet, WakeOnLAN},
+    devices::{self, AudioSetup, ContactSensor, IkeaOutlet, KasaOutlet, WakeOnLAN},
     error::{ConfigParseError, DeviceCreationError, MissingEnv, MissingWildcard},
 };
 
@@ -255,10 +255,10 @@ impl Config {
 // Quick helper function to box up the devices,
 // passing in Box::new would be ideal, however the return type is incorrect
 // Maybe there is a better way to solve this?
-fn device_box<T: devices::Device + 'static>(device: T) -> DeviceBox {
-    let a: DeviceBox = Box::new(device);
-    a
-}
+// fn device_box<T: devices::Device>(device: T) -> DeviceBox {
+//     let a: DeviceBox = Box::new(device);
+//     a
+// }
 
 impl Device {
     #[async_recursion]
@@ -267,8 +267,8 @@ impl Device {
         identifier: &str,
         config: &Config,
         client: AsyncClient,
-    ) -> Result<DeviceBox, DeviceCreationError> {
-        let device = match self {
+    ) -> Result<Box<dyn devices::Device>, DeviceCreationError> {
+        let device: Box<dyn devices::Device> = match self {
             Device::IkeaOutlet {
                 info,
                 mqtt,
@@ -283,7 +283,7 @@ impl Device {
                 );
                 IkeaOutlet::build(identifier, info, mqtt, outlet_type, timeout, client)
                     .await
-                    .map(device_box)?
+                    .map(Box::new)?
             }
             Device::WakeOnLAN {
                 info,
@@ -299,11 +299,11 @@ impl Device {
                 );
                 WakeOnLAN::build(identifier, info, mqtt, mac_address, broadcast_ip, client)
                     .await
-                    .map(device_box)?
+                    .map(Box::new)?
             }
             Device::KasaOutlet { ip } => {
                 trace!(id = identifier, "KasaOutlet [{}]", identifier);
-                device_box(KasaOutlet::new(identifier, ip))
+                Box::new(KasaOutlet::new(identifier, ip))
             }
             Device::AudioSetup {
                 mqtt,
@@ -321,7 +321,7 @@ impl Device {
 
                 AudioSetup::build(identifier, mqtt, mixer, speakers, client)
                     .await
-                    .map(device_box)?
+                    .map(Box::new)?
             }
             Device::ContactSensor { mqtt, presence } => {
                 trace!(id = identifier, "ContactSensor [{}]", identifier);
@@ -331,7 +331,7 @@ impl Device {
 
                 ContactSensor::build(identifier, mqtt, presence, client)
                     .await
-                    .map(device_box)?
+                    .map(Box::new)?
             }
         };
 

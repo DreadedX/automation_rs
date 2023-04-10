@@ -8,7 +8,7 @@ use crate::error::DeviceError;
 use crate::mqtt::{OnMqtt, RemoteAction, RemoteMessage};
 use crate::presence::OnPresence;
 
-use super::{AsOnOff, Device, DeviceBox};
+use super::{As, Device};
 
 // TODO: Ideally we store am Arc to the childern devices,
 // that way they hook into everything just like all other devices
@@ -16,25 +16,25 @@ use super::{AsOnOff, Device, DeviceBox};
 pub struct AudioSetup {
     identifier: String,
     mqtt: MqttDeviceConfig,
-    mixer: Box<dyn traits::OnOff + Sync + Send>,
-    speakers: Box<dyn traits::OnOff + Sync + Send>,
+    mixer: Box<dyn traits::OnOff>,
+    speakers: Box<dyn traits::OnOff>,
 }
 
 impl AudioSetup {
     pub async fn build(
         identifier: &str,
         mqtt: MqttDeviceConfig,
-        mixer: DeviceBox,
-        speakers: DeviceBox,
+        mixer: Box<dyn Device>,
+        speakers: Box<dyn Device>,
         client: AsyncClient,
     ) -> Result<Self, DeviceError> {
         // We expect the children devices to implement the OnOff trait
         let mixer_id = mixer.get_id().to_owned();
-        let mixer = AsOnOff::consume(mixer).ok_or_else(|| DeviceError::OnOffExpected(mixer_id))?;
+        let mixer = As::consume(mixer).ok_or_else(|| DeviceError::OnOffExpected(mixer_id))?;
 
         let speakers_id = speakers.get_id().to_owned();
         let speakers =
-            AsOnOff::consume(speakers).ok_or_else(|| DeviceError::OnOffExpected(speakers_id))?;
+            As::consume(speakers).ok_or_else(|| DeviceError::OnOffExpected(speakers_id))?;
 
         client
             .subscribe(mqtt.topic.clone(), rumqttc::QoS::AtLeastOnce)

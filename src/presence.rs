@@ -12,7 +12,7 @@ use crate::{
 };
 
 #[async_trait]
-pub trait OnPresence {
+pub trait OnPresence: Sync + Send + 'static {
     async fn on_presence(&mut self, presence: bool);
 }
 
