@@ -8,5 +8,8 @@ set -o noglob             # Disable filename expansion (globbing),
                           # path splitting.
 shopt -s inherit_errexit  # Inherit the errexit option status in subshells.
 
+set -x
+
+git update-index --refresh
 cargo clippy --all-targets --all -- -D warnings
 cargo fmt -- --check
