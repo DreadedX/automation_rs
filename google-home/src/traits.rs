@@ -1,6 +1,6 @@
 use serde::Serialize;
 
-use crate::{device::GoogleHomeDevice, errors::ErrorCode};
+use crate::errors::ErrorCode;
 
 #[derive(Debug, Serialize)]
 pub enum Trait {
@@ -10,11 +10,8 @@ pub enum Trait {
     Scene,
 }
 
-impl_cast::impl_setup!();
-impl_cast::impl_cast!(GoogleHomeDevice, OnOff);
-impl_cast::impl_cast!(GoogleHomeDevice, Scene);
-
-pub trait OnOff: std::fmt::Debug + Sync + Send + 'static {
+#[impl_cast::device_trait]
+pub trait OnOff {
     fn is_command_only(&self) -> Option<bool> {
         None
     }
@@ -28,7 +25,8 @@ pub trait OnOff: std::fmt::Debug + Sync + Send + 'static {
     fn set_on(&mut self, on: bool) -> Result<(), ErrorCode>;
 }
 
-pub trait Scene: std::fmt::Debug + Sync + Send + 'static {
+#[impl_cast::device_trait]
+pub trait Scene {
     fn is_scene_reversible(&self) -> Option<bool> {
         None
     }

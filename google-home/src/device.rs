@@ -4,11 +4,12 @@ use crate::{
     errors::{DeviceError, ErrorCode},
     request::execute::CommandType,
     response,
-    traits::{As, OnOff, Scene, Trait},
+    traits::{OnOff, Scene, Trait},
     types::Type,
 };
 
-pub trait GoogleHomeDevice: As<dyn OnOff> + As<dyn Scene> + 'static {
+#[impl_cast::device(As: OnOff + Scene)]
+pub trait GoogleHomeDevice: Sync + Send + 'static {
     fn get_device_type(&self) -> Type;
     fn get_device_name(&self) -> Name;
     fn get_id(&self) -> &str;

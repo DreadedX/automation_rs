@@ -17,6 +17,7 @@ pub trait OnDarkness: Sync + Send + 'static {
 pub type Receiver = watch::Receiver<bool>;
 type Sender = watch::Sender<bool>;
 
+#[derive(Debug)]
 struct LightSensor {
     mqtt: MqttDeviceConfig,
     min: isize,

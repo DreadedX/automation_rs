@@ -25,46 +25,16 @@ use crate::{
     presence::{self, OnPresence},
 };
 
-impl_cast::impl_setup!();
-impl_cast::impl_cast!(Device, OnMqtt);
-impl_cast::impl_cast!(Device, OnPresence);
-impl_cast::impl_cast!(Device, OnDarkness);
-impl_cast::impl_cast!(Device, GoogleHomeDevice);
-impl_cast::impl_cast!(Device, OnOff);
-
-pub trait Device:
-    As<dyn GoogleHomeDevice>
-    + As<dyn OnMqtt>
-    + As<dyn OnPresence>
-    + As<dyn OnDarkness>
-    + As<dyn OnOff>
-    + std::fmt::Debug
-    + Sync
-    + Send
-    + 'static
-{
+#[impl_cast::device(As: OnMqtt + OnPresence + OnDarkness + GoogleHomeDevice + OnOff)]
+pub trait Device: std::fmt::Debug + Sync + Send {
     fn get_id(&self) -> &str;
 }
 
 // TODO: Add an inner type that we can wrap with Arc<RwLock<>> to make this type a little bit nicer
 // to work with
+#[derive(Debug)]
 struct Devices {
     devices: HashMap<String, Box<dyn Device>>,
-}
-
-macro_rules! get_cast {
-    ($trait:ident) => {
-        paste::paste! {
-            pub fn [< as_ $trait:snake s >](&mut self) -> HashMap<&str, &mut dyn $trait> {
-                self.devices
-                    .iter_mut()
-                    .filter_map(|(id, device)| {
-                        As::<dyn $trait>::cast_mut(device.as_mut())
-                            .map(|listener| (id.as_str(), listener))
-                    }).collect()
-            }
-        }
-    };
 }
 
 #[derive(Debug)]
@@ -165,7 +135,7 @@ impl Devices {
                 tx,
             } => {
                 let result =
-                    google_home.handle_request(payload, &mut self.as_google_home_devices());
+                    google_home.handle_request(payload, &mut self.get::<dyn GoogleHomeDevice>());
                 tx.send(result).ok();
             }
             Command::AddDevice { device, tx } => {
@@ -181,41 +151,53 @@ impl Devices {
         self.devices.insert(device.get_id().to_owned(), device);
     }
 
-    get_cast!(OnMqtt);
-    get_cast!(OnPresence);
-    get_cast!(OnDarkness);
-    get_cast!(GoogleHomeDevice);
+    fn get<T>(&mut self) -> HashMap<&str, &mut T>
+    where
+        T: ?Sized + 'static,
+        (dyn Device): As<T>,
+    {
+        self.devices
+            .iter_mut()
+            .filter_map(|(id, device)| As::<T>::cast_mut(device.as_mut()).map(|t| (id.as_str(), t)))
+            .collect()
+    }
 }
 
 #[async_trait]
 impl OnMqtt for Devices {
     async fn on_mqtt(&mut self, message: &rumqttc::Publish) {
-        self.as_on_mqtts().iter_mut().for_each(|(id, listener)| {
-            let _span = span!(Level::TRACE, "on_mqtt").entered();
-            trace!(id, "Handling");
-            listener.on_mqtt(message).block_on();
-        })
+        self.get::<dyn OnMqtt>()
+            .iter_mut()
+            .for_each(|(id, listener)| {
+                let _span = span!(Level::TRACE, "on_mqtt").entered();
+                trace!(id, "Handling");
+                listener.on_mqtt(message).block_on();
+            })
     }
 }
 
 #[async_trait]
 impl OnPresence for Devices {
     async fn on_presence(&mut self, presence: bool) {
-        self.as_on_presences().iter_mut().for_each(|(id, device)| {
-            let _span = span!(Level::TRACE, "on_presence").entered();
-            trace!(id, "Handling");
-            device.on_presence(presence).block_on();
-        })
+        self.get::<dyn OnPresence>()
+            .iter_mut()
+            .for_each(|(id, device)| {
+                let _span = span!(Level::TRACE, "on_presence").entered();
+                trace!(id, "Handling");
+                device.on_presence(presence).block_on();
+            })
     }
 }
 
 #[async_trait]
 impl OnDarkness for Devices {
     async fn on_darkness(&mut self, dark: bool) {
-        self.as_on_darknesss().iter_mut().for_each(|(id, device)| {
-            let _span = span!(Level::TRACE, "on_darkness").entered();
-            trace!(id, "Handling");
-            device.on_darkness(dark).block_on();
-        })
+        self.get::<dyn OnDarkness>()
+            .iter_mut()
+            .for_each(|(id, device)| {
+                let _span = span!(Level::TRACE, "on_darkness").entered();
+                trace!(id, "Handling");
+                device.on_darkness(dark).block_on();
+            })
     }
 }

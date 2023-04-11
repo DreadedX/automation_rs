@@ -19,6 +19,7 @@ pub trait OnPresence: Sync + Send + 'static {
 pub type Receiver = watch::Receiver<bool>;
 type Sender = watch::Sender<bool>;
 
+#[derive(Debug)]
 struct Presence {
     devices: HashMap<String, bool>,
     mqtt: MqttDeviceConfig,

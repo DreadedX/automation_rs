@@ -11,15 +11,18 @@ members = [
 
 [dependencies]
 rumqttc = "0.18"
-serde = { version ="1.0.149", features = ["derive"] }
+serde = { version = "1.0.149", features = ["derive"] }
 serde_json = "1.0.89"
-impl_cast = {path = "./impl_cast"}
-google-home = {path = "./google-home"}
+impl_cast = { path = "./impl_cast", features = ["debug"] }
+google-home = { path = "./google-home" }
 paste = "1.0.10"
 tokio = { version = "1", features = ["rt-multi-thread"] }
 toml = "0.5.10"
 dotenvy = "0.15.0"
-reqwest = { version = "0.11.13", features = ["json", "rustls-tls"], default-features = false } # Use rustls, since the other packages also use rustls
+reqwest = { version = "0.11.13", features = [
+	"json",
+	"rustls-tls",
+], default-features = false } # Use rustls, since the other packages also use rustls
 axum = "0.6.1"
 serde_repr = "0.1.10"
 tracing = "0.1.37"
@@ -30,10 +33,13 @@ regex = "1.7.0"
 async-trait = "0.1.61"
 async-recursion = "1.0.0"
 futures = "0.3.25"
-eui48 = { version = "1.1.0", default-features = false, features = ["disp_hexstring", "serde"] }
+eui48 = { version = "1.1.0", default-features = false, features = [
+	"disp_hexstring",
+	"serde",
+] }
 thiserror = "1.0.38"
 anyhow = "1.0.68"
 wakey = "0.3.0"
 
 [profile.release]
-lto=true
+lto = true
