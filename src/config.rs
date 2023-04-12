@@ -126,7 +126,7 @@ pub struct MqttDeviceConfig {
     pub topic: String,
 }
 
-#[derive(Debug, Clone, Deserialize, PartialEq, Eq)]
+#[derive(Debug, Clone, Deserialize, PartialEq, Eq, Copy)]
 pub enum OutletType {
     Outlet,
     Kettle,
