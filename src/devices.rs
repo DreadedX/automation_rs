@@ -17,7 +17,7 @@ use google_home::{traits::OnOff, FullfillmentError, GoogleHome, GoogleHomeDevice
 use pollster::FutureExt;
 use thiserror::Error;
 use tokio::sync::{mpsc, oneshot};
-use tracing::{debug, span, trace, Level};
+use tracing::{debug, trace};
 
 use crate::{
     light_sensor::{self, OnDarkness},
@@ -165,11 +165,11 @@ impl Devices {
 
 #[async_trait]
 impl OnMqtt for Devices {
+    #[tracing::instrument(skip_all)]
     async fn on_mqtt(&mut self, message: &rumqttc::Publish) {
         self.get::<dyn OnMqtt>()
             .iter_mut()
             .for_each(|(id, listener)| {
-                let _span = span!(Level::TRACE, "on_mqtt").entered();
                 trace!(id, "Handling");
                 listener.on_mqtt(message).block_on();
             })
@@ -178,11 +178,11 @@ impl OnMqtt for Devices {
 
 #[async_trait]
 impl OnPresence for Devices {
+    #[tracing::instrument(skip(self))]
     async fn on_presence(&mut self, presence: bool) {
         self.get::<dyn OnPresence>()
             .iter_mut()
             .for_each(|(id, device)| {
-                let _span = span!(Level::TRACE, "on_presence").entered();
                 trace!(id, "Handling");
                 device.on_presence(presence).block_on();
             })
@@ -191,11 +191,11 @@ impl OnPresence for Devices {
 
 #[async_trait]
 impl OnDarkness for Devices {
+    #[tracing::instrument(skip(self))]
     async fn on_darkness(&mut self, dark: bool) {
         self.get::<dyn OnDarkness>()
             .iter_mut()
             .for_each(|(id, device)| {
-                let _span = span!(Level::TRACE, "on_darkness").entered();
                 trace!(id, "Handling");
                 device.on_darkness(dark).block_on();
             })
