@@ -14,11 +14,14 @@ RUN adduser \
 
 # Create basic project structure
 RUN cargo new --bin /app
-RUN cargo new --lib /app/impl_cast
+RUN cargo new --lib /app/impl_cast && truncate -s 0 /app/impl_cast/src/lib.rs
 RUN cargo new --lib /app/google-home
 
 # Get the correct version of the compiler
 RUN rustup default nightly
+
+# Copy cargo config
+COPY .cargo/config.toml /app/.cargo/config.toml
 
 # Copy the Cargo.toml files
 COPY impl_cast/Cargo.toml /app/impl_cast
@@ -54,7 +57,7 @@ ENV AUTOMATION_CONFIG=/app/config.toml
 COPY config/config.toml /app/config.toml
 
 WORKDIR /app
-COPY --from=build /app/target/release/automation ./
+COPY --from=build /app/target/x86_64-unknown-linux-gnu/release/automation ./
 
 USER automation:automation
 
