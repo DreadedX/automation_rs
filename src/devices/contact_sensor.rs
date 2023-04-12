@@ -1,7 +1,7 @@
 use std::time::Duration;
 
 use async_trait::async_trait;
-use rumqttc::{matches, AsyncClient};
+use rumqttc::AsyncClient;
 use tokio::task::JoinHandle;
 use tracing::{debug, error, warn};
 
@@ -64,10 +64,6 @@ impl OnMqtt for ContactSensor {
     }
 
     async fn on_mqtt(&mut self, message: &rumqttc::Publish) {
-        if !matches(&message.topic, &self.mqtt.topic) {
-            return;
-        }
-
         let is_closed = match ContactMessage::try_from(message) {
             Ok(state) => state.is_closed(),
             Err(err) => {

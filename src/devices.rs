@@ -15,7 +15,7 @@ use std::collections::HashMap;
 use async_trait::async_trait;
 use google_home::{traits::OnOff, FullfillmentError, GoogleHome, GoogleHomeDevice};
 use pollster::FutureExt;
-use rumqttc::{AsyncClient, QoS};
+use rumqttc::{matches, AsyncClient, QoS};
 use thiserror::Error;
 use tokio::sync::{mpsc, oneshot};
 use tracing::{debug, error, trace};
@@ -192,8 +192,15 @@ impl OnMqtt for Devices {
         self.get::<dyn OnMqtt>()
             .iter_mut()
             .for_each(|(id, listener)| {
-                trace!(id, "Handling");
-                listener.on_mqtt(message).block_on();
+                let subscribed = listener
+                    .topics()
+                    .iter()
+                    .any(|topic| matches(&message.topic, topic));
+
+                if subscribed {
+                    trace!(id, "Handling");
+                    listener.on_mqtt(message).block_on();
+                }
             })
     }
 }

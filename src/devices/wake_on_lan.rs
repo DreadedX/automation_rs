@@ -9,7 +9,7 @@ use google_home::{
     types::Type,
     GoogleHomeDevice,
 };
-use rumqttc::{matches, Publish};
+use rumqttc::Publish;
 use tracing::{debug, error};
 
 use crate::{
@@ -59,10 +59,6 @@ impl OnMqtt for WakeOnLAN {
     }
 
     async fn on_mqtt(&mut self, message: &Publish) {
-        if !matches(&message.topic, &self.mqtt.topic) {
-            return;
-        }
-
         let activate = match ActivateMessage::try_from(message) {
             Ok(message) => message.activate(),
             Err(err) => {

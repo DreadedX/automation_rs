@@ -1,6 +1,5 @@
 use async_trait::async_trait;
 use google_home::traits;
-use rumqttc::matches;
 use tracing::{debug, error, warn};
 
 use crate::config::MqttDeviceConfig;
@@ -56,10 +55,6 @@ impl OnMqtt for AudioSetup {
     }
 
     async fn on_mqtt(&mut self, message: &rumqttc::Publish) {
-        if !matches(&message.topic, &self.mqtt.topic) {
-            return;
-        }
-
         let action = match RemoteMessage::try_from(message) {
             Ok(message) => message.action(),
             Err(err) => {
