@@ -2,11 +2,11 @@
 base_url = "https://login.huizinga.dev/api/oidc"
 
 [mqtt]
-host="mosquitto"
-port=8883
-client_name="automation_rs"
-username="mqtt"
-password="${MQTT_PASSWORD}"
+host = "mosquitto"
+port = 8883
+client_name = "automation_rs"
+username = "mqtt"
+password = "${MQTT_PASSWORD}"
 
 [ntfy]
 topic = "${NTFY_TOPIC}"
@@ -24,8 +24,8 @@ topic = "automation/debug"
 
 [light_sensor]
 topic = "zigbee2mqtt/living/light"
-min = 21_000
-max = 22_500
+min = 22_000
+max = 23_500
 
 [devices.kitchen_kettle]
 type = "IkeaOutlet"
