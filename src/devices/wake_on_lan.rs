@@ -9,12 +9,11 @@ use google_home::{
     types::Type,
     GoogleHomeDevice,
 };
-use rumqttc::{matches, AsyncClient, Publish};
+use rumqttc::{matches, Publish};
 use tracing::{debug, error};
 
 use crate::{
     config::{InfoConfig, MqttDeviceConfig},
-    error::DeviceError,
     mqtt::{ActivateMessage, OnMqtt},
 };
 
@@ -30,26 +29,20 @@ pub struct WakeOnLAN {
 }
 
 impl WakeOnLAN {
-    pub async fn build(
+    pub fn new(
         identifier: &str,
         info: InfoConfig,
         mqtt: MqttDeviceConfig,
         mac_address: MacAddress,
         broadcast_ip: Ipv4Addr,
-        client: AsyncClient,
-    ) -> Result<Self, DeviceError> {
-        // TODO: Handle potential errors here
-        client
-            .subscribe(mqtt.topic.clone(), rumqttc::QoS::AtLeastOnce)
-            .await?;
-
-        Ok(Self {
+    ) -> Self {
+        Self {
             identifier: identifier.to_owned(),
             info,
             mqtt,
             mac_address,
             broadcast_ip,
-        })
+        }
     }
 }
 
@@ -61,6 +54,10 @@ impl Device for WakeOnLAN {
 
 #[async_trait]
 impl OnMqtt for WakeOnLAN {
+    fn topics(&self) -> Vec<&str> {
+        vec![&self.mqtt.topic]
+    }
+
     async fn on_mqtt(&mut self, message: &Publish) {
         if !matches(&message.topic, &self.mqtt.topic) {
             return;

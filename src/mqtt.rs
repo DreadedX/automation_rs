@@ -12,6 +12,7 @@ use tokio::sync::broadcast;
 #[async_trait]
 #[impl_cast::device_trait]
 pub trait OnMqtt {
+    fn topics(&self) -> Vec<&str>;
     async fn on_mqtt(&mut self, message: &Publish);
 }
 

@@ -97,7 +97,12 @@ async fn app() -> anyhow::Result<()> {
         );
     }
 
-    let devices = devices::start(mqtt.subscribe(), presence.clone(), light_sensor.clone());
+    let devices = devices::start(
+        mqtt.subscribe(),
+        presence.clone(),
+        light_sensor.clone(),
+        client.clone(),
+    );
     join_all(
         config
             .devices

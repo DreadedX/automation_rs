@@ -65,6 +65,10 @@ pub async fn start(
 
 #[async_trait]
 impl OnMqtt for LightSensor {
+    fn topics(&self) -> Vec<&str> {
+        vec![&self.mqtt.topic]
+    }
+
     async fn on_mqtt(&mut self, message: &rumqttc::Publish) {
         if !matches(&message.topic, &self.mqtt.topic) {
             return;

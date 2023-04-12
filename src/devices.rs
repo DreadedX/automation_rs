@@ -15,9 +15,10 @@ use std::collections::HashMap;
 use async_trait::async_trait;
 use google_home::{traits::OnOff, FullfillmentError, GoogleHome, GoogleHomeDevice};
 use pollster::FutureExt;
+use rumqttc::{AsyncClient, QoS};
 use thiserror::Error;
 use tokio::sync::{mpsc, oneshot};
-use tracing::{debug, trace};
+use tracing::{debug, error, trace};
 
 use crate::{
     light_sensor::{self, OnDarkness},
@@ -35,6 +36,7 @@ pub trait Device: std::fmt::Debug + Sync + Send {
 #[derive(Debug)]
 struct Devices {
     devices: HashMap<String, Box<dyn Device>>,
+    client: AsyncClient,
 }
 
 #[derive(Debug)]
@@ -94,9 +96,11 @@ pub fn start(
     mut mqtt_rx: mqtt::Receiver,
     mut presence_rx: presence::Receiver,
     mut light_sensor_rx: light_sensor::Receiver,
+    client: AsyncClient,
 ) -> DevicesHandle {
     let mut devices = Devices {
         devices: HashMap::new(),
+        client,
     };
 
     let (tx, mut rx) = mpsc::channel(100);
@@ -118,7 +122,7 @@ pub fn start(
                 }
                 // TODO: Handle receiving None better, otherwise it might constantly run doing
                 // nothing
-                Some(cmd) = rx.recv() => devices.handle_cmd(cmd)
+                Some(cmd) = rx.recv() => devices.handle_cmd(cmd).await
             }
         }
     });
@@ -127,7 +131,7 @@ pub fn start(
 }
 
 impl Devices {
-    fn handle_cmd(&mut self, cmd: Command) {
+    async fn handle_cmd(&mut self, cmd: Command) {
         match cmd {
             Command::Fullfillment {
                 google_home,
@@ -139,15 +143,29 @@ impl Devices {
                 tx.send(result).ok();
             }
             Command::AddDevice { device, tx } => {
-                self.add_device(device);
+                self.add_device(device).await;
 
                 tx.send(()).ok();
             }
         }
     }
 
-    fn add_device(&mut self, device: Box<dyn Device>) {
-        debug!(id = device.get_id(), "Adding device");
+    async fn add_device(&mut self, device: Box<dyn Device>) {
+        let id = device.get_id();
+        debug!(id, "Adding device");
+
+        // If the device listens to mqtt, subscribe to the topics
+        if let Some(device) = As::<dyn OnMqtt>::cast(device.as_ref()) {
+            for topic in device.topics() {
+                trace!(id, topic, "Subscribing to topic");
+                if let Err(err) = self.client.subscribe(topic, QoS::AtLeastOnce).await {
+                    // NOTE: Pretty sure that this can only happen if the mqtt client if no longer
+                    // running
+                    error!(id, topic, "Failed to subscribe to topic: {err}");
+                }
+            }
+        }
+
         self.devices.insert(device.get_id().to_owned(), device);
     }
 
@@ -165,6 +183,10 @@ impl Devices {
 
 #[async_trait]
 impl OnMqtt for Devices {
+    fn topics(&self) -> Vec<&str> {
+        Vec::new()
+    }
+
     #[tracing::instrument(skip_all)]
     async fn on_mqtt(&mut self, message: &rumqttc::Publish) {
         self.get::<dyn OnMqtt>()

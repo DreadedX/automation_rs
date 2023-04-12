@@ -14,7 +14,6 @@ use tracing::{debug, error, warn};
 
 use crate::config::{InfoConfig, MqttDeviceConfig, OutletType};
 use crate::devices::Device;
-use crate::error::DeviceError;
 use crate::mqtt::{OnMqtt, OnOffMessage};
 use crate::presence::OnPresence;
 
@@ -32,20 +31,15 @@ pub struct IkeaOutlet {
 }
 
 impl IkeaOutlet {
-    pub async fn build(
+    pub fn new(
         identifier: &str,
         info: InfoConfig,
         mqtt: MqttDeviceConfig,
         outlet_type: OutletType,
         timeout: Option<u64>,
         client: AsyncClient,
-    ) -> Result<Self, DeviceError> {
-        // TODO: Handle potential errors here
-        client
-            .subscribe(mqtt.topic.clone(), rumqttc::QoS::AtLeastOnce)
-            .await?;
-
-        Ok(Self {
+    ) -> Self {
+        Self {
             identifier: identifier.to_owned(),
             info,
             mqtt,
@@ -54,7 +48,7 @@ impl IkeaOutlet {
             client,
             last_known_state: false,
             handle: None,
-        })
+        }
     }
 }
 
@@ -83,6 +77,10 @@ impl Device for IkeaOutlet {
 
 #[async_trait]
 impl OnMqtt for IkeaOutlet {
+    fn topics(&self) -> Vec<&str> {
+        vec![&self.mqtt.topic]
+    }
+
     async fn on_mqtt(&mut self, message: &Publish) {
         // Update the internal state based on what the device has reported
         if !matches(&message.topic, &self.mqtt.topic) {

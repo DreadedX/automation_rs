@@ -1,6 +1,6 @@
 use async_trait::async_trait;
 use google_home::traits;
-use rumqttc::{matches, AsyncClient};
+use rumqttc::matches;
 use tracing::{debug, error, warn};
 
 use crate::config::MqttDeviceConfig;
@@ -26,19 +26,13 @@ impl AudioSetup {
         mqtt: MqttDeviceConfig,
         mixer: Box<dyn Device>,
         speakers: Box<dyn Device>,
-        client: AsyncClient,
     ) -> Result<Self, DeviceError> {
         // We expect the children devices to implement the OnOff trait
         let mixer_id = mixer.get_id().to_owned();
-        let mixer = As::consume(mixer).ok_or_else(|| DeviceError::OnOffExpected(mixer_id))?;
+        let mixer = As::consume(mixer).ok_or(DeviceError::OnOffExpected(mixer_id))?;
 
         let speakers_id = speakers.get_id().to_owned();
-        let speakers =
-            As::consume(speakers).ok_or_else(|| DeviceError::OnOffExpected(speakers_id))?;
-
-        client
-            .subscribe(mqtt.topic.clone(), rumqttc::QoS::AtLeastOnce)
-            .await?;
+        let speakers = As::consume(speakers).ok_or(DeviceError::OnOffExpected(speakers_id))?;
 
         Ok(Self {
             identifier: identifier.to_owned(),
@@ -57,6 +51,10 @@ impl Device for AudioSetup {
 
 #[async_trait]
 impl OnMqtt for AudioSetup {
+    fn topics(&self) -> Vec<&str> {
+        vec![&self.mqtt.topic]
+    }
+
     async fn on_mqtt(&mut self, message: &rumqttc::Publish) {
         if !matches(&message.topic, &self.mqtt.topic) {
             return;

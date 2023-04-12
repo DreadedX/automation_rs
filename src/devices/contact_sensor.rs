@@ -7,7 +7,6 @@ use tracing::{debug, error, warn};
 
 use crate::{
     config::{MqttDeviceConfig, PresenceDeviceConfig},
-    error::DeviceError,
     mqtt::{ContactMessage, OnMqtt, PresenceMessage},
     presence::OnPresence,
 };
@@ -27,17 +26,13 @@ pub struct ContactSensor {
 }
 
 impl ContactSensor {
-    pub async fn build(
+    pub fn new(
         identifier: &str,
         mqtt: MqttDeviceConfig,
         presence: Option<PresenceDeviceConfig>,
         client: AsyncClient,
-    ) -> Result<Self, DeviceError> {
-        client
-            .subscribe(mqtt.topic.clone(), rumqttc::QoS::AtLeastOnce)
-            .await?;
-
-        Ok(Self {
+    ) -> Self {
+        Self {
             identifier: identifier.to_owned(),
             mqtt,
             presence,
@@ -45,7 +40,7 @@ impl ContactSensor {
             overall_presence: false,
             is_closed: true,
             handle: None,
-        })
+        }
     }
 }
 
@@ -64,6 +59,10 @@ impl OnPresence for ContactSensor {
 
 #[async_trait]
 impl OnMqtt for ContactSensor {
+    fn topics(&self) -> Vec<&str> {
+        vec![&self.mqtt.topic]
+    }
+
     async fn on_mqtt(&mut self, message: &rumqttc::Publish) {
         if !matches(&message.topic, &self.mqtt.topic) {
             return;

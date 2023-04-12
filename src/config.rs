@@ -281,9 +281,14 @@ impl Device {
                     info.name,
                     info.room
                 );
-                IkeaOutlet::build(identifier, info, mqtt, outlet_type, timeout, client)
-                    .await
-                    .map(Box::new)?
+                Box::new(IkeaOutlet::new(
+                    identifier,
+                    info,
+                    mqtt,
+                    outlet_type,
+                    timeout,
+                    client,
+                ))
             }
             Device::WakeOnLAN {
                 info,
@@ -297,9 +302,13 @@ impl Device {
                     info.name,
                     info.room
                 );
-                WakeOnLAN::build(identifier, info, mqtt, mac_address, broadcast_ip, client)
-                    .await
-                    .map(Box::new)?
+                Box::new(WakeOnLAN::new(
+                    identifier,
+                    info,
+                    mqtt,
+                    mac_address,
+                    broadcast_ip,
+                ))
             }
             Device::KasaOutlet { ip } => {
                 trace!(id = identifier, "KasaOutlet [{}]", identifier);
@@ -319,7 +328,7 @@ impl Device {
                     .create(&speakers_id, config, client.clone())
                     .await?;
 
-                AudioSetup::build(identifier, mqtt, mixer, speakers, client)
+                AudioSetup::build(identifier, mqtt, mixer, speakers)
                     .await
                     .map(Box::new)?
             }
@@ -329,9 +338,7 @@ impl Device {
                     .map(|p| p.generate_topic("contact", identifier, config))
                     .transpose()?;
 
-                ContactSensor::build(identifier, mqtt, presence, client)
-                    .await
-                    .map(Box::new)?
+                Box::new(ContactSensor::new(identifier, mqtt, presence, client))
             }
         };
 
