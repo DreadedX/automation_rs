@@ -124,9 +124,9 @@ impl OnMqtt for IkeaOutlet {
             let topic = self.mqtt.topic.clone();
             let id = self.identifier.clone();
             self.handle = Some(tokio::spawn(async move {
-                debug!(id, "Starting timeout ({timeout:?}) for kettle...");
+                debug!(id, "Starting timeout ({timeout:?})...");
                 tokio::time::sleep(timeout).await;
-                debug!(id, "Turning kettle off!");
+                debug!(id, "Turning outlet off!");
                 // TODO: Idealy we would call self.set_on(false), however since we want to do
                 // it after a timeout we have to put it in a seperate task.
                 // I don't think we can really get around calling outside function
@@ -140,7 +140,6 @@ impl OnMqtt for IkeaOutlet {
 impl OnPresence for IkeaOutlet {
     async fn on_presence(&mut self, presence: bool) {
         // Turn off the outlet when we leave the house (Not if it is a battery charger)
-        debug!(id = self.identifier, "{:?}", self.outlet_type);
         if !presence && self.outlet_type != OutletType::Charger {
             debug!(id = self.identifier, "Turning device off");
             self.set_on(false).ok();
