@@ -17,10 +17,9 @@ use automation::{
 use dotenvy::dotenv;
 use futures::future::join_all;
 use rumqttc::{AsyncClient, MqttOptions, Transport};
-use tracing::{debug, error, info, metadata::LevelFilter};
+use tracing::{debug, error, info};
 
 use google_home::{GoogleHome, Request};
-use tracing_subscriber::EnvFilter;
 
 #[derive(Clone)]
 struct AppState {
@@ -49,11 +48,7 @@ async fn main() {
 async fn app() -> anyhow::Result<()> {
     dotenv().ok();
 
-    let filter = EnvFilter::builder()
-        .with_default_directive(LevelFilter::INFO.into())
-        .from_env_lossy();
-
-    tracing_subscriber::fmt().with_env_filter(filter).init();
+    console_subscriber::init();
 
     info!("Starting automation_rs...");
 
