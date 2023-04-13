@@ -12,7 +12,6 @@ pub use self::wake_on_lan::WakeOnLAN;
 
 use std::collections::HashMap;
 
-use async_trait::async_trait;
 use google_home::{traits::OnOff, FullfillmentError, GoogleHome, GoogleHomeDevice};
 use pollster::FutureExt;
 use rumqttc::{matches, AsyncClient, QoS};
@@ -21,9 +20,10 @@ use tokio::sync::{mpsc, oneshot};
 use tracing::{debug, error, trace};
 
 use crate::{
-    light_sensor::{self, OnDarkness},
-    mqtt::{self, OnMqtt},
-    presence::{self, OnPresence},
+    event::{Event, EventChannel},
+    light_sensor::OnDarkness,
+    mqtt::OnMqtt,
+    presence::OnPresence,
 };
 
 #[impl_cast::device(As: OnMqtt + OnPresence + OnDarkness + GoogleHomeDevice + OnOff)]
@@ -92,37 +92,33 @@ impl DevicesHandle {
     }
 }
 
-pub fn start(
-    mut mqtt_rx: mqtt::Receiver,
-    mut presence_rx: presence::Receiver,
-    mut light_sensor_rx: light_sensor::Receiver,
-    client: AsyncClient,
-) -> DevicesHandle {
+pub fn start(event_channel: &EventChannel, client: AsyncClient) -> DevicesHandle {
     let mut devices = Devices {
         devices: HashMap::new(),
         client,
     };
 
     let (tx, mut rx) = mpsc::channel(100);
+    let mut event_rx = event_channel.get_rx();
 
     tokio::spawn(async move {
         // TODO: Handle error better
         loop {
             tokio::select! {
-                Ok(message) = mqtt_rx.recv() => {
-                    devices.on_mqtt(&message).await;
-                }
-                Ok(_) = presence_rx.changed() => {
-                    let presence = *presence_rx.borrow();
-                    devices.on_presence(presence).await;
-                }
-                Ok(_) = light_sensor_rx.changed() => {
-                    let darkness = *light_sensor_rx.borrow();
-                    devices.on_darkness(darkness).await;
+                event = event_rx.recv() => {
+                    if event.is_err() {
+                        todo!("Handle errors with the event channel properly")
+                    }
+                    devices.handle_event(event.unwrap()).await;
                 }
                 // TODO: Handle receiving None better, otherwise it might constantly run doing
                 // nothing
-                Some(cmd) = rx.recv() => devices.handle_cmd(cmd).await
+                cmd = rx.recv() => {
+                    if cmd.is_none() {
+                        todo!("Handle errors with the cmd channel properly")
+                    }
+                    devices.handle_cmd(cmd.unwrap()).await;
+                }
             }
         }
     });
@@ -169,6 +165,43 @@ impl Devices {
         self.devices.insert(device.get_id().to_owned(), device);
     }
 
+    async fn handle_event(&mut self, event: Event) {
+        match event {
+            Event::MqttMessage(message) => {
+                self.get::<dyn OnMqtt>()
+                    .iter_mut()
+                    .for_each(|(id, listener)| {
+                        let subscribed = listener
+                            .topics()
+                            .iter()
+                            .any(|topic| matches(&message.topic, topic));
+
+                        if subscribed {
+                            trace!(id, "Handling");
+                            listener.on_mqtt(&message).block_on();
+                        }
+                    })
+            }
+            Event::Darkness(dark) => {
+                self.get::<dyn OnDarkness>()
+                    .iter_mut()
+                    .for_each(|(id, device)| {
+                        trace!(id, "Handling");
+                        device.on_darkness(dark).block_on();
+                    })
+            }
+            Event::Presence(presence) => {
+                self.get::<dyn OnPresence>()
+                    .iter_mut()
+                    .for_each(|(id, device)| {
+                        trace!(id, "Handling");
+                        device.on_presence(presence).block_on();
+                    })
+            }
+            Event::Ntfy(_) => {}
+        }
+    }
+
     fn get<T>(&mut self) -> HashMap<&str, &mut T>
     where
         T: ?Sized + 'static,
@@ -178,55 +211,5 @@ impl Devices {
             .iter_mut()
             .filter_map(|(id, device)| As::<T>::cast_mut(device.as_mut()).map(|t| (id.as_str(), t)))
             .collect()
-    }
-}
-
-#[async_trait]
-impl OnMqtt for Devices {
-    fn topics(&self) -> Vec<&str> {
-        Vec::new()
-    }
-
-    #[tracing::instrument(skip_all)]
-    async fn on_mqtt(&mut self, message: &rumqttc::Publish) {
-        self.get::<dyn OnMqtt>()
-            .iter_mut()
-            .for_each(|(id, listener)| {
-                let subscribed = listener
-                    .topics()
-                    .iter()
-                    .any(|topic| matches(&message.topic, topic));
-
-                if subscribed {
-                    trace!(id, "Handling");
-                    listener.on_mqtt(message).block_on();
-                }
-            })
-    }
-}
-
-#[async_trait]
-impl OnPresence for Devices {
-    #[tracing::instrument(skip(self))]
-    async fn on_presence(&mut self, presence: bool) {
-        self.get::<dyn OnPresence>()
-            .iter_mut()
-            .for_each(|(id, device)| {
-                trace!(id, "Handling");
-                device.on_presence(presence).block_on();
-            })
-    }
-}
-
-#[async_trait]
-impl OnDarkness for Devices {
-    #[tracing::instrument(skip(self))]
-    async fn on_darkness(&mut self, dark: bool) {
-        self.get::<dyn OnDarkness>()
-            .iter_mut()
-            .for_each(|(id, device)| {
-                trace!(id, "Handling");
-                device.on_darkness(dark).block_on();
-            })
     }
 }

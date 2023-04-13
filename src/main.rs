@@ -10,9 +10,8 @@ use automation::{
     config::Config,
     debug_bridge, devices,
     error::ApiError,
-    hue_bridge, light_sensor,
-    mqtt::Mqtt,
-    ntfy, presence,
+    event::EventChannel,
+    hue_bridge, light_sensor, mqtt, ntfy, presence,
 };
 use dotenvy::dotenv;
 use futures::future::join_all;
@@ -56,52 +55,39 @@ async fn app() -> anyhow::Result<()> {
         std::env::var("AUTOMATION_CONFIG").unwrap_or("./config/config.toml".to_owned());
     let config = Config::parse_file(&config_filename)?;
 
-    // Create a mqtt client and wrap the eventloop
+    let event_channel = EventChannel::new();
+
+    // Create a mqtt client
     let (client, eventloop) = AsyncClient::new(config.mqtt.clone(), 10);
-    let mqtt = Mqtt::new(eventloop);
-    let presence =
-        presence::start(config.presence.clone(), mqtt.subscribe(), client.clone()).await?;
-    let light_sensor = light_sensor::start(
-        mqtt.subscribe(),
-        config.light_sensor.clone(),
-        client.clone(),
-    )
-    .await?;
+
+    let presence_topic = config.presence.mqtt.topic.to_owned();
+    presence::start(config.presence, &event_channel, client.clone()).await?;
+    light_sensor::start(config.light_sensor, &event_channel, client.clone()).await?;
 
     // Start the ntfy service if it is configured
-    if let Some(config) = &config.ntfy {
-        ntfy::start(presence.clone(), config);
+    if let Some(config) = config.ntfy {
+        ntfy::start(config, &event_channel);
     }
 
     // Start the hue bridge if it is configured
     if let Some(config) = config.hue_bridge {
-        hue_bridge::start(presence.clone(), light_sensor.clone(), config);
+        hue_bridge::start(config, &event_channel);
     }
 
     // Start the debug bridge if it is configured
     if let Some(config) = config.debug_bridge {
-        debug_bridge::start(
-            presence.clone(),
-            light_sensor.clone(),
-            config,
-            client.clone(),
-        );
+        debug_bridge::start(config, &event_channel, client.clone());
     }
 
     // Setup the device handler
-    let device_handler = devices::start(
-        mqtt.subscribe(),
-        presence.clone(),
-        light_sensor.clone(),
-        client.clone(),
-    );
+    let device_handler = devices::start(&event_channel, client.clone());
 
     // Create all the devices specified in the config
     let devices = config
         .devices
         .into_iter()
         .map(|(identifier, device_config)| {
-            device_config.create(&identifier, client.clone(), &config.presence.topic)
+            device_config.create(&identifier, client.clone(), &presence_topic)
         })
         .collect::<Result<Vec<_>, _>>()?;
 
@@ -118,9 +104,9 @@ async fn app() -> anyhow::Result<()> {
     .into_iter()
     .collect::<Result<_, _>>()?;
 
-    // Actually start listening for mqtt message,
-    // we wait until all the setup is done, as otherwise we might miss some messages
-    mqtt.start();
+    // Wrap the mqtt eventloop and start listening for message
+    // NOTE: We wait until all the setup is done, as otherwise we might miss some messages
+    mqtt::start(eventloop, &event_channel);
 
     // Create google home fullfillment route
     let fullfillment = Router::new().route(

@@ -7,7 +7,8 @@ use thiserror::Error;
 use tracing::{debug, warn};
 
 use rumqttc::{Event, EventLoop, Incoming, Publish};
-use tokio::sync::broadcast;
+
+use crate::event::{self, EventChannel};
 
 #[async_trait]
 #[impl_cast::device_trait]
@@ -16,49 +17,32 @@ pub trait OnMqtt {
     async fn on_mqtt(&mut self, message: &Publish);
 }
 
-pub type Receiver = broadcast::Receiver<Publish>;
-type Sender = broadcast::Sender<Publish>;
-
-pub struct Mqtt {
-    tx: Sender,
-    eventloop: EventLoop,
-}
-
 #[derive(Debug, Error)]
 pub enum ParseError {
     #[error("Invalid message payload received: {0:?}")]
     InvalidPayload(Bytes),
 }
 
-impl Mqtt {
-    pub fn new(eventloop: EventLoop) -> Self {
-        let (tx, _rx) = broadcast::channel(100);
-        Self { tx, eventloop }
-    }
+pub fn start(mut eventloop: EventLoop, event_channel: &EventChannel) {
+    let tx = event_channel.get_tx();
 
-    pub fn subscribe(&self) -> Receiver {
-        self.tx.subscribe()
-    }
-
-    pub fn start(mut self) {
-        tokio::spawn(async move {
-            debug!("Listening for MQTT events");
-            loop {
-                let notification = self.eventloop.poll().await;
-                match notification {
-                    Ok(Event::Incoming(Incoming::Publish(p))) => {
-                        self.tx.send(p).ok();
-                    }
-                    Ok(..) => continue,
-                    Err(err) => {
-                        // Something has gone wrong
-                        // We stay in the loop as that will attempt to reconnect
-                        warn!("{}", err);
-                    }
+    tokio::spawn(async move {
+        debug!("Listening for MQTT events");
+        loop {
+            let notification = eventloop.poll().await;
+            match notification {
+                Ok(Event::Incoming(Incoming::Publish(p))) => {
+                    tx.send(event::Event::MqttMessage(p)).ok();
+                }
+                Ok(..) => continue,
+                Err(err) => {
+                    // Something has gone wrong
+                    // We stay in the loop as that will attempt to reconnect
+                    warn!("{}", err);
                 }
             }
-        });
-    }
+        }
+    });
 }
 
 #[derive(Debug, Serialize, Deserialize)]
@@ -161,10 +145,10 @@ impl PresenceMessage {
     }
 }
 
-impl TryFrom<&Publish> for PresenceMessage {
+impl TryFrom<Publish> for PresenceMessage {
     type Error = ParseError;
 
-    fn try_from(message: &Publish) -> Result<Self, Self::Error> {
+    fn try_from(message: Publish) -> Result<Self, Self::Error> {
         serde_json::from_slice(&message.payload)
             .or(Err(ParseError::InvalidPayload(message.payload.clone())))
     }
@@ -181,10 +165,10 @@ impl BrightnessMessage {
     }
 }
 
-impl TryFrom<&Publish> for BrightnessMessage {
+impl TryFrom<Publish> for BrightnessMessage {
     type Error = ParseError;
 
-    fn try_from(message: &Publish) -> Result<Self, Self::Error> {
+    fn try_from(message: Publish) -> Result<Self, Self::Error> {
         serde_json::from_slice(&message.payload)
             .or(Err(ParseError::InvalidPayload(message.payload.clone())))
     }

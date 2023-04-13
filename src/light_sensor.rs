@@ -1,22 +1,19 @@
 use async_trait::async_trait;
 use rumqttc::{matches, AsyncClient};
 use serde::Deserialize;
-use tokio::sync::watch;
-use tracing::{debug, error, trace};
+use tracing::{debug, error, trace, warn};
 
 use crate::{
     config::MqttDeviceConfig,
     error::LightSensorError,
-    mqtt::{self, BrightnessMessage, OnMqtt},
+    event::{Event, EventChannel},
+    mqtt::BrightnessMessage,
 };
 
 #[async_trait]
 pub trait OnDarkness: Sync + Send + 'static {
     async fn on_darkness(&mut self, dark: bool);
 }
-
-pub type Receiver = watch::Receiver<bool>;
-type Sender = watch::Sender<bool>;
 
 #[derive(Debug, Clone, Deserialize)]
 pub struct LightSensorConfig {
@@ -26,91 +23,72 @@ pub struct LightSensorConfig {
     pub max: isize,
 }
 
-#[derive(Debug)]
-struct LightSensor {
-    mqtt: MqttDeviceConfig,
-    min: isize,
-    max: isize,
-    tx: Sender,
-    is_dark: Receiver,
-}
-
-impl LightSensor {
-    fn new(mqtt: MqttDeviceConfig, min: isize, max: isize) -> Self {
-        let (tx, is_dark) = watch::channel(false);
-        Self {
-            is_dark,
-            mqtt,
-            min,
-            max,
-            tx,
-        }
-    }
-}
+const DEFAULT: bool = false;
 
 pub async fn start(
-    mut mqtt_rx: mqtt::Receiver,
     config: LightSensorConfig,
+    event_channel: &EventChannel,
     client: AsyncClient,
-) -> Result<Receiver, LightSensorError> {
+) -> Result<(), LightSensorError> {
+    // Subscrive to the mqtt topic
     client
         .subscribe(config.mqtt.topic.clone(), rumqttc::QoS::AtLeastOnce)
         .await?;
 
-    let mut light_sensor = LightSensor::new(config.mqtt, config.min, config.max);
-    let is_dark = light_sensor.is_dark.clone();
+    // Create the channels
+    let mut rx = event_channel.get_rx();
+    let tx = event_channel.get_tx();
+
+    // Setup default value, this is needed for hysteresis
+    let mut current_is_dark = DEFAULT;
 
     tokio::spawn(async move {
         loop {
-            // TODO: Handle errors, warn if lagging
-            if let Ok(message) = mqtt_rx.recv().await {
-                light_sensor.on_mqtt(&message).await;
+            match rx.recv().await {
+                Ok(Event::MqttMessage(message)) => {
+                    if !matches(&message.topic, &config.mqtt.topic) {
+                        continue;
+                    }
+
+                    let illuminance = match BrightnessMessage::try_from(message) {
+                        Ok(state) => state.illuminance(),
+                        Err(err) => {
+                            error!("Failed to parse message: {err}");
+                            continue;
+                        }
+                    };
+
+                    debug!("Illuminance: {illuminance}");
+                    let is_dark = if illuminance <= config.min {
+                        trace!("It is dark");
+                        true
+                    } else if illuminance >= config.max {
+                        trace!("It is light");
+                        false
+                    } else {
+                        trace!(
+                            "In between min ({}) and max ({}) value, keeping current state: {}",
+                            config.min,
+                            config.max,
+                            current_is_dark
+                        );
+                        current_is_dark
+                    };
+
+                    if is_dark != current_is_dark {
+                        debug!("Dark state has changed: {is_dark}");
+                        current_is_dark = is_dark;
+
+                        if tx.send(Event::Darkness(is_dark)).is_err() {
+                            warn!("There are no receivers on the event channel");
+                        }
+                    }
+                }
+                Ok(_) => {}
+                Err(_) => todo!("Handle errors with the event channel properly"),
             }
         }
     });
 
-    Ok(is_dark)
-}
-
-#[async_trait]
-impl OnMqtt for LightSensor {
-    fn topics(&self) -> Vec<&str> {
-        vec![&self.mqtt.topic]
-    }
-
-    async fn on_mqtt(&mut self, message: &rumqttc::Publish) {
-        if !matches(&message.topic, &self.mqtt.topic) {
-            return;
-        }
-
-        let illuminance = match BrightnessMessage::try_from(message) {
-            Ok(state) => state.illuminance(),
-            Err(err) => {
-                error!("Failed to parse message: {err}");
-                return;
-            }
-        };
-
-        debug!("Illuminance: {illuminance}");
-        let is_dark = if illuminance <= self.min {
-            trace!("It is dark");
-            true
-        } else if illuminance >= self.max {
-            trace!("It is light");
-            false
-        } else {
-            trace!(
-                "In between min ({}) and max ({}) value, keeping current state: {}",
-                self.min,
-                self.max,
-                *self.is_dark.borrow()
-            );
-            *self.is_dark.borrow()
-        };
-
-        if is_dark != *self.is_dark.borrow() {
-            debug!("Dark state has changed: {is_dark}");
-            self.tx.send(is_dark).ok();
-        }
-    }
+    Ok(())
 }

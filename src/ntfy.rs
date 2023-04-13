@@ -1,6 +1,5 @@
 use std::collections::HashMap;
 
-use async_trait::async_trait;
 use serde::Serialize;
 use serde_repr::*;
 use tokio::sync::mpsc;
@@ -8,7 +7,7 @@ use tracing::{debug, error, warn};
 
 use crate::{
     config::NtfyConfig,
-    presence::{self, OnPresence},
+    event::{Event, EventChannel},
 };
 
 pub type Sender = mpsc::Sender<Notification>;
@@ -17,10 +16,9 @@ pub type Receiver = mpsc::Receiver<Notification>;
 struct Ntfy {
     base_url: String,
     topic: String,
-    tx: Sender,
 }
 
-#[derive(Serialize_repr)]
+#[derive(Serialize_repr, Clone, Copy)]
 #[repr(u8)]
 pub enum Priority {
     Min = 1,
@@ -30,7 +28,7 @@ pub enum Priority {
     Max,
 }
 
-#[derive(Serialize)]
+#[derive(Serialize, Clone)]
 #[serde(rename_all = "snake_case", tag = "action")]
 pub enum ActionType {
     Broadcast {
@@ -41,7 +39,7 @@ pub enum ActionType {
     // Http
 }
 
-#[derive(Serialize)]
+#[derive(Serialize, Clone)]
 pub struct Action {
     #[serde(flatten)]
     action: ActionType,
@@ -56,7 +54,7 @@ struct NotificationFinal {
     inner: Notification,
 }
 
-#[derive(Serialize)]
+#[derive(Serialize, Clone)]
 pub struct Notification {
     #[serde(skip_serializing_if = "Option::is_none")]
     title: Option<String>,
@@ -121,11 +119,10 @@ impl Default for Notification {
 }
 
 impl Ntfy {
-    fn new(base_url: &str, topic: &str, tx: Sender) -> Self {
+    fn new(base_url: &str, topic: &str) -> Self {
         Self {
             base_url: base_url.to_owned(),
             topic: topic.to_owned(),
-            tx,
         }
     }
 
@@ -151,52 +148,45 @@ impl Ntfy {
     }
 }
 
-pub fn start(mut presence_rx: presence::Receiver, config: &NtfyConfig) -> Sender {
-    let (tx, mut rx) = mpsc::channel(10);
+pub fn start(config: NtfyConfig, event_channel: &EventChannel) {
+    let mut rx = event_channel.get_rx();
+    let tx = event_channel.get_tx();
 
-    let mut ntfy = Ntfy::new(&config.url, &config.topic, tx.clone());
+    let ntfy = Ntfy::new(&config.url, &config.topic);
 
     tokio::spawn(async move {
         loop {
-            tokio::select! {
-                Ok(_) = presence_rx.changed() => {
-                    let presence = *presence_rx.borrow();
-                    ntfy.on_presence(presence).await;
-                },
-                Some(notifcation) = rx.recv() => {
-                    ntfy.send(notifcation).await;
+            match rx.recv().await {
+                Ok(Event::Presence(presence)) => {
+                    // Setup extras for the broadcast
+                    let extras = HashMap::from([
+                        ("cmd".into(), "presence".into()),
+                        ("state".into(), if presence { "0" } else { "1" }.into()),
+                    ]);
+
+                    // Create broadcast action
+                    let action = Action {
+                        action: ActionType::Broadcast { extras },
+                        label: if presence { "Set away" } else { "Set home" }.to_owned(),
+                        clear: Some(true),
+                    };
+
+                    // Create the notification
+                    let notification = Notification::new()
+                        .set_title("Presence")
+                        .set_message(if presence { "Home" } else { "Away" })
+                        .add_tag("house")
+                        .add_action(action)
+                        .set_priority(Priority::Low);
+
+                    if tx.send(Event::Ntfy(notification)).is_err() {
+                        warn!("There are no receivers on the event channel");
+                    }
                 }
+                Ok(Event::Ntfy(notification)) => ntfy.send(notification).await,
+                Ok(_) => {}
+                Err(_) => todo!("Handle errors with the event channel properly"),
             }
         }
     });
-
-    tx
-}
-
-#[async_trait]
-impl OnPresence for Ntfy {
-    async fn on_presence(&mut self, presence: bool) {
-        // Setup extras for the broadcast
-        let extras = HashMap::from([
-            ("cmd".into(), "presence".into()),
-            ("state".into(), if presence { "0" } else { "1" }.into()),
-        ]);
-
-        // Create broadcast action
-        let action = Action {
-            action: ActionType::Broadcast { extras },
-            label: if presence { "Set away" } else { "Set home" }.to_owned(),
-            clear: Some(true),
-        };
-
-        // Create the notification
-        let notification = Notification::new()
-            .set_title("Presence")
-            .set_message(if presence { "Home" } else { "Away" })
-            .add_tag("house")
-            .add_action(action)
-            .set_priority(Priority::Low);
-
-        self.tx.send(notification).await.ok();
-    }
 }

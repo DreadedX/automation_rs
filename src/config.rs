@@ -17,6 +17,7 @@ use crate::{
     error::{ConfigParseError, CreateDeviceError, MissingEnv},
     hue_bridge::HueBridgeConfig,
     light_sensor::LightSensorConfig,
+    presence::PresenceConfig,
 };
 
 #[derive(Debug, Deserialize)]
@@ -27,7 +28,7 @@ pub struct Config {
     #[serde(default)]
     pub fullfillment: FullfillmentConfig,
     pub ntfy: Option<NtfyConfig>,
-    pub presence: MqttDeviceConfig,
+    pub presence: PresenceConfig,
     pub light_sensor: LightSensorConfig,
     pub hue_bridge: Option<HueBridgeConfig>,
     pub debug_bridge: Option<DebugBridgeConfig>,
