@@ -1,5 +1,5 @@
 #![feature(async_closure)]
-use std::{process, time::Duration};
+use std::process;
 
 use axum::{
     extract::FromRef, http::StatusCode, response::IntoResponse, routing::post, Json, Router,
@@ -16,7 +16,7 @@ use automation::{
 };
 use dotenvy::dotenv;
 use futures::future::join_all;
-use rumqttc::{AsyncClient, MqttOptions, Transport};
+use rumqttc::AsyncClient;
 use tracing::{debug, error, info};
 
 use google_home::{GoogleHome, Request};
@@ -52,21 +52,12 @@ async fn app() -> anyhow::Result<()> {
 
     info!("Starting automation_rs...");
 
-    let config = std::env::var("AUTOMATION_CONFIG").unwrap_or("./config/config.toml".to_owned());
-    let config = Config::parse_file(&config)?;
-
-    // Configure MQTT
-    let mqtt = config.mqtt.clone();
-    let mut mqttoptions = MqttOptions::new(mqtt.client_name, mqtt.host, mqtt.port);
-    mqttoptions.set_credentials(mqtt.username, mqtt.password);
-    mqttoptions.set_keep_alive(Duration::from_secs(5));
-
-    if mqtt.tls {
-        mqttoptions.set_transport(Transport::tls_with_default_config());
-    }
+    let config_filename =
+        std::env::var("AUTOMATION_CONFIG").unwrap_or("./config/config.toml".to_owned());
+    let config = Config::parse_file(&config_filename)?;
 
     // Create a mqtt client and wrap the eventloop
-    let (client, eventloop) = AsyncClient::new(mqttoptions, 10);
+    let (client, eventloop) = AsyncClient::new(config.mqtt.clone(), 10);
     let mqtt = Mqtt::new(eventloop);
     let presence =
         presence::start(config.presence.clone(), mqtt.subscribe(), client.clone()).await?;

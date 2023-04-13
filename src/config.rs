@@ -2,13 +2,14 @@ use std::{
     collections::HashMap,
     fs,
     net::{Ipv4Addr, SocketAddr},
+    time::Duration,
 };
 
 use async_recursion::async_recursion;
 use eui48::MacAddress;
 use regex::{Captures, Regex};
-use rumqttc::{has_wildcards, AsyncClient};
-use serde::Deserialize;
+use rumqttc::{has_wildcards, AsyncClient, MqttOptions, Transport};
+use serde::{Deserialize, Deserializer};
 use tracing::{debug, trace};
 
 use crate::{
@@ -19,7 +20,8 @@ use crate::{
 #[derive(Debug, Deserialize)]
 pub struct Config {
     pub openid: OpenIDConfig,
-    pub mqtt: MqttConfig,
+    #[serde(deserialize_with = "deserialize_mqtt_options")]
+    pub mqtt: MqttOptions,
     #[serde(default)]
     pub fullfillment: FullfillmentConfig,
     pub ntfy: Option<NtfyConfig>,
@@ -45,6 +47,27 @@ pub struct MqttConfig {
     pub password: String,
     #[serde(default)]
     pub tls: bool,
+}
+
+fn deserialize_mqtt_options<'de, D>(deserializer: D) -> Result<MqttOptions, D::Error>
+where
+    D: Deserializer<'de>,
+{
+    Ok(MqttOptions::from(MqttConfig::deserialize(deserializer)?))
+}
+
+impl From<MqttConfig> for MqttOptions {
+    fn from(value: MqttConfig) -> Self {
+        let mut mqtt_options = MqttOptions::new(value.client_name, value.host, value.port);
+        mqtt_options.set_credentials(value.username, value.password);
+        mqtt_options.set_keep_alive(Duration::from_secs(5));
+
+        if value.tls {
+            mqtt_options.set_transport(Transport::tls_with_default_config());
+        }
+
+        mqtt_options
+    }
 }
 
 #[derive(Debug, Deserialize)]
