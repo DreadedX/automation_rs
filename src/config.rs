@@ -13,11 +13,8 @@ use tracing::debug;
 use crate::{
     auth::OpenIDConfig,
     debug_bridge::DebugBridgeConfig,
-    devices::{
-        self, AudioSetup, AudioSetupConfig, ContactSensor, ContactSensorConfig, IkeaOutlet,
-        IkeaOutletConfig, KasaOutlet, KasaOutletConfig, WakeOnLAN, WakeOnLANConfig,
-    },
-    error::{ConfigParseError, DeviceCreateError, MissingEnv},
+    devices::{self, AudioSetup, ContactSensor, IkeaOutlet, KasaOutlet, WakeOnLAN},
+    error::{ConfigParseError, CreateDeviceError, MissingEnv},
     hue_bridge::HueBridgeConfig,
     light_sensor::LightSensorConfig,
 };
@@ -126,11 +123,11 @@ pub struct MqttDeviceConfig {
 #[derive(Debug, Clone, Deserialize)]
 #[serde(tag = "type")]
 pub enum Device {
-    IkeaOutlet(IkeaOutletConfig),
-    WakeOnLAN(WakeOnLANConfig),
-    KasaOutlet(KasaOutletConfig),
-    AudioSetup(AudioSetupConfig),
-    ContactSensor(ContactSensorConfig),
+    IkeaOutlet(<IkeaOutlet as CreateDevice>::Config),
+    WakeOnLAN(<WakeOnLAN as CreateDevice>::Config),
+    KasaOutlet(<KasaOutlet as CreateDevice>::Config),
+    AudioSetup(<AudioSetup as CreateDevice>::Config),
+    ContactSensor(<ContactSensor as CreateDevice>::Config),
 }
 
 impl Config {
@@ -161,26 +158,33 @@ impl Config {
     }
 }
 
+pub trait CreateDevice {
+    type Config;
+
+    fn create(
+        identifier: &str,
+        config: Self::Config,
+        client: AsyncClient,
+        presence_topic: &str, // Not a big fan of passing in the global config
+    ) -> Result<Self, CreateDeviceError>
+    where
+        Self: Sized;
+}
+
 impl Device {
     pub fn create(
         self,
-        identifier: &str,
+        id: &str,
         client: AsyncClient,
-        presence_topic: &str,
-    ) -> Result<Box<dyn devices::Device>, DeviceCreateError> {
+        presence: &str,
+    ) -> Result<Box<dyn devices::Device>, CreateDeviceError> {
         let device: Box<dyn devices::Device> = match self {
-            Device::IkeaOutlet(c) => Box::new(IkeaOutlet::create(identifier, c, client)?),
-            Device::WakeOnLAN(c) => Box::new(WakeOnLAN::create(identifier, c)?),
-            Device::KasaOutlet(c) => Box::new(KasaOutlet::create(identifier, c)?),
-            Device::AudioSetup(c) => {
-                Box::new(AudioSetup::create(identifier, c, client, presence_topic)?)
-            }
-            Device::ContactSensor(c) => Box::new(ContactSensor::create(
-                identifier,
-                c,
-                client,
-                presence_topic,
-            )?),
+            // TODO: It would be nice if this would be more automatic, not sure how to do that...
+            Device::IkeaOutlet(c) => Box::new(IkeaOutlet::create(id, c, client, presence)?),
+            Device::WakeOnLAN(c) => Box::new(WakeOnLAN::create(id, c, client, presence)?),
+            Device::KasaOutlet(c) => Box::new(KasaOutlet::create(id, c, client, presence)?),
+            Device::AudioSetup(c) => Box::new(AudioSetup::create(id, c, client, presence)?),
+            Device::ContactSensor(c) => Box::new(ContactSensor::create(id, c, client, presence)?),
         };
 
         Ok(device)

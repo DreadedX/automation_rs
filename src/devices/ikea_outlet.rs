@@ -13,9 +13,9 @@ use std::time::Duration;
 use tokio::task::JoinHandle;
 use tracing::{debug, error, trace, warn};
 
-use crate::config::{InfoConfig, MqttDeviceConfig};
+use crate::config::{CreateDevice, InfoConfig, MqttDeviceConfig};
 use crate::devices::Device;
-use crate::error::DeviceCreateError;
+use crate::error::CreateDeviceError;
 use crate::mqtt::{OnMqtt, OnOffMessage};
 use crate::presence::OnPresence;
 
@@ -54,12 +54,15 @@ pub struct IkeaOutlet {
     handle: Option<JoinHandle<()>>,
 }
 
-impl IkeaOutlet {
-    pub fn create(
+impl CreateDevice for IkeaOutlet {
+    type Config = IkeaOutletConfig;
+
+    fn create(
         identifier: &str,
-        config: IkeaOutletConfig,
+        config: Self::Config,
         client: AsyncClient,
-    ) -> Result<Self, DeviceCreateError> {
+        _presence_topic: &str, // Not a big fan of passing in the global config
+    ) -> Result<Self, CreateDeviceError> {
         trace!(
             id = identifier,
             name = config.info.name,

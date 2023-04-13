@@ -83,7 +83,7 @@ impl MissingWildcard {
 }
 
 #[derive(Debug, Error)]
-pub enum DeviceCreateError {
+pub enum CreateDeviceError {
     #[error("Expected device '{0}' to implement OnOff trait")]
     OnOffExpected(String),
     #[error(transparent)]

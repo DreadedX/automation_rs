@@ -9,13 +9,13 @@ use google_home::{
     types::Type,
     GoogleHomeDevice,
 };
-use rumqttc::Publish;
+use rumqttc::{AsyncClient, Publish};
 use serde::Deserialize;
 use tracing::{debug, error, trace};
 
 use crate::{
-    config::{InfoConfig, MqttDeviceConfig},
-    error::DeviceCreateError,
+    config::{CreateDevice, InfoConfig, MqttDeviceConfig},
+    error::CreateDeviceError,
     mqtt::{ActivateMessage, OnMqtt},
 };
 
@@ -45,8 +45,15 @@ pub struct WakeOnLAN {
     broadcast_ip: Ipv4Addr,
 }
 
-impl WakeOnLAN {
-    pub fn create(identifier: &str, config: WakeOnLANConfig) -> Result<Self, DeviceCreateError> {
+impl CreateDevice for WakeOnLAN {
+    type Config = WakeOnLANConfig;
+
+    fn create(
+        identifier: &str,
+        config: Self::Config,
+        _client: AsyncClient,
+        _presence_topic: &str,
+    ) -> Result<Self, CreateDeviceError> {
         trace!(
             id = identifier,
             name = config.info.name,

@@ -4,8 +4,8 @@ use rumqttc::AsyncClient;
 use serde::Deserialize;
 use tracing::{debug, error, trace, warn};
 
-use crate::config::{self, MqttDeviceConfig};
-use crate::error::DeviceCreateError;
+use crate::config::{self, CreateDevice, MqttDeviceConfig};
+use crate::error::CreateDeviceError;
 use crate::mqtt::{OnMqtt, RemoteAction, RemoteMessage};
 use crate::presence::OnPresence;
 
@@ -28,25 +28,26 @@ pub struct AudioSetup {
     speakers: Box<dyn traits::OnOff>,
 }
 
-impl AudioSetup {
-    pub fn create(
+impl CreateDevice for AudioSetup {
+    type Config = AudioSetupConfig;
+
+    fn create(
         identifier: &str,
-        config: AudioSetupConfig,
+        config: Self::Config,
         client: AsyncClient,
-        // We only need to pass this in because constructing children
-        presence_topic: &str, // Not a big fan of passing in the global config
-    ) -> Result<Self, DeviceCreateError> {
+        presence_topic: &str,
+    ) -> Result<Self, CreateDeviceError> {
         trace!(id = identifier, "Setting up AudioSetup");
 
         // Create the child devices
         let mixer_id = format!("{}.mixer", identifier);
         let mixer = (*config.mixer).create(&mixer_id, client.clone(), presence_topic)?;
-        let mixer = As::consume(mixer).ok_or(DeviceCreateError::OnOffExpected(mixer_id))?;
+        let mixer = As::consume(mixer).ok_or(CreateDeviceError::OnOffExpected(mixer_id))?;
 
         let speakers_id = format!("{}.speakers", identifier);
         let speakers = (*config.speakers).create(&speakers_id, client, presence_topic)?;
         let speakers =
-            As::consume(speakers).ok_or(DeviceCreateError::OnOffExpected(speakers_id))?;
+            As::consume(speakers).ok_or(CreateDeviceError::OnOffExpected(speakers_id))?;
 
         Ok(Self {
             identifier: identifier.to_owned(),

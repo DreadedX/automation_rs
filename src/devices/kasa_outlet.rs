@@ -9,11 +9,12 @@ use google_home::{
     errors::{self, DeviceError},
     traits,
 };
+use rumqttc::AsyncClient;
 use serde::{Deserialize, Serialize};
 use thiserror::Error;
 use tracing::trace;
 
-use crate::error::DeviceCreateError;
+use crate::{config::CreateDevice, error::CreateDeviceError};
 
 use super::Device;
 
@@ -28,8 +29,15 @@ pub struct KasaOutlet {
     addr: SocketAddr,
 }
 
-impl KasaOutlet {
-    pub fn create(identifier: &str, config: KasaOutletConfig) -> Result<Self, DeviceCreateError> {
+impl CreateDevice for KasaOutlet {
+    type Config = KasaOutletConfig;
+
+    fn create(
+        identifier: &str,
+        config: Self::Config,
+        _client: AsyncClient,
+        _presence_topic: &str,
+    ) -> Result<Self, CreateDeviceError> {
         trace!(id = identifier, "Setting up KasaOutlet");
 
         Ok(Self {

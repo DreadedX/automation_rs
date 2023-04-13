@@ -7,8 +7,8 @@ use tokio::task::JoinHandle;
 use tracing::{debug, error, trace, warn};
 
 use crate::{
-    config::MqttDeviceConfig,
-    error::{DeviceCreateError, MissingWildcard},
+    config::{CreateDevice, MqttDeviceConfig},
+    error::{CreateDeviceError, MissingWildcard},
     mqtt::{ContactMessage, OnMqtt, PresenceMessage},
     presence::OnPresence,
 };
@@ -69,13 +69,15 @@ pub struct ContactSensor {
     handle: Option<JoinHandle<()>>,
 }
 
-impl ContactSensor {
-    pub fn create(
+impl CreateDevice for ContactSensor {
+    type Config = ContactSensorConfig;
+
+    fn create(
         identifier: &str,
-        config: ContactSensorConfig,
+        config: Self::Config,
         client: AsyncClient,
         presence_topic: &str,
-    ) -> Result<Self, DeviceCreateError> {
+    ) -> Result<Self, CreateDeviceError> {
         trace!(id = identifier, "Setting up ContactSensor");
 
         let presence = config
