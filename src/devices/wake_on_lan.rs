@@ -10,14 +10,31 @@ use google_home::{
     GoogleHomeDevice,
 };
 use rumqttc::Publish;
-use tracing::{debug, error};
+use serde::Deserialize;
+use tracing::{debug, error, trace};
 
 use crate::{
     config::{InfoConfig, MqttDeviceConfig},
+    error::DeviceCreateError,
     mqtt::{ActivateMessage, OnMqtt},
 };
 
 use super::Device;
+
+#[derive(Debug, Clone, Deserialize)]
+pub struct WakeOnLANConfig {
+    #[serde(flatten)]
+    info: InfoConfig,
+    #[serde(flatten)]
+    mqtt: MqttDeviceConfig,
+    mac_address: MacAddress,
+    #[serde(default = "default_broadcast_ip")]
+    broadcast_ip: Ipv4Addr,
+}
+
+fn default_broadcast_ip() -> Ipv4Addr {
+    Ipv4Addr::new(255, 255, 255, 255)
+}
 
 #[derive(Debug)]
 pub struct WakeOnLAN {
@@ -29,20 +46,21 @@ pub struct WakeOnLAN {
 }
 
 impl WakeOnLAN {
-    pub fn new(
-        identifier: &str,
-        info: InfoConfig,
-        mqtt: MqttDeviceConfig,
-        mac_address: MacAddress,
-        broadcast_ip: Ipv4Addr,
-    ) -> Self {
-        Self {
+    pub fn create(identifier: &str, config: WakeOnLANConfig) -> Result<Self, DeviceCreateError> {
+        trace!(
+            id = identifier,
+            name = config.info.name,
+            room = config.info.room,
+            "Setting up WakeOnLAN"
+        );
+
+        Ok(Self {
             identifier: identifier.to_owned(),
-            info,
-            mqtt,
-            mac_address,
-            broadcast_ip,
-        }
+            info: config.info,
+            mqtt: config.mqtt,
+            mac_address: config.mac_address,
+            broadcast_ip: config.broadcast_ip,
+        })
     }
 }
 

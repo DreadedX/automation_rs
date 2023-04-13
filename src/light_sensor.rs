@@ -1,10 +1,11 @@
 use async_trait::async_trait;
 use rumqttc::{matches, AsyncClient};
+use serde::Deserialize;
 use tokio::sync::watch;
 use tracing::{debug, error, trace};
 
 use crate::{
-    config::{LightSensorConfig, MqttDeviceConfig},
+    config::MqttDeviceConfig,
     error::LightSensorError,
     mqtt::{self, BrightnessMessage, OnMqtt},
 };
@@ -16,6 +17,14 @@ pub trait OnDarkness: Sync + Send + 'static {
 
 pub type Receiver = watch::Receiver<bool>;
 type Sender = watch::Sender<bool>;
+
+#[derive(Debug, Clone, Deserialize)]
+pub struct LightSensorConfig {
+    #[serde(flatten)]
+    pub mqtt: MqttDeviceConfig,
+    pub min: isize,
+    pub max: isize,
+}
 
 #[derive(Debug)]
 struct LightSensor {

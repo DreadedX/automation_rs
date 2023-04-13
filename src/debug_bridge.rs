@@ -1,13 +1,18 @@
 use async_trait::async_trait;
 use rumqttc::AsyncClient;
+use serde::Deserialize;
 use tracing::warn;
 
 use crate::{
-    config::DebugBridgeConfig,
     light_sensor::{self, OnDarkness},
     mqtt::{DarknessMessage, PresenceMessage},
     presence::{self, OnPresence},
 };
+
+#[derive(Debug, Deserialize)]
+pub struct DebugBridgeConfig {
+    pub topic: String,
+}
 
 struct DebugBridge {
     topic: String,
@@ -15,9 +20,9 @@ struct DebugBridge {
 }
 
 impl DebugBridge {
-    pub fn new(topic: &str, client: AsyncClient) -> Self {
+    pub fn new(config: DebugBridgeConfig, client: AsyncClient) -> Self {
         Self {
-            topic: topic.to_owned(),
+            topic: config.topic,
             client,
         }
     }
@@ -26,10 +31,10 @@ impl DebugBridge {
 pub fn start(
     mut presence_rx: presence::Receiver,
     mut light_sensor_rx: light_sensor::Receiver,
-    config: &DebugBridgeConfig,
+    config: DebugBridgeConfig,
     client: AsyncClient,
 ) {
-    let mut debug_bridge = DebugBridge::new(&config.topic, client);
+    let mut debug_bridge = DebugBridge::new(config, client);
 
     tokio::spawn(async move {
         loop {

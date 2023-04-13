@@ -19,6 +19,17 @@ pub trait OnMqtt {
 pub type Receiver = broadcast::Receiver<Publish>;
 type Sender = broadcast::Sender<Publish>;
 
+#[derive(Debug, Clone, Deserialize)]
+pub struct MqttConfig {
+    pub host: String,
+    pub port: u16,
+    pub client_name: String,
+    pub username: String,
+    pub password: String,
+    #[serde(default)]
+    pub tls: bool,
+}
+
 pub struct Mqtt {
     tx: Sender,
     eventloop: EventLoop,

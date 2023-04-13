@@ -1,16 +1,25 @@
 use async_trait::async_trait;
 use google_home::traits;
-use tracing::{debug, error, warn};
+use rumqttc::AsyncClient;
+use serde::Deserialize;
+use tracing::{debug, error, trace, warn};
 
-use crate::config::MqttDeviceConfig;
-use crate::error::DeviceError;
+use crate::config::{self, MqttDeviceConfig};
+use crate::error::DeviceCreateError;
 use crate::mqtt::{OnMqtt, RemoteAction, RemoteMessage};
 use crate::presence::OnPresence;
 
 use super::{As, Device};
 
-// TODO: Ideally we store am Arc to the childern devices,
-// that way they hook into everything just like all other devices
+#[derive(Debug, Clone, Deserialize)]
+pub struct AudioSetupConfig {
+    #[serde(flatten)]
+    mqtt: MqttDeviceConfig,
+    mixer: Box<config::Device>,
+    speakers: Box<config::Device>,
+}
+
+// TODO: We need a better way to store the children devices
 #[derive(Debug)]
 pub struct AudioSetup {
     identifier: String,
@@ -20,22 +29,28 @@ pub struct AudioSetup {
 }
 
 impl AudioSetup {
-    pub async fn build(
+    pub fn create(
         identifier: &str,
-        mqtt: MqttDeviceConfig,
-        mixer: Box<dyn Device>,
-        speakers: Box<dyn Device>,
-    ) -> Result<Self, DeviceError> {
-        // We expect the children devices to implement the OnOff trait
-        let mixer_id = mixer.get_id().to_owned();
-        let mixer = As::consume(mixer).ok_or(DeviceError::OnOffExpected(mixer_id))?;
+        config: AudioSetupConfig,
+        client: AsyncClient,
+        // We only need to pass this in because constructing children
+        presence_topic: &str, // Not a big fan of passing in the global config
+    ) -> Result<Self, DeviceCreateError> {
+        trace!(id = identifier, "Setting up AudioSetup");
 
-        let speakers_id = speakers.get_id().to_owned();
-        let speakers = As::consume(speakers).ok_or(DeviceError::OnOffExpected(speakers_id))?;
+        // Create the child devices
+        let mixer_id = format!("{}.mixer", identifier);
+        let mixer = (*config.mixer).create(&mixer_id, client.clone(), presence_topic)?;
+        let mixer = As::consume(mixer).ok_or(DeviceCreateError::OnOffExpected(mixer_id))?;
+
+        let speakers_id = format!("{}.speakers", identifier);
+        let speakers = (*config.speakers).create(&speakers_id, client, presence_topic)?;
+        let speakers =
+            As::consume(speakers).ok_or(DeviceCreateError::OnOffExpected(speakers_id))?;
 
         Ok(Self {
             identifier: identifier.to_owned(),
-            mqtt,
+            mqtt: config.mqtt,
             mixer,
             speakers,
         })

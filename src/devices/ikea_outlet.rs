@@ -8,14 +8,38 @@ use google_home::{
 };
 use pollster::FutureExt as _;
 use rumqttc::{AsyncClient, Publish};
+use serde::Deserialize;
 use std::time::Duration;
 use tokio::task::JoinHandle;
-use tracing::{debug, error, warn};
+use tracing::{debug, error, trace, warn};
 
-use crate::config::{InfoConfig, MqttDeviceConfig, OutletType};
+use crate::config::{InfoConfig, MqttDeviceConfig};
 use crate::devices::Device;
+use crate::error::DeviceCreateError;
 use crate::mqtt::{OnMqtt, OnOffMessage};
 use crate::presence::OnPresence;
+
+#[derive(Debug, Clone, Deserialize, PartialEq, Eq, Copy)]
+pub enum OutletType {
+    Outlet,
+    Kettle,
+    Charger,
+}
+
+#[derive(Debug, Clone, Deserialize)]
+pub struct IkeaOutletConfig {
+    #[serde(flatten)]
+    info: InfoConfig,
+    #[serde(flatten)]
+    mqtt: MqttDeviceConfig,
+    #[serde(default = "default_outlet_type")]
+    outlet_type: OutletType,
+    timeout: Option<u64>, // Timeout in seconds
+}
+
+fn default_outlet_type() -> OutletType {
+    OutletType::Outlet
+}
 
 #[derive(Debug)]
 pub struct IkeaOutlet {
@@ -31,24 +55,28 @@ pub struct IkeaOutlet {
 }
 
 impl IkeaOutlet {
-    pub fn new(
+    pub fn create(
         identifier: &str,
-        info: InfoConfig,
-        mqtt: MqttDeviceConfig,
-        outlet_type: OutletType,
-        timeout: Option<u64>,
+        config: IkeaOutletConfig,
         client: AsyncClient,
-    ) -> Self {
-        Self {
+    ) -> Result<Self, DeviceCreateError> {
+        trace!(
+            id = identifier,
+            name = config.info.name,
+            room = config.info.room,
+            "Setting up IkeaOutlet"
+        );
+
+        Ok(Self {
             identifier: identifier.to_owned(),
-            info,
-            mqtt,
-            outlet_type,
-            timeout,
+            info: config.info,
+            mqtt: config.mqtt,
+            outlet_type: config.outlet_type,
+            timeout: config.timeout,
             client,
             last_known_state: false,
             handle: None,
-        }
+        })
     }
 }
 

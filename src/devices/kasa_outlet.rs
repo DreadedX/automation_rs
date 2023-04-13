@@ -11,8 +11,16 @@ use google_home::{
 };
 use serde::{Deserialize, Serialize};
 use thiserror::Error;
+use tracing::trace;
+
+use crate::error::DeviceCreateError;
 
 use super::Device;
+
+#[derive(Debug, Clone, Deserialize)]
+pub struct KasaOutletConfig {
+    ip: Ipv4Addr,
+}
 
 #[derive(Debug)]
 pub struct KasaOutlet {
@@ -21,11 +29,13 @@ pub struct KasaOutlet {
 }
 
 impl KasaOutlet {
-    pub fn new(identifier: &str, ip: Ipv4Addr) -> Self {
-        Self {
+    pub fn create(identifier: &str, config: KasaOutletConfig) -> Result<Self, DeviceCreateError> {
+        trace!(id = identifier, "Setting up KasaOutlet");
+
+        Ok(Self {
             identifier: identifier.to_owned(),
-            addr: (ip, 9999).into(),
-        }
+            addr: (config.ip, 9999).into(),
+        })
     }
 }
 

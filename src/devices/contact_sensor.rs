@@ -1,17 +1,61 @@
 use std::time::Duration;
 
 use async_trait::async_trait;
-use rumqttc::AsyncClient;
+use rumqttc::{has_wildcards, AsyncClient};
+use serde::Deserialize;
 use tokio::task::JoinHandle;
-use tracing::{debug, error, warn};
+use tracing::{debug, error, trace, warn};
 
 use crate::{
-    config::{MqttDeviceConfig, PresenceDeviceConfig},
+    config::MqttDeviceConfig,
+    error::{DeviceCreateError, MissingWildcard},
     mqtt::{ContactMessage, OnMqtt, PresenceMessage},
     presence::OnPresence,
 };
 
 use super::Device;
+
+// NOTE: If we add more presence devices we might need to move this out of here
+#[derive(Debug, Clone, Deserialize)]
+pub struct PresenceDeviceConfig {
+    #[serde(flatten)]
+    pub mqtt: Option<MqttDeviceConfig>,
+    pub timeout: u64, // Timeout in seconds
+}
+
+impl PresenceDeviceConfig {
+    /// Set the mqtt topic to an appropriate value if it is not already set
+    fn generate_topic(
+        mut self,
+        class: &str,
+        identifier: &str,
+        presence_topic: &str,
+    ) -> Result<PresenceDeviceConfig, MissingWildcard> {
+        if self.mqtt.is_none() {
+            if !has_wildcards(presence_topic) {
+                return Err(MissingWildcard::new(presence_topic));
+            }
+
+            // TODO: This is not perfect, if the topic is some/+/thing/# this will fail
+            let offset = presence_topic
+                .find('+')
+                .or(presence_topic.find('#'))
+                .unwrap();
+            let topic = format!("{}/{class}/{identifier}", &presence_topic[..offset - 1]);
+            trace!("Setting presence mqtt topic: {topic}");
+            self.mqtt = Some(MqttDeviceConfig { topic });
+        }
+
+        Ok(self)
+    }
+}
+
+#[derive(Debug, Clone, Deserialize)]
+pub struct ContactSensorConfig {
+    #[serde(flatten)]
+    mqtt: MqttDeviceConfig,
+    presence: Option<PresenceDeviceConfig>,
+}
 
 #[derive(Debug)]
 pub struct ContactSensor {
@@ -26,21 +70,28 @@ pub struct ContactSensor {
 }
 
 impl ContactSensor {
-    pub fn new(
+    pub fn create(
         identifier: &str,
-        mqtt: MqttDeviceConfig,
-        presence: Option<PresenceDeviceConfig>,
+        config: ContactSensorConfig,
         client: AsyncClient,
-    ) -> Self {
-        Self {
+        presence_topic: &str,
+    ) -> Result<Self, DeviceCreateError> {
+        trace!(id = identifier, "Setting up ContactSensor");
+
+        let presence = config
+            .presence
+            .map(|p| p.generate_topic("contact", identifier, presence_topic))
+            .transpose()?;
+
+        Ok(Self {
             identifier: identifier.to_owned(),
-            mqtt,
+            mqtt: config.mqtt,
             presence,
             client,
             overall_presence: false,
             is_closed: true,
             handle: None,
-        }
+        })
     }
 }
 

@@ -1,11 +1,10 @@
-use std::net::SocketAddr;
+use std::net::{Ipv4Addr, SocketAddr};
 
 use async_trait::async_trait;
-use serde::Serialize;
+use serde::{Deserialize, Serialize};
 use tracing::{error, trace, warn};
 
 use crate::{
-    config::{Flags, HueBridgeConfig},
     light_sensor::{self, OnDarkness},
     presence::{self, OnPresence},
 };
@@ -15,10 +14,22 @@ pub enum Flag {
     Darkness,
 }
 
+#[derive(Debug, Clone, Deserialize)]
+pub struct FlagIDs {
+    pub presence: isize,
+    pub darkness: isize,
+}
+
+#[derive(Debug, Deserialize)]
+pub struct HueBridgeConfig {
+    pub ip: Ipv4Addr,
+    pub login: String,
+    pub flags: FlagIDs,
+}
 struct HueBridge {
     addr: SocketAddr,
     login: String,
-    flags: Flags,
+    flags: FlagIDs,
 }
 
 #[derive(Debug, Serialize)]
@@ -27,11 +38,11 @@ struct FlagMessage {
 }
 
 impl HueBridge {
-    pub fn new(addr: SocketAddr, login: &str, flags: Flags) -> Self {
+    pub fn new(config: HueBridgeConfig) -> Self {
         Self {
-            addr,
-            login: login.to_owned(),
-            flags,
+            addr: (config.ip, 80).into(),
+            login: config.login,
+            flags: config.flags,
         }
     }
 
@@ -68,10 +79,9 @@ impl HueBridge {
 pub fn start(
     mut presence_rx: presence::Receiver,
     mut light_sensor_rx: light_sensor::Receiver,
-    config: &HueBridgeConfig,
+    config: HueBridgeConfig,
 ) {
-    let mut hue_bridge =
-        HueBridge::new((config.ip, 80).into(), &config.login, config.flags.clone());
+    let mut hue_bridge = HueBridge::new(config);
 
     tokio::spawn(async move {
         loop {

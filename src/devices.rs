@@ -4,11 +4,11 @@ mod ikea_outlet;
 mod kasa_outlet;
 mod wake_on_lan;
 
-pub use self::audio_setup::AudioSetup;
-pub use self::contact_sensor::ContactSensor;
-pub use self::ikea_outlet::IkeaOutlet;
-pub use self::kasa_outlet::KasaOutlet;
-pub use self::wake_on_lan::WakeOnLAN;
+pub use self::audio_setup::{AudioSetup, AudioSetupConfig};
+pub use self::contact_sensor::{ContactSensor, ContactSensorConfig};
+pub use self::ikea_outlet::{IkeaOutlet, IkeaOutletConfig};
+pub use self::kasa_outlet::{KasaOutlet, KasaOutletConfig};
+pub use self::wake_on_lan::{WakeOnLAN, WakeOnLANConfig};
 
 use std::collections::HashMap;
 

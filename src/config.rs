@@ -5,16 +5,21 @@ use std::{
     time::Duration,
 };
 
-use async_recursion::async_recursion;
-use eui48::MacAddress;
 use regex::{Captures, Regex};
-use rumqttc::{has_wildcards, AsyncClient, MqttOptions, Transport};
+use rumqttc::{AsyncClient, MqttOptions, Transport};
 use serde::{Deserialize, Deserializer};
-use tracing::{debug, trace};
+use tracing::debug;
 
 use crate::{
-    devices::{self, AudioSetup, ContactSensor, IkeaOutlet, KasaOutlet, WakeOnLAN},
-    error::{ConfigParseError, DeviceCreationError, MissingEnv, MissingWildcard},
+    auth::OpenIDConfig,
+    debug_bridge::DebugBridgeConfig,
+    devices::{
+        self, AudioSetup, AudioSetupConfig, ContactSensor, ContactSensorConfig, IkeaOutlet,
+        IkeaOutletConfig, KasaOutlet, KasaOutletConfig, WakeOnLAN, WakeOnLANConfig,
+    },
+    error::{ConfigParseError, DeviceCreateError, MissingEnv},
+    hue_bridge::HueBridgeConfig,
+    light_sensor::LightSensorConfig,
 };
 
 #[derive(Debug, Deserialize)]
@@ -34,11 +39,6 @@ pub struct Config {
 }
 
 #[derive(Debug, Clone, Deserialize)]
-pub struct OpenIDConfig {
-    pub base_url: String,
-}
-
-#[derive(Debug, Clone, Deserialize)]
 pub struct MqttConfig {
     pub host: String,
     pub port: u16,
@@ -47,13 +47,6 @@ pub struct MqttConfig {
     pub password: String,
     #[serde(default)]
     pub tls: bool,
-}
-
-fn deserialize_mqtt_options<'de, D>(deserializer: D) -> Result<MqttOptions, D::Error>
-where
-    D: Deserializer<'de>,
-{
-    Ok(MqttOptions::from(MqttConfig::deserialize(deserializer)?))
 }
 
 impl From<MqttConfig> for MqttOptions {
@@ -68,6 +61,13 @@ impl From<MqttConfig> for MqttOptions {
 
         mqtt_options
     }
+}
+
+fn deserialize_mqtt_options<'de, D>(deserializer: D) -> Result<MqttOptions, D::Error>
+where
+    D: Deserializer<'de>,
+{
+    Ok(MqttOptions::from(MqttConfig::deserialize(deserializer)?))
 }
 
 #[derive(Debug, Deserialize)]
@@ -113,32 +113,6 @@ fn default_ntfy_url() -> String {
 }
 
 #[derive(Debug, Clone, Deserialize)]
-pub struct LightSensorConfig {
-    #[serde(flatten)]
-    pub mqtt: MqttDeviceConfig,
-    pub min: isize,
-    pub max: isize,
-}
-
-#[derive(Debug, Clone, Deserialize)]
-pub struct Flags {
-    pub presence: isize,
-    pub darkness: isize,
-}
-
-#[derive(Debug, Deserialize)]
-pub struct HueBridgeConfig {
-    pub ip: Ipv4Addr,
-    pub login: String,
-    pub flags: Flags,
-}
-
-#[derive(Debug, Deserialize)]
-pub struct DebugBridgeConfig {
-    pub topic: String,
-}
-
-#[derive(Debug, Clone, Deserialize)]
 pub struct InfoConfig {
     pub name: String,
     pub room: Option<String>,
@@ -149,102 +123,14 @@ pub struct MqttDeviceConfig {
     pub topic: String,
 }
 
-#[derive(Debug, Clone, Deserialize, PartialEq, Eq, Copy)]
-pub enum OutletType {
-    Outlet,
-    Kettle,
-    Charger,
-}
-
-#[derive(Debug, Clone, Deserialize)]
-pub struct KettleConfig {
-    pub timeout: Option<u64>, // Timeout in seconds
-}
-
-#[derive(Debug, Clone, Deserialize)]
-pub struct PresenceDeviceConfig {
-    #[serde(flatten)]
-    pub mqtt: Option<MqttDeviceConfig>,
-    // TODO: Maybe make this an option? That way if no timeout is set it will immediately turn the
-    // device off again?
-    pub timeout: u64, // Timeout in seconds
-}
-
-impl PresenceDeviceConfig {
-    /// Set the mqtt topic to an appropriate value if it is not already set
-    fn generate_topic(
-        mut self,
-        class: &str,
-        identifier: &str,
-        config: &Config,
-    ) -> Result<PresenceDeviceConfig, MissingWildcard> {
-        if self.mqtt.is_none() {
-            if !has_wildcards(&config.presence.topic) {
-                return Err(MissingWildcard::new(&config.presence.topic));
-            }
-
-            // TODO: This is not perfect, if the topic is some/+/thing/# this will fail
-            let offset = config
-                .presence
-                .topic
-                .find('+')
-                .or(config.presence.topic.find('#'))
-                .unwrap();
-            let topic = format!(
-                "{}/{class}/{identifier}",
-                &config.presence.topic[..offset - 1]
-            );
-            trace!("Setting presence mqtt topic: {topic}");
-            self.mqtt = Some(MqttDeviceConfig { topic });
-        }
-
-        Ok(self)
-    }
-}
-
 #[derive(Debug, Clone, Deserialize)]
 #[serde(tag = "type")]
 pub enum Device {
-    IkeaOutlet {
-        #[serde(flatten)]
-        info: InfoConfig,
-        #[serde(flatten)]
-        mqtt: MqttDeviceConfig,
-        #[serde(default = "default_outlet_type")]
-        outlet_type: OutletType,
-        timeout: Option<u64>, // Timeout in seconds
-    },
-    WakeOnLAN {
-        #[serde(flatten)]
-        info: InfoConfig,
-        #[serde(flatten)]
-        mqtt: MqttDeviceConfig,
-        mac_address: MacAddress,
-        #[serde(default = "default_broadcast_ip")]
-        broadcast_ip: Ipv4Addr,
-    },
-    KasaOutlet {
-        ip: Ipv4Addr,
-    },
-    AudioSetup {
-        #[serde(flatten)]
-        mqtt: MqttDeviceConfig,
-        mixer: Box<Device>,
-        speakers: Box<Device>,
-    },
-    ContactSensor {
-        #[serde(flatten)]
-        mqtt: MqttDeviceConfig,
-        presence: Option<PresenceDeviceConfig>,
-    },
-}
-
-fn default_outlet_type() -> OutletType {
-    OutletType::Outlet
-}
-
-fn default_broadcast_ip() -> Ipv4Addr {
-    Ipv4Addr::new(255, 255, 255, 255)
+    IkeaOutlet(IkeaOutletConfig),
+    WakeOnLAN(WakeOnLANConfig),
+    KasaOutlet(KasaOutletConfig),
+    AudioSetup(AudioSetupConfig),
+    ContactSensor(ContactSensorConfig),
 }
 
 impl Config {
@@ -275,94 +161,26 @@ impl Config {
     }
 }
 
-// Quick helper function to box up the devices,
-// passing in Box::new would be ideal, however the return type is incorrect
-// Maybe there is a better way to solve this?
-// fn device_box<T: devices::Device>(device: T) -> DeviceBox {
-//     let a: DeviceBox = Box::new(device);
-//     a
-// }
-
 impl Device {
-    #[async_recursion]
-    pub async fn create(
+    pub fn create(
         self,
         identifier: &str,
-        config: &Config,
         client: AsyncClient,
-    ) -> Result<Box<dyn devices::Device>, DeviceCreationError> {
+        presence_topic: &str,
+    ) -> Result<Box<dyn devices::Device>, DeviceCreateError> {
         let device: Box<dyn devices::Device> = match self {
-            Device::IkeaOutlet {
-                info,
-                mqtt,
-                outlet_type,
-                timeout,
-            } => {
-                trace!(
-                    id = identifier,
-                    "IkeaOutlet [{} in {:?}]",
-                    info.name,
-                    info.room
-                );
-                Box::new(IkeaOutlet::new(
-                    identifier,
-                    info,
-                    mqtt,
-                    outlet_type,
-                    timeout,
-                    client,
-                ))
+            Device::IkeaOutlet(c) => Box::new(IkeaOutlet::create(identifier, c, client)?),
+            Device::WakeOnLAN(c) => Box::new(WakeOnLAN::create(identifier, c)?),
+            Device::KasaOutlet(c) => Box::new(KasaOutlet::create(identifier, c)?),
+            Device::AudioSetup(c) => {
+                Box::new(AudioSetup::create(identifier, c, client, presence_topic)?)
             }
-            Device::WakeOnLAN {
-                info,
-                mqtt,
-                mac_address,
-                broadcast_ip,
-            } => {
-                trace!(
-                    id = identifier,
-                    "WakeOnLan [{} in {:?}]",
-                    info.name,
-                    info.room
-                );
-                Box::new(WakeOnLAN::new(
-                    identifier,
-                    info,
-                    mqtt,
-                    mac_address,
-                    broadcast_ip,
-                ))
-            }
-            Device::KasaOutlet { ip } => {
-                trace!(id = identifier, "KasaOutlet [{}]", identifier);
-                Box::new(KasaOutlet::new(identifier, ip))
-            }
-            Device::AudioSetup {
-                mqtt,
-                mixer,
-                speakers,
-            } => {
-                trace!(id = identifier, "AudioSetup [{}]", identifier);
-                // Create the child devices
-                let mixer_id = format!("{}.mixer", identifier);
-                let mixer = (*mixer).create(&mixer_id, config, client.clone()).await?;
-                let speakers_id = format!("{}.speakers", identifier);
-                let speakers = (*speakers)
-                    .create(&speakers_id, config, client.clone())
-                    .await?;
-
-                AudioSetup::build(identifier, mqtt, mixer, speakers)
-                    .await
-                    .map(Box::new)?
-            }
-            Device::ContactSensor { mqtt, presence } => {
-                trace!(id = identifier, "ContactSensor [{}]", identifier);
-                let presence = presence
-                    .map(|p| p.generate_topic("contact", identifier, config))
-                    .transpose()?;
-
-                Box::new(ContactSensor::new(identifier, mqtt, presence, client))
-            }
+            Device::ContactSensor(c) => Box::new(ContactSensor::create(
+                identifier,
+                c,
+                client,
+                presence_topic,
+            )?),
         };
 
         Ok(device)

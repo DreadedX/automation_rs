@@ -5,10 +5,12 @@ use axum::{
 };
 use serde::Deserialize;
 
-use crate::{
-    config::OpenIDConfig,
-    error::{ApiError, ApiErrorJson},
-};
+use crate::error::{ApiError, ApiErrorJson};
+
+#[derive(Debug, Clone, Deserialize)]
+pub struct OpenIDConfig {
+    pub base_url: String,
+}
 
 #[derive(Debug, Deserialize)]
 pub struct User {

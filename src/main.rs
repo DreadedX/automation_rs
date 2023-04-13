@@ -6,8 +6,8 @@ use axum::{
 };
 
 use automation::{
-    auth::User,
-    config::{Config, OpenIDConfig},
+    auth::{OpenIDConfig, User},
+    config::Config,
     debug_bridge, devices,
     error::ApiError,
     hue_bridge, light_sensor,
@@ -26,7 +26,7 @@ struct AppState {
     pub openid: OpenIDConfig,
 }
 
-impl FromRef<AppState> for automation::config::OpenIDConfig {
+impl FromRef<AppState> for OpenIDConfig {
     fn from_ref(input: &AppState) -> Self {
         input.openid.clone()
     }
@@ -74,12 +74,12 @@ async fn app() -> anyhow::Result<()> {
     }
 
     // Start the hue bridge if it is configured
-    if let Some(config) = &config.hue_bridge {
+    if let Some(config) = config.hue_bridge {
         hue_bridge::start(presence.clone(), light_sensor.clone(), config);
     }
 
     // Start the debug bridge if it is configured
-    if let Some(config) = &config.debug_bridge {
+    if let Some(config) = config.debug_bridge {
         debug_bridge::start(
             presence.clone(),
             light_sensor.clone(),
@@ -88,27 +88,31 @@ async fn app() -> anyhow::Result<()> {
         );
     }
 
-    let devices = devices::start(
+    // Setup the device handler
+    let device_handler = devices::start(
         mqtt.subscribe(),
         presence.clone(),
         light_sensor.clone(),
         client.clone(),
     );
+
+    // Create all the devices specified in the config
+    let devices = config
+        .devices
+        .into_iter()
+        .map(|(identifier, device_config)| {
+            device_config.create(&identifier, client.clone(), &config.presence.topic)
+        })
+        .collect::<Result<Vec<_>, _>>()?;
+
+    // Can even add some more devices here
+    // devices.push(device)
+
+    // Register all the devices to the device_handler
     join_all(
-        config
-            .devices
-            .clone()
+        devices
             .into_iter()
-            .map(|(identifier, device_config)| async {
-                // Force the async block to move identifier
-                let identifier = identifier;
-                let device = device_config
-                    .create(&identifier, &config, client.clone())
-                    .await?;
-                devices.add_device(device).await?;
-                // We don't need a seperate error type in main
-                anyhow::Ok(())
-            }),
+            .map(|device| async { device_handler.add_device(device).await }),
     )
     .await
     .into_iter()
@@ -124,7 +128,7 @@ async fn app() -> anyhow::Result<()> {
         post(async move |user: User, Json(payload): Json<Request>| {
             debug!(username = user.preferred_username, "{payload:#?}");
             let gc = GoogleHome::new(&user.preferred_username);
-            let result = match devices.fullfillment(gc, payload).await {
+            let result = match device_handler.fullfillment(gc, payload).await {
                 Ok(result) => result,
                 Err(err) => {
                     return ApiError::new(StatusCode::INTERNAL_SERVER_ERROR, err.into())
