@@ -12,21 +12,22 @@ pub use self::wake_on_lan::WakeOnLAN;
 
 use std::collections::HashMap;
 
+use futures::future::join_all;
 use google_home::{traits::OnOff, FullfillmentError, GoogleHome, GoogleHomeDevice};
-use pollster::FutureExt;
 use rumqttc::{matches, AsyncClient, QoS};
 use thiserror::Error;
 use tokio::sync::{mpsc, oneshot};
-use tracing::{debug, error, trace};
+use tracing::{debug, error, instrument, trace};
 
 use crate::{
     event::{Event, EventChannel},
     light_sensor::OnDarkness,
     mqtt::OnMqtt,
+    ntfy::OnNotification,
     presence::OnPresence,
 };
 
-#[impl_cast::device(As: OnMqtt + OnPresence + OnDarkness + GoogleHomeDevice + OnOff)]
+#[impl_cast::device(As: OnMqtt + OnPresence + OnDarkness + OnNotification + GoogleHomeDevice + OnOff)]
 pub trait Device: std::fmt::Debug + Sync + Send {
     fn get_id(&self) -> &str;
 }
@@ -85,6 +86,20 @@ impl DevicesHandle {
         Ok(rx.await??)
     }
 
+    // TODO: Finish implementing this
+    // pub fn create_device<T>(&self, identifier: &str, config: T::Config, presence_topic: &str) -> Result<T, CreateDeviceError>
+    // where
+    //     T: CreateDevice,
+    // {
+    //     T::create(
+    //         identifier,
+    //         config,
+    //         self.event_channel,
+    //         self.client,
+    //         presence_topic: presence_topic.to_owned(),
+    //     )
+    // }
+
     pub async fn add_device(&self, device: Box<dyn Device>) -> Result<(), DevicesError> {
         let (tx, rx) = oneshot::channel();
         self.tx.send(Command::AddDevice { device, tx }).await?;
@@ -92,21 +107,21 @@ impl DevicesHandle {
     }
 }
 
-pub fn start(event_channel: &EventChannel, client: AsyncClient) -> DevicesHandle {
+pub fn start(client: AsyncClient) -> (DevicesHandle, EventChannel) {
     let mut devices = Devices {
         devices: HashMap::new(),
         client,
     };
 
+    let (event_channel, mut event_rx) = EventChannel::new();
     let (tx, mut rx) = mpsc::channel(100);
-    let mut event_rx = event_channel.get_rx();
 
     tokio::spawn(async move {
         // TODO: Handle error better
         loop {
             tokio::select! {
                 event = event_rx.recv() => {
-                    if event.is_err() {
+                    if event.is_none() {
                         todo!("Handle errors with the event channel properly")
                     }
                     devices.handle_event(event.unwrap()).await;
@@ -123,7 +138,7 @@ pub fn start(event_channel: &EventChannel, client: AsyncClient) -> DevicesHandle
         }
     });
 
-    DevicesHandle { tx }
+    (DevicesHandle { tx }, event_channel)
 }
 
 impl Devices {
@@ -165,12 +180,13 @@ impl Devices {
         self.devices.insert(device.get_id().to_owned(), device);
     }
 
+    #[instrument(skip(self))]
     async fn handle_event(&mut self, event: Event) {
         match event {
             Event::MqttMessage(message) => {
-                self.get::<dyn OnMqtt>()
-                    .iter_mut()
-                    .for_each(|(id, listener)| {
+                let iter = self.get::<dyn OnMqtt>().into_iter().map(|(id, listener)| {
+                    let message = message.clone();
+                    async move {
                         let subscribed = listener
                             .topics()
                             .iter()
@@ -178,27 +194,49 @@ impl Devices {
 
                         if subscribed {
                             trace!(id, "Handling");
-                            listener.on_mqtt(&message).block_on();
+                            listener.on_mqtt(message).await;
                         }
-                    })
+                    }
+                });
+
+                join_all(iter).await;
             }
             Event::Darkness(dark) => {
-                self.get::<dyn OnDarkness>()
-                    .iter_mut()
-                    .for_each(|(id, device)| {
-                        trace!(id, "Handling");
-                        device.on_darkness(dark).block_on();
-                    })
+                let iter =
+                    self.get::<dyn OnDarkness>()
+                        .into_iter()
+                        .map(|(id, device)| async move {
+                            trace!(id, "Handling");
+                            device.on_darkness(dark).await;
+                        });
+
+                join_all(iter).await;
             }
             Event::Presence(presence) => {
-                self.get::<dyn OnPresence>()
-                    .iter_mut()
-                    .for_each(|(id, device)| {
-                        trace!(id, "Handling");
-                        device.on_presence(presence).block_on();
-                    })
+                let iter =
+                    self.get::<dyn OnPresence>()
+                        .into_iter()
+                        .map(|(id, device)| async move {
+                            trace!(id, "Handling");
+                            device.on_presence(presence).await;
+                        });
+
+                join_all(iter).await;
             }
-            Event::Ntfy(_) => {}
+            Event::Ntfy(notification) => {
+                let iter = self
+                    .get::<dyn OnNotification>()
+                    .into_iter()
+                    .map(|(id, device)| {
+                        let notification = notification.clone();
+                        async move {
+                            trace!(id, "Handling");
+                            device.on_notification(notification).await;
+                        }
+                    });
+
+                join_all(iter).await;
+            }
         }
     }
 

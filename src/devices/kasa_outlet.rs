@@ -14,7 +14,7 @@ use serde::{Deserialize, Serialize};
 use thiserror::Error;
 use tracing::trace;
 
-use crate::{config::CreateDevice, error::CreateDeviceError};
+use crate::{config::CreateDevice, error::CreateDeviceError, event::EventChannel};
 
 use super::Device;
 
@@ -35,7 +35,8 @@ impl CreateDevice for KasaOutlet {
     fn create(
         identifier: &str,
         config: Self::Config,
-        _client: AsyncClient,
+        _event_channel: &EventChannel,
+        _client: &AsyncClient,
         _presence_topic: &str,
     ) -> Result<Self, CreateDeviceError> {
         trace!(id = identifier, "Setting up KasaOutlet");

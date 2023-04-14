@@ -16,6 +16,7 @@ use tracing::{debug, error, trace};
 use crate::{
     config::{CreateDevice, InfoConfig, MqttDeviceConfig},
     error::CreateDeviceError,
+    event::EventChannel,
     mqtt::{ActivateMessage, OnMqtt},
 };
 
@@ -51,7 +52,8 @@ impl CreateDevice for WakeOnLAN {
     fn create(
         identifier: &str,
         config: Self::Config,
-        _client: AsyncClient,
+        _event_channel: &EventChannel,
+        _client: &AsyncClient,
         _presence_topic: &str,
     ) -> Result<Self, CreateDeviceError> {
         trace!(
@@ -83,7 +85,7 @@ impl OnMqtt for WakeOnLAN {
         vec![&self.mqtt.topic]
     }
 
-    async fn on_mqtt(&mut self, message: &Publish) {
+    async fn on_mqtt(&mut self, message: Publish) {
         let activate = match ActivateMessage::try_from(message) {
             Ok(message) => message.activate(),
             Err(err) => {

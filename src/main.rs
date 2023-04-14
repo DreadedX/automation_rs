@@ -8,10 +8,14 @@ use axum::{
 use automation::{
     auth::{OpenIDConfig, User},
     config::Config,
-    debug_bridge, devices,
+    debug_bridge::DebugBridge,
+    devices,
     error::ApiError,
-    event::EventChannel,
-    hue_bridge, light_sensor, mqtt, ntfy, presence,
+    hue_bridge::HueBridge,
+    light_sensor::LightSensor,
+    mqtt,
+    ntfy::Ntfy,
+    presence::Presence,
 };
 use dotenvy::dotenv;
 use futures::future::join_all;
@@ -55,41 +59,55 @@ async fn app() -> anyhow::Result<()> {
         std::env::var("AUTOMATION_CONFIG").unwrap_or("./config/config.toml".to_owned());
     let config = Config::parse_file(&config_filename)?;
 
-    let event_channel = EventChannel::new();
-
     // Create a mqtt client
     let (client, eventloop) = AsyncClient::new(config.mqtt.clone(), 10);
 
-    let presence_topic = config.presence.mqtt.topic.to_owned();
-    presence::start(config.presence, &event_channel, client.clone()).await?;
-    light_sensor::start(config.light_sensor, &event_channel, client.clone()).await?;
+    // Setup the device handler
+    let (device_handler, event_channel) = devices::start(client.clone());
 
-    // Start the ntfy service if it is configured
-    if let Some(config) = config.ntfy {
-        ntfy::start(config, &event_channel);
+    // Create all the devices specified in the config
+    let mut devices = config
+        .devices
+        .into_iter()
+        .map(|(identifier, device_config)| {
+            device_config.create(
+                &identifier,
+                &event_channel,
+                &client,
+                &config.presence.mqtt.topic,
+            )
+        })
+        .collect::<Result<Vec<_>, _>>()?;
+
+    // Create and add the light sensor
+    {
+        let light_sensor = LightSensor::new(config.light_sensor, &event_channel);
+        devices.push(Box::new(light_sensor));
     }
 
-    // Start the hue bridge if it is configured
+    // Create and add the presence system
+    {
+        let presence = Presence::new(config.presence, &event_channel);
+        devices.push(Box::new(presence));
+    }
+
+    // If configured, create and add the hue bridge
     if let Some(config) = config.hue_bridge {
-        hue_bridge::start(config, &event_channel);
+        let hue_bridge = HueBridge::new(config);
+        devices.push(Box::new(hue_bridge));
     }
 
     // Start the debug bridge if it is configured
     if let Some(config) = config.debug_bridge {
-        debug_bridge::start(config, &event_channel, client.clone());
+        let debug_bridge = DebugBridge::new(config, &client)?;
+        devices.push(Box::new(debug_bridge));
     }
 
-    // Setup the device handler
-    let device_handler = devices::start(&event_channel, client.clone());
-
-    // Create all the devices specified in the config
-    let devices = config
-        .devices
-        .into_iter()
-        .map(|(identifier, device_config)| {
-            device_config.create(&identifier, client.clone(), &presence_topic)
-        })
-        .collect::<Result<Vec<_>, _>>()?;
+    // Start the ntfy service if it is configured
+    if let Some(config) = config.ntfy {
+        let ntfy = Ntfy::new(config, &event_channel);
+        devices.push(Box::new(ntfy));
+    }
 
     // Can even add some more devices here
     // devices.push(device)

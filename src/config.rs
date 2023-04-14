@@ -15,6 +15,7 @@ use crate::{
     debug_bridge::DebugBridgeConfig,
     devices::{self, AudioSetup, ContactSensor, IkeaOutlet, KasaOutlet, WakeOnLAN},
     error::{ConfigParseError, CreateDeviceError, MissingEnv},
+    event::EventChannel,
     hue_bridge::HueBridgeConfig,
     light_sensor::LightSensorConfig,
     presence::PresenceConfig,
@@ -165,8 +166,10 @@ pub trait CreateDevice {
     fn create(
         identifier: &str,
         config: Self::Config,
-        client: AsyncClient,
-        presence_topic: &str, // Not a big fan of passing in the global config
+        event_channel: &EventChannel,
+        client: &AsyncClient,
+        // TODO: Not a big fan of passing in the global config
+        presence_topic: &str,
     ) -> Result<Self, CreateDeviceError>
     where
         Self: Sized;
@@ -176,16 +179,31 @@ impl Device {
     pub fn create(
         self,
         id: &str,
-        client: AsyncClient,
+        event_channel: &EventChannel,
+        client: &AsyncClient,
         presence: &str,
     ) -> Result<Box<dyn devices::Device>, CreateDeviceError> {
         let device: Box<dyn devices::Device> = match self {
             // TODO: It would be nice if this would be more automatic, not sure how to do that...
-            Device::IkeaOutlet(c) => Box::new(IkeaOutlet::create(id, c, client, presence)?),
-            Device::WakeOnLAN(c) => Box::new(WakeOnLAN::create(id, c, client, presence)?),
-            Device::KasaOutlet(c) => Box::new(KasaOutlet::create(id, c, client, presence)?),
-            Device::AudioSetup(c) => Box::new(AudioSetup::create(id, c, client, presence)?),
-            Device::ContactSensor(c) => Box::new(ContactSensor::create(id, c, client, presence)?),
+            Device::IkeaOutlet(c) => {
+                Box::new(IkeaOutlet::create(id, c, event_channel, client, presence)?)
+            }
+            Device::WakeOnLAN(c) => {
+                Box::new(WakeOnLAN::create(id, c, event_channel, client, presence)?)
+            }
+            Device::KasaOutlet(c) => {
+                Box::new(KasaOutlet::create(id, c, event_channel, client, presence)?)
+            }
+            Device::AudioSetup(c) => {
+                Box::new(AudioSetup::create(id, c, event_channel, client, presence)?)
+            }
+            Device::ContactSensor(c) => Box::new(ContactSensor::create(
+                id,
+                c,
+                event_channel,
+                client,
+                presence,
+            )?),
         };
 
         Ok(device)

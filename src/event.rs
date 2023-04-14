@@ -1,9 +1,9 @@
 use rumqttc::Publish;
-use tokio::sync::broadcast;
+use tokio::sync::mpsc;
 
 use crate::ntfy;
 
-#[derive(Clone)]
+#[derive(Debug, Clone)]
 pub enum Event {
     MqttMessage(Publish),
     Darkness(bool),
@@ -11,29 +11,19 @@ pub enum Event {
     Ntfy(ntfy::Notification),
 }
 
-pub type Sender = broadcast::Sender<Event>;
-pub type Receiver = broadcast::Receiver<Event>;
+pub type Sender = mpsc::Sender<Event>;
+pub type Receiver = mpsc::Receiver<Event>;
 
 pub struct EventChannel(Sender);
 
 impl EventChannel {
-    pub fn new() -> Self {
-        let (tx, _) = broadcast::channel(100);
+    pub fn new() -> (Self, Receiver) {
+        let (tx, rx) = mpsc::channel(100);
 
-        Self(tx)
-    }
-
-    pub fn get_rx(&self) -> Receiver {
-        self.0.subscribe()
+        (Self(tx), rx)
     }
 
     pub fn get_tx(&self) -> Sender {
         self.0.clone()
-    }
-}
-
-impl Default for EventChannel {
-    fn default() -> Self {
-        Self::new()
     }
 }

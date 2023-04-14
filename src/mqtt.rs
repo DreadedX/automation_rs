@@ -14,7 +14,7 @@ use crate::event::{self, EventChannel};
 #[impl_cast::device_trait]
 pub trait OnMqtt {
     fn topics(&self) -> Vec<&str>;
-    async fn on_mqtt(&mut self, message: &Publish);
+    async fn on_mqtt(&mut self, message: Publish);
 }
 
 #[derive(Debug, Error)]
@@ -32,7 +32,7 @@ pub fn start(mut eventloop: EventLoop, event_channel: &EventChannel) {
             let notification = eventloop.poll().await;
             match notification {
                 Ok(Event::Incoming(Incoming::Publish(p))) => {
-                    tx.send(event::Event::MqttMessage(p)).ok();
+                    tx.send(event::Event::MqttMessage(p)).await.ok();
                 }
                 Ok(..) => continue,
                 Err(err) => {
@@ -62,10 +62,10 @@ impl OnOffMessage {
     }
 }
 
-impl TryFrom<&Publish> for OnOffMessage {
+impl TryFrom<Publish> for OnOffMessage {
     type Error = ParseError;
 
-    fn try_from(message: &Publish) -> Result<Self, Self::Error> {
+    fn try_from(message: Publish) -> Result<Self, Self::Error> {
         serde_json::from_slice(&message.payload)
             .or(Err(ParseError::InvalidPayload(message.payload.clone())))
     }
@@ -82,10 +82,10 @@ impl ActivateMessage {
     }
 }
 
-impl TryFrom<&Publish> for ActivateMessage {
+impl TryFrom<Publish> for ActivateMessage {
     type Error = ParseError;
 
-    fn try_from(message: &Publish) -> Result<Self, Self::Error> {
+    fn try_from(message: Publish) -> Result<Self, Self::Error> {
         serde_json::from_slice(&message.payload)
             .or(Err(ParseError::InvalidPayload(message.payload.clone())))
     }
@@ -112,10 +112,10 @@ impl RemoteMessage {
     }
 }
 
-impl TryFrom<&Publish> for RemoteMessage {
+impl TryFrom<Publish> for RemoteMessage {
     type Error = ParseError;
 
-    fn try_from(message: &Publish) -> Result<Self, Self::Error> {
+    fn try_from(message: Publish) -> Result<Self, Self::Error> {
         serde_json::from_slice(&message.payload)
             .or(Err(ParseError::InvalidPayload(message.payload.clone())))
     }
@@ -185,10 +185,10 @@ impl ContactMessage {
     }
 }
 
-impl TryFrom<&Publish> for ContactMessage {
+impl TryFrom<Publish> for ContactMessage {
     type Error = ParseError;
 
-    fn try_from(message: &Publish) -> Result<Self, Self::Error> {
+    fn try_from(message: Publish) -> Result<Self, Self::Error> {
         serde_json::from_slice(&message.payload)
             .or(Err(ParseError::InvalidPayload(message.payload.clone())))
     }
@@ -218,10 +218,10 @@ impl DarknessMessage {
     }
 }
 
-impl TryFrom<&Publish> for DarknessMessage {
+impl TryFrom<Publish> for DarknessMessage {
     type Error = ParseError;
 
-    fn try_from(message: &Publish) -> Result<Self, Self::Error> {
+    fn try_from(message: Publish) -> Result<Self, Self::Error> {
         serde_json::from_slice(&message.payload)
             .or(Err(ParseError::InvalidPayload(message.payload.clone())))
     }

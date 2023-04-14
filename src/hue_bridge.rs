@@ -1,10 +1,12 @@
 use std::net::{Ipv4Addr, SocketAddr};
 
+use async_trait::async_trait;
 use serde::{Deserialize, Serialize};
 use tracing::{error, trace, warn};
 
-use crate::event::{Event, EventChannel};
+use crate::{devices::Device, light_sensor::OnDarkness, presence::OnPresence};
 
+#[derive(Debug)]
 pub enum Flag {
     Presence,
     Darkness,
@@ -23,7 +25,8 @@ pub struct HueBridgeConfig {
     pub flags: FlagIDs,
 }
 
-struct HueBridge {
+#[derive(Debug)]
+pub struct HueBridge {
     addr: SocketAddr,
     login: String,
     flag_ids: FlagIDs,
@@ -35,14 +38,6 @@ struct FlagMessage {
 }
 
 impl HueBridge {
-    pub fn new(config: HueBridgeConfig) -> Self {
-        Self {
-            addr: (config.ip, 80).into(),
-            login: config.login,
-            flag_ids: config.flags,
-        }
-    }
-
     pub async fn set_flag(&self, flag: Flag, value: bool) {
         let flag_id = match flag {
             Flag::Presence => self.flag_ids.presence,
@@ -53,6 +48,8 @@ impl HueBridge {
             "http://{}/api/{}/sensors/{flag_id}/state",
             self.addr, self.login
         );
+
+        trace!(?flag, flag_id, value, "Sending request to change flag");
         let res = reqwest::Client::new()
             .put(url)
             .json(&FlagMessage { flag: value })
@@ -73,25 +70,34 @@ impl HueBridge {
     }
 }
 
-pub fn start(config: HueBridgeConfig, event_channel: &EventChannel) {
-    let hue_bridge = HueBridge::new(config);
-
-    let mut rx = event_channel.get_rx();
-
-    tokio::spawn(async move {
-        loop {
-            match rx.recv().await {
-                Ok(Event::Presence(presence)) => {
-                    trace!("Bridging presence to hue");
-                    hue_bridge.set_flag(Flag::Presence, presence).await;
-                }
-                Ok(Event::Darkness(dark)) => {
-                    trace!("Bridging darkness to hue");
-                    hue_bridge.set_flag(Flag::Darkness, dark).await;
-                }
-                Ok(_) => {}
-                Err(_) => todo!("Handle errors with the event channel properly"),
-            }
+impl HueBridge {
+    pub fn new(config: HueBridgeConfig) -> Self {
+        Self {
+            addr: (config.ip, 80).into(),
+            login: config.login,
+            flag_ids: config.flags,
         }
-    });
+    }
+}
+
+impl Device for HueBridge {
+    fn get_id(&self) -> &str {
+        "hue_bridge"
+    }
+}
+
+#[async_trait]
+impl OnPresence for HueBridge {
+    async fn on_presence(&mut self, presence: bool) {
+        trace!("Bridging presence to hue");
+        self.set_flag(Flag::Presence, presence).await;
+    }
+}
+
+#[async_trait]
+impl OnDarkness for HueBridge {
+    async fn on_darkness(&mut self, dark: bool) {
+        trace!("Bridging darkness to hue");
+        self.set_flag(Flag::Darkness, dark).await;
+    }
 }

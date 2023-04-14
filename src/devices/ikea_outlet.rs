@@ -16,6 +16,7 @@ use tracing::{debug, error, trace, warn};
 use crate::config::{CreateDevice, InfoConfig, MqttDeviceConfig};
 use crate::devices::Device;
 use crate::error::CreateDeviceError;
+use crate::event::EventChannel;
 use crate::mqtt::{OnMqtt, OnOffMessage};
 use crate::presence::OnPresence;
 
@@ -60,8 +61,9 @@ impl CreateDevice for IkeaOutlet {
     fn create(
         identifier: &str,
         config: Self::Config,
-        client: AsyncClient,
-        _presence_topic: &str, // Not a big fan of passing in the global config
+        _event_channel: &EventChannel,
+        client: &AsyncClient,
+        _presence_topic: &str,
     ) -> Result<Self, CreateDeviceError> {
         trace!(
             id = identifier,
@@ -76,7 +78,7 @@ impl CreateDevice for IkeaOutlet {
             mqtt: config.mqtt,
             outlet_type: config.outlet_type,
             timeout: config.timeout,
-            client,
+            client: client.clone(),
             last_known_state: false,
             handle: None,
         })
@@ -112,7 +114,7 @@ impl OnMqtt for IkeaOutlet {
         vec![&self.mqtt.topic]
     }
 
-    async fn on_mqtt(&mut self, message: &Publish) {
+    async fn on_mqtt(&mut self, message: Publish) {
         // Update the internal state based on what the device has reported
         let state = match OnOffMessage::try_from(message) {
             Ok(state) => state.state(),

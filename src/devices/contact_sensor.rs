@@ -9,8 +9,9 @@ use tracing::{debug, error, trace, warn};
 use crate::{
     config::{CreateDevice, MqttDeviceConfig},
     error::{CreateDeviceError, MissingWildcard},
+    event::EventChannel,
     mqtt::{ContactMessage, OnMqtt, PresenceMessage},
-    presence::OnPresence,
+    presence::{self, OnPresence},
 };
 
 use super::Device;
@@ -75,7 +76,8 @@ impl CreateDevice for ContactSensor {
     fn create(
         identifier: &str,
         config: Self::Config,
-        client: AsyncClient,
+        _event_channel: &EventChannel,
+        client: &AsyncClient,
         presence_topic: &str,
     ) -> Result<Self, CreateDeviceError> {
         trace!(id = identifier, "Setting up ContactSensor");
@@ -89,8 +91,8 @@ impl CreateDevice for ContactSensor {
             identifier: identifier.to_owned(),
             mqtt: config.mqtt,
             presence,
-            client,
-            overall_presence: false,
+            client: client.clone(),
+            overall_presence: presence::DEFAULT,
             is_closed: true,
             handle: None,
         })
@@ -116,7 +118,7 @@ impl OnMqtt for ContactSensor {
         vec![&self.mqtt.topic]
     }
 
-    async fn on_mqtt(&mut self, message: &rumqttc::Publish) {
+    async fn on_mqtt(&mut self, message: rumqttc::Publish) {
         let is_closed = match ContactMessage::try_from(message) {
             Ok(state) => state.is_closed(),
             Err(err) => {

@@ -6,6 +6,7 @@ use tracing::{debug, error, trace, warn};
 
 use crate::config::{self, CreateDevice, MqttDeviceConfig};
 use crate::error::CreateDeviceError;
+use crate::event::EventChannel;
 use crate::mqtt::{OnMqtt, RemoteAction, RemoteMessage};
 use crate::presence::OnPresence;
 
@@ -34,18 +35,20 @@ impl CreateDevice for AudioSetup {
     fn create(
         identifier: &str,
         config: Self::Config,
-        client: AsyncClient,
+        event_channel: &EventChannel,
+        client: &AsyncClient,
         presence_topic: &str,
     ) -> Result<Self, CreateDeviceError> {
         trace!(id = identifier, "Setting up AudioSetup");
 
         // Create the child devices
         let mixer_id = format!("{}.mixer", identifier);
-        let mixer = (*config.mixer).create(&mixer_id, client.clone(), presence_topic)?;
+        let mixer = (*config.mixer).create(&mixer_id, event_channel, client, presence_topic)?;
         let mixer = As::consume(mixer).ok_or(CreateDeviceError::OnOffExpected(mixer_id))?;
 
         let speakers_id = format!("{}.speakers", identifier);
-        let speakers = (*config.speakers).create(&speakers_id, client, presence_topic)?;
+        let speakers =
+            (*config.speakers).create(&speakers_id, event_channel, client, presence_topic)?;
         let speakers =
             As::consume(speakers).ok_or(CreateDeviceError::OnOffExpected(speakers_id))?;
 
@@ -70,7 +73,7 @@ impl OnMqtt for AudioSetup {
         vec![&self.mqtt.topic]
     }
 
-    async fn on_mqtt(&mut self, message: &rumqttc::Publish) {
+    async fn on_mqtt(&mut self, message: rumqttc::Publish) {
         let action = match RemoteMessage::try_from(message) {
             Ok(message) => message.action(),
             Err(err) => {
