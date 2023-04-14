@@ -86,20 +86,6 @@ impl DevicesHandle {
         Ok(rx.await??)
     }
 
-    // TODO: Finish implementing this
-    // pub fn create_device<T>(&self, identifier: &str, config: T::Config, presence_topic: &str) -> Result<T, CreateDeviceError>
-    // where
-    //     T: CreateDevice,
-    // {
-    //     T::create(
-    //         identifier,
-    //         config,
-    //         self.event_channel,
-    //         self.client,
-    //         presence_topic: presence_topic.to_owned(),
-    //     )
-    // }
-
     pub async fn add_device(&self, device: Box<dyn Device>) -> Result<(), DevicesError> {
         let (tx, rx) = oneshot::channel();
         self.tx.send(Command::AddDevice { device, tx }).await?;

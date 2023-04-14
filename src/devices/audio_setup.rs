@@ -19,8 +19,8 @@ use super::{As, Device};
 pub struct AudioSetupConfig {
     #[serde(flatten)]
     mqtt: MqttDeviceConfig,
-    mixer: Box<config::Device>,
-    speakers: Box<config::Device>,
+    mixer: Box<config::DeviceConfig>,
+    speakers: Box<config::DeviceConfig>,
 }
 
 // TODO: We need a better way to store the children devices

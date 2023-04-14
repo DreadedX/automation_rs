@@ -13,7 +13,7 @@ use tracing::debug;
 use crate::{
     auth::OpenIDConfig,
     debug_bridge::DebugBridgeConfig,
-    devices::{self, AudioSetup, ContactSensor, IkeaOutlet, KasaOutlet, WakeOnLAN},
+    devices::{AudioSetup, ContactSensor, Device, IkeaOutlet, KasaOutlet, WakeOnLAN},
     error::{ConfigParseError, CreateDeviceError, MissingEnv},
     event::EventChannel,
     hue_bridge::HueBridgeConfig,
@@ -34,7 +34,7 @@ pub struct Config {
     pub hue_bridge: Option<HueBridgeConfig>,
     pub debug_bridge: Option<DebugBridgeConfig>,
     #[serde(default)]
-    pub devices: HashMap<String, Device>,
+    pub devices: HashMap<String, DeviceConfig>,
 }
 
 #[derive(Debug, Clone, Deserialize)]
@@ -124,12 +124,12 @@ pub struct MqttDeviceConfig {
 
 #[derive(Debug, Clone, Deserialize)]
 #[serde(tag = "type")]
-pub enum Device {
-    IkeaOutlet(<IkeaOutlet as CreateDevice>::Config),
-    WakeOnLAN(<WakeOnLAN as CreateDevice>::Config),
-    KasaOutlet(<KasaOutlet as CreateDevice>::Config),
+pub enum DeviceConfig {
     AudioSetup(<AudioSetup as CreateDevice>::Config),
     ContactSensor(<ContactSensor as CreateDevice>::Config),
+    IkeaOutlet(<IkeaOutlet as CreateDevice>::Config),
+    KasaOutlet(<KasaOutlet as CreateDevice>::Config),
+    WakeOnLAN(<WakeOnLAN as CreateDevice>::Config),
 }
 
 impl Config {
@@ -175,37 +175,30 @@ pub trait CreateDevice {
         Self: Sized;
 }
 
-impl Device {
+macro_rules! create {
+	(($self:ident, $id:ident, $event_channel:ident, $client:ident, $presence_topic:ident), [ $( $Variant:ident ),* ]) => {
+		match $self {
+			$(DeviceConfig::$Variant(c) => Box::new($Variant::create($id, c, $event_channel, $client, $presence_topic)?),)*
+		}
+    };
+}
+
+impl DeviceConfig {
     pub fn create(
         self,
         id: &str,
         event_channel: &EventChannel,
         client: &AsyncClient,
-        presence: &str,
-    ) -> Result<Box<dyn devices::Device>, CreateDeviceError> {
-        let device: Box<dyn devices::Device> = match self {
-            // TODO: It would be nice if this would be more automatic, not sure how to do that...
-            Device::IkeaOutlet(c) => {
-                Box::new(IkeaOutlet::create(id, c, event_channel, client, presence)?)
-            }
-            Device::WakeOnLAN(c) => {
-                Box::new(WakeOnLAN::create(id, c, event_channel, client, presence)?)
-            }
-            Device::KasaOutlet(c) => {
-                Box::new(KasaOutlet::create(id, c, event_channel, client, presence)?)
-            }
-            Device::AudioSetup(c) => {
-                Box::new(AudioSetup::create(id, c, event_channel, client, presence)?)
-            }
-            Device::ContactSensor(c) => Box::new(ContactSensor::create(
-                id,
-                c,
-                event_channel,
-                client,
-                presence,
-            )?),
-        };
-
-        Ok(device)
+        presence_topic: &str,
+    ) -> Result<Box<dyn Device>, CreateDeviceError> {
+        Ok(create! {
+            (self, id, event_channel, client, presence_topic), [
+                AudioSetup,
+                ContactSensor,
+                IkeaOutlet,
+                KasaOutlet,
+                WakeOnLAN
+            ]
+        })
     }
 }
