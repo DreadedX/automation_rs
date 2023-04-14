@@ -4,11 +4,14 @@ use rumqttc::AsyncClient;
 use serde::Deserialize;
 use tracing::{debug, error, trace, warn};
 
-use crate::config::{self, CreateDevice, MqttDeviceConfig};
-use crate::error::CreateDeviceError;
-use crate::event::EventChannel;
-use crate::mqtt::{OnMqtt, RemoteAction, RemoteMessage};
-use crate::presence::OnPresence;
+use crate::{
+    config::{self, CreateDevice, MqttDeviceConfig},
+    error::CreateDeviceError,
+    event::EventChannel,
+    mqtt::{RemoteAction, RemoteMessage},
+    traits::OnMqtt,
+    traits::OnPresence,
+};
 
 use super::{As, Device};
 

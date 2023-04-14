@@ -9,13 +9,9 @@ use crate::{
     config::MqttDeviceConfig,
     devices::Device,
     event::{self, Event, EventChannel},
-    mqtt::{OnMqtt, PresenceMessage},
+    mqtt::PresenceMessage,
+    traits::OnMqtt,
 };
-
-#[async_trait]
-pub trait OnPresence: Sync + Send + 'static {
-    async fn on_presence(&mut self, presence: bool);
-}
 
 #[derive(Debug, Deserialize)]
 pub struct PresenceConfig {

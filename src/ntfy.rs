@@ -1,7 +1,6 @@
 use std::collections::HashMap;
 
 use async_trait::async_trait;
-use impl_cast::device_trait;
 use serde::Serialize;
 use serde_repr::*;
 use tokio::sync::mpsc;
@@ -11,17 +10,11 @@ use crate::{
     config::NtfyConfig,
     devices::Device,
     event::{self, Event, EventChannel},
-    presence::OnPresence,
+    traits::{OnNotification, OnPresence},
 };
 
 pub type Sender = mpsc::Sender<Notification>;
 pub type Receiver = mpsc::Receiver<Notification>;
-
-#[async_trait]
-#[device_trait]
-pub trait OnNotification {
-    async fn on_notification(&mut self, notification: Notification);
-}
 
 #[derive(Debug)]
 pub struct Ntfy {

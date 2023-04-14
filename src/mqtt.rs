@@ -1,6 +1,5 @@
 use std::time::{SystemTime, UNIX_EPOCH};
 
-use async_trait::async_trait;
 use bytes::Bytes;
 use serde::{Deserialize, Serialize};
 use thiserror::Error;
@@ -9,13 +8,6 @@ use tracing::{debug, warn};
 use rumqttc::{Event, EventLoop, Incoming, Publish};
 
 use crate::event::{self, EventChannel};
-
-#[async_trait]
-#[impl_cast::device_trait]
-pub trait OnMqtt {
-    fn topics(&self) -> Vec<&str>;
-    async fn on_mqtt(&mut self, message: Publish);
-}
 
 #[derive(Debug, Error)]
 pub enum ParseError {

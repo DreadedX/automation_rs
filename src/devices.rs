@@ -21,10 +21,10 @@ use tracing::{debug, error, instrument, trace};
 
 use crate::{
     event::{Event, EventChannel},
-    light_sensor::OnDarkness,
-    mqtt::OnMqtt,
-    ntfy::OnNotification,
-    presence::OnPresence,
+    traits::OnDarkness,
+    traits::OnMqtt,
+    traits::OnNotification,
+    traits::OnPresence,
 };
 
 #[impl_cast::device(As: OnMqtt + OnPresence + OnDarkness + OnNotification + GoogleHomeDevice + OnOff)]

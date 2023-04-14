@@ -6,9 +6,9 @@ use tracing::warn;
 use crate::{
     config::MqttDeviceConfig,
     devices::Device,
-    light_sensor::OnDarkness,
     mqtt::{DarknessMessage, PresenceMessage},
-    presence::OnPresence,
+    traits::OnDarkness,
+    traits::OnPresence,
 };
 
 #[derive(Debug, Deserialize)]

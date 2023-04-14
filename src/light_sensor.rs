@@ -7,13 +7,9 @@ use crate::{
     config::MqttDeviceConfig,
     devices::Device,
     event::{self, Event, EventChannel},
-    mqtt::{BrightnessMessage, OnMqtt},
+    mqtt::BrightnessMessage,
+    traits::OnMqtt,
 };
-
-#[async_trait]
-pub trait OnDarkness: Sync + Send + 'static {
-    async fn on_darkness(&mut self, dark: bool);
-}
 
 #[derive(Debug, Clone, Deserialize)]
 pub struct LightSensorConfig {

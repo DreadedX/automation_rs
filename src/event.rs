@@ -14,6 +14,7 @@ pub enum Event {
 pub type Sender = mpsc::Sender<Event>;
 pub type Receiver = mpsc::Receiver<Event>;
 
+#[derive(Clone)]
 pub struct EventChannel(Sender);
 
 impl EventChannel {

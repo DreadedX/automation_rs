@@ -17,7 +17,8 @@ use crate::{
     config::{CreateDevice, InfoConfig, MqttDeviceConfig},
     error::CreateDeviceError,
     event::EventChannel,
-    mqtt::{ActivateMessage, OnMqtt},
+    mqtt::ActivateMessage,
+    traits::OnMqtt,
 };
 
 use super::Device;

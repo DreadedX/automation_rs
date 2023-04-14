@@ -11,3 +11,4 @@ pub mod light_sensor;
 pub mod mqtt;
 pub mod ntfy;
 pub mod presence;
+pub mod traits;

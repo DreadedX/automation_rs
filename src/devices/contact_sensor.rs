@@ -10,8 +10,10 @@ use crate::{
     config::{CreateDevice, MqttDeviceConfig},
     error::{CreateDeviceError, MissingWildcard},
     event::EventChannel,
-    mqtt::{ContactMessage, OnMqtt, PresenceMessage},
-    presence::{self, OnPresence},
+    mqtt::{ContactMessage, PresenceMessage},
+    presence,
+    traits::OnMqtt,
+    traits::OnPresence,
 };
 
 use super::Device;
