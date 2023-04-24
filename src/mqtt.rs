@@ -1,19 +1,14 @@
 use std::time::{SystemTime, UNIX_EPOCH};
 
-use bytes::Bytes;
 use serde::{Deserialize, Serialize};
-use thiserror::Error;
 use tracing::{debug, warn};
 
 use rumqttc::{Event, EventLoop, Incoming, Publish};
 
-use crate::event::{self, EventChannel};
-
-#[derive(Debug, Error)]
-pub enum ParseError {
-    #[error("Invalid message payload received: {0:?}")]
-    InvalidPayload(Bytes),
-}
+use crate::{
+    error::ParseError,
+    event::{self, EventChannel},
+};
 
 pub fn start(mut eventloop: EventLoop, event_channel: &EventChannel) {
     let tx = event_channel.get_tx();

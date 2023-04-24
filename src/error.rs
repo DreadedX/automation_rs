@@ -1,6 +1,7 @@
 use std::{error, fmt, result};
 
 use axum::{http::status::InvalidStatusCode, response::IntoResponse};
+use bytes::Bytes;
 use rumqttc::ClientError;
 use serde::{Deserialize, Serialize};
 use thiserror::Error;
@@ -56,6 +57,12 @@ impl fmt::Display for MissingEnv {
 }
 
 impl error::Error for MissingEnv {}
+
+#[derive(Debug, Error)]
+pub enum ParseError {
+    #[error("Invalid message payload received: {0:?}")]
+    InvalidPayload(Bytes),
+}
 
 #[derive(Debug, Error)]
 pub enum ConfigParseError {
