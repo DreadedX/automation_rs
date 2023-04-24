@@ -7,7 +7,7 @@ use crate::{
     config::MqttDeviceConfig,
     devices::Device,
     event::{self, Event, EventChannel},
-    mqtt::BrightnessMessage,
+    messages::BrightnessMessage,
     traits::OnMqtt,
 };
 

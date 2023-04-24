@@ -8,7 +8,7 @@ use crate::{
     config::{self, CreateDevice, MqttDeviceConfig},
     error::CreateDeviceError,
     event::EventChannel,
-    mqtt::{RemoteAction, RemoteMessage},
+    messages::{RemoteAction, RemoteMessage},
     traits::OnMqtt,
     traits::OnPresence,
 };

@@ -17,7 +17,7 @@ use crate::config::{CreateDevice, InfoConfig, MqttDeviceConfig};
 use crate::devices::Device;
 use crate::error::CreateDeviceError;
 use crate::event::EventChannel;
-use crate::mqtt::OnOffMessage;
+use crate::messages::OnOffMessage;
 use crate::traits::OnMqtt;
 use crate::traits::OnPresence;
 

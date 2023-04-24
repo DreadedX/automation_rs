@@ -10,7 +10,7 @@ use crate::{
     config::{CreateDevice, MqttDeviceConfig},
     error::{CreateDeviceError, MissingWildcard},
     event::EventChannel,
-    mqtt::{ContactMessage, PresenceMessage},
+    messages::{ContactMessage, PresenceMessage},
     presence,
     traits::OnMqtt,
     traits::OnPresence,

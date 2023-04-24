@@ -8,6 +8,7 @@ pub mod error;
 pub mod event;
 pub mod hue_bridge;
 pub mod light_sensor;
+pub mod messages;
 pub mod mqtt;
 pub mod ntfy;
 pub mod presence;

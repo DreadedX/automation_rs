@@ -9,7 +9,7 @@ use crate::{
     config::MqttDeviceConfig,
     devices::Device,
     event::{self, Event, EventChannel},
-    mqtt::PresenceMessage,
+    messages::PresenceMessage,
     traits::OnMqtt,
 };
 
@@ -67,7 +67,7 @@ impl OnMqtt for Presence {
             self.devices.remove(&device_name);
         } else {
             let present = match PresenceMessage::try_from(message) {
-                Ok(state) => state.present(),
+                Ok(state) => state.presence(),
                 Err(err) => {
                     warn!("Failed to parse message: {err}");
                     return;
