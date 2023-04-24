@@ -8,14 +8,11 @@ use axum::{
 use automation::{
     auth::{OpenIDConfig, User},
     config::Config,
-    debug_bridge::DebugBridge,
     devices,
+    devices::{DebugBridge, HueBridge, LightSensor, Presence},
     error::ApiError,
-    hue_bridge::HueBridge,
-    light_sensor::LightSensor,
     mqtt,
     ntfy::Ntfy,
-    presence::Presence,
 };
 use dotenvy::dotenv;
 use futures::future::join_all;

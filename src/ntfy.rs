@@ -10,7 +10,7 @@ use crate::{
     config::NtfyConfig,
     devices::Device,
     event::{self, Event, EventChannel},
-    traits::{OnNotification, OnPresence},
+    event::{OnNotification, OnPresence},
 };
 
 pub type Sender = mpsc::Sender<Notification>;

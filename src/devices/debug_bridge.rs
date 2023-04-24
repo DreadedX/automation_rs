@@ -3,12 +3,12 @@ use rumqttc::AsyncClient;
 use serde::Deserialize;
 use tracing::warn;
 
+use crate::devices::Device;
+use crate::event::OnDarkness;
+use crate::event::OnPresence;
 use crate::{
     config::MqttDeviceConfig,
-    devices::Device,
     messages::{DarknessMessage, PresenceMessage},
-    traits::OnDarkness,
-    traits::OnPresence,
 };
 
 #[derive(Debug, Deserialize)]

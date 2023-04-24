@@ -4,7 +4,7 @@ use async_trait::async_trait;
 use serde::{Deserialize, Serialize};
 use tracing::{error, trace, warn};
 
-use crate::{devices::Device, traits::OnDarkness, traits::OnPresence};
+use crate::{devices::Device, event::OnDarkness, event::OnPresence};
 
 #[derive(Debug)]
 pub enum Flag {

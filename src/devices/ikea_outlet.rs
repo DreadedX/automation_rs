@@ -17,9 +17,9 @@ use crate::config::{CreateDevice, InfoConfig, MqttDeviceConfig};
 use crate::devices::Device;
 use crate::error::CreateDeviceError;
 use crate::event::EventChannel;
+use crate::event::OnMqtt;
+use crate::event::OnPresence;
 use crate::messages::OnOffMessage;
-use crate::traits::OnMqtt;
-use crate::traits::OnPresence;
 
 #[derive(Debug, Clone, Deserialize, PartialEq, Eq, Copy)]
 pub enum OutletType {

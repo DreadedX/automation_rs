@@ -12,13 +12,12 @@ use tracing::debug;
 
 use crate::{
     auth::OpenIDConfig,
-    debug_bridge::DebugBridgeConfig,
-    devices::{AudioSetup, ContactSensor, Device, IkeaOutlet, KasaOutlet, WakeOnLAN},
+    devices::{
+        AudioSetup, ContactSensor, DebugBridgeConfig, Device, HueBridgeConfig, IkeaOutlet,
+        KasaOutlet, LightSensorConfig, PresenceConfig, WakeOnLAN,
+    },
     error::{ConfigParseError, CreateDeviceError, MissingEnv},
     event::EventChannel,
-    hue_bridge::HueBridgeConfig,
-    light_sensor::LightSensorConfig,
-    presence::PresenceConfig,
 };
 
 #[derive(Debug, Deserialize)]

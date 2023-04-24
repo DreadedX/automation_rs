@@ -8,12 +8,12 @@ use tracing::{debug, error, trace, warn};
 
 use crate::{
     config::{CreateDevice, MqttDeviceConfig},
+    devices::DEFAULT_PRESENCE,
     error::{CreateDeviceError, MissingWildcard},
     event::EventChannel,
+    event::OnMqtt,
+    event::OnPresence,
     messages::{ContactMessage, PresenceMessage},
-    presence,
-    traits::OnMqtt,
-    traits::OnPresence,
 };
 
 use super::Device;
@@ -94,7 +94,7 @@ impl CreateDevice for ContactSensor {
             mqtt: config.mqtt,
             presence,
             client: client.clone(),
-            overall_presence: presence::DEFAULT,
+            overall_presence: DEFAULT_PRESENCE,
             is_closed: true,
             handle: None,
         })

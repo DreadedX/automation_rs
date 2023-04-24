@@ -8,9 +8,9 @@ use crate::{
     config::{self, CreateDevice, MqttDeviceConfig},
     error::CreateDeviceError,
     event::EventChannel,
+    event::OnMqtt,
+    event::OnPresence,
     messages::{RemoteAction, RemoteMessage},
-    traits::OnMqtt,
-    traits::OnPresence,
 };
 
 use super::{As, Device};

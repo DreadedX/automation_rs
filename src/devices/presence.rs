@@ -8,9 +8,9 @@ use tracing::{debug, warn};
 use crate::{
     config::MqttDeviceConfig,
     devices::Device,
+    event::OnMqtt,
     event::{self, Event, EventChannel},
     messages::PresenceMessage,
-    traits::OnMqtt,
 };
 
 #[derive(Debug, Deserialize)]
@@ -19,7 +19,7 @@ pub struct PresenceConfig {
     pub mqtt: MqttDeviceConfig,
 }
 
-pub const DEFAULT: bool = false;
+pub const DEFAULT_PRESENCE: bool = false;
 
 #[derive(Debug)]
 pub struct Presence {
@@ -35,7 +35,7 @@ impl Presence {
             tx: event_channel.get_tx(),
             mqtt: config.mqtt,
             devices: HashMap::new(),
-            current_overall_presence: DEFAULT,
+            current_overall_presence: DEFAULT_PRESENCE,
         }
     }
 }

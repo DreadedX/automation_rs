@@ -6,9 +6,9 @@ use tracing::{debug, trace, warn};
 use crate::{
     config::MqttDeviceConfig,
     devices::Device,
+    event::OnMqtt,
     event::{self, Event, EventChannel},
     messages::BrightnessMessage,
-    traits::OnMqtt,
 };
 
 #[derive(Debug, Clone, Deserialize)]

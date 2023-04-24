@@ -1,7 +1,11 @@
+use async_trait::async_trait;
 use rumqttc::Publish;
 use tokio::sync::mpsc;
 
+use impl_cast::device_trait;
+
 use crate::ntfy;
+use crate::ntfy::Notification;
 
 #[derive(Debug, Clone)]
 pub enum Event {
@@ -27,4 +31,29 @@ impl EventChannel {
     pub fn get_tx(&self) -> Sender {
         self.0.clone()
     }
+}
+
+#[async_trait]
+#[device_trait]
+pub trait OnMqtt {
+    fn topics(&self) -> Vec<&str>;
+    async fn on_mqtt(&mut self, message: Publish);
+}
+
+#[async_trait]
+#[device_trait]
+pub trait OnPresence {
+    async fn on_presence(&mut self, presence: bool);
+}
+
+#[async_trait]
+#[device_trait]
+pub trait OnDarkness {
+    async fn on_darkness(&mut self, dark: bool);
+}
+
+#[async_trait]
+#[device_trait]
+pub trait OnNotification {
+    async fn on_notification(&mut self, notification: Notification);
 }
