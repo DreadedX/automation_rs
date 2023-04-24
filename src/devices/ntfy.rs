@@ -3,7 +3,6 @@ use std::collections::HashMap;
 use async_trait::async_trait;
 use serde::Serialize;
 use serde_repr::*;
-use tokio::sync::mpsc;
 use tracing::{debug, error, warn};
 
 use crate::{
@@ -12,9 +11,6 @@ use crate::{
     event::{self, Event, EventChannel},
     event::{OnNotification, OnPresence},
 };
-
-pub type Sender = mpsc::Sender<Notification>;
-pub type Receiver = mpsc::Receiver<Notification>;
 
 #[derive(Debug)]
 pub struct Ntfy {

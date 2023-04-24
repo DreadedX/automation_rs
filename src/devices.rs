@@ -5,6 +5,7 @@ mod hue_bridge;
 mod ikea_outlet;
 mod kasa_outlet;
 mod light_sensor;
+mod ntfy;
 mod presence;
 mod wake_on_lan;
 
@@ -15,6 +16,7 @@ pub use self::hue_bridge::{HueBridge, HueBridgeConfig};
 pub use self::ikea_outlet::IkeaOutlet;
 pub use self::kasa_outlet::KasaOutlet;
 pub use self::light_sensor::{LightSensor, LightSensorConfig};
+pub use self::ntfy::{Notification, Ntfy};
 pub use self::presence::{Presence, PresenceConfig, DEFAULT_PRESENCE};
 pub use self::wake_on_lan::WakeOnLAN;
 

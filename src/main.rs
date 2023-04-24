@@ -9,10 +9,9 @@ use automation::{
     auth::{OpenIDConfig, User},
     config::Config,
     devices,
-    devices::{DebugBridge, HueBridge, LightSensor, Presence},
+    devices::{DebugBridge, HueBridge, LightSensor, Ntfy, Presence},
     error::ApiError,
     mqtt,
-    ntfy::Ntfy,
 };
 use dotenvy::dotenv;
 use futures::future::join_all;

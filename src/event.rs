@@ -4,15 +4,14 @@ use tokio::sync::mpsc;
 
 use impl_cast::device_trait;
 
-use crate::ntfy;
-use crate::ntfy::Notification;
+use crate::devices::Notification;
 
 #[derive(Debug, Clone)]
 pub enum Event {
     MqttMessage(Publish),
     Darkness(bool),
     Presence(bool),
-    Ntfy(ntfy::Notification),
+    Ntfy(Notification),
 }
 
 pub type Sender = mpsc::Sender<Event>;
