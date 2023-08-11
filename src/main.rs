@@ -128,8 +128,14 @@ async fn app() -> anyhow::Result<()> {
         post(async move |user: User, Json(payload): Json<Request>| {
             debug!(username = user.preferred_username, "{payload:#?}");
             let gc = GoogleHome::new(&user.preferred_username);
-            let result = match device_handler.fullfillment(gc, payload).await {
-                Ok(result) => result,
+            let result = match device_handler.fullfillment().await {
+                Ok(devices) => match gc.handle_request(payload, &devices).await {
+                    Ok(result) => result,
+                    Err(err) => {
+                        return ApiError::new(StatusCode::INTERNAL_SERVER_ERROR, err.into())
+                            .into_response()
+                    }
+                },
                 Err(err) => {
                     return ApiError::new(StatusCode::INTERNAL_SERVER_ERROR, err.into())
                         .into_response()

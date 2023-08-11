@@ -1,5 +1,4 @@
 use std::{
-    collections::HashMap,
     fs,
     net::{Ipv4Addr, SocketAddr},
     time::Duration,
@@ -32,8 +31,8 @@ pub struct Config {
     pub light_sensor: LightSensorConfig,
     pub hue_bridge: Option<HueBridgeConfig>,
     pub debug_bridge: Option<DebugBridgeConfig>,
-    #[serde(default)]
-    pub devices: HashMap<String, DeviceConfig>,
+    #[serde(default, with = "tuple_vec_map")]
+    pub devices: Vec<(String, DeviceConfig)>,
 }
 
 #[derive(Debug, Clone, Deserialize)]

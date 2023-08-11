@@ -122,7 +122,7 @@ pub fn device(attr: TokenStream, item: TokenStream) -> TokenStream {
                         Some(self)
                     }
 
-                    fn cast_mut(&mut  self) -> Option<&mut (dyn #device_trait + 'static)> {
+                    fn cast_mut(&mut self) -> Option<&mut (dyn #device_trait + 'static)> {
                         Some(self)
                     }
                 }

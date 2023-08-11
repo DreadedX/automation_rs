@@ -28,7 +28,7 @@ pub enum ResponsePayload {
     Execute(execute::Payload),
 }
 
-#[derive(Debug, Default, Serialize)]
+#[derive(Debug, Default, Serialize, Clone)]
 #[serde(rename_all = "camelCase")]
 pub struct State {
     #[serde(skip_serializing_if = "Option::is_none")]

@@ -2,7 +2,7 @@ use serde::Serialize;
 
 use crate::{errors::ErrorCode, response::State};
 
-#[derive(Debug, Serialize)]
+#[derive(Debug, Serialize, Clone)]
 #[serde(rename_all = "camelCase")]
 pub struct Payload {
     #[serde(skip_serializing_if = "Option::is_none")]
@@ -34,7 +34,7 @@ impl Default for Payload {
     }
 }
 
-#[derive(Debug, Serialize)]
+#[derive(Debug, Serialize, Clone)]
 #[serde(rename_all = "camelCase")]
 pub struct Command {
     #[serde(skip_serializing_if = "Option::is_none")]
@@ -65,7 +65,7 @@ impl Command {
     }
 }
 
-#[derive(Debug, Serialize)]
+#[derive(Debug, Serialize, Clone)]
 #[serde(rename_all = "camelCase")]
 pub struct States {
     pub online: bool,
@@ -74,7 +74,7 @@ pub struct States {
     pub state: State,
 }
 
-#[derive(Debug, Serialize)]
+#[derive(Debug, Serialize, Clone)]
 #[serde(rename_all = "SCREAMING_SNAKE_CASE")]
 pub enum Status {
     Success,

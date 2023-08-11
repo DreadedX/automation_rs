@@ -20,7 +20,7 @@ pub struct Device {
     // customData
 }
 
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Deserialize, Clone, Copy)]
 #[serde(tag = "command", content = "params")]
 pub enum CommandType {
     #[serde(rename = "action.devices.commands.OnOff")]

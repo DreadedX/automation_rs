@@ -1,3 +1,4 @@
+use async_trait::async_trait;
 use serde::Serialize;
 
 use crate::{
@@ -8,8 +9,43 @@ use crate::{
     types::Type,
 };
 
+// TODO: Find a more elegant way to do this
+pub trait AsGoogleHomeDevice {
+    fn cast(&self) -> Option<&dyn GoogleHomeDevice>;
+    fn cast_mut(&mut self) -> Option<&mut dyn GoogleHomeDevice>;
+}
+
+// Default impl
+impl<T> AsGoogleHomeDevice for T
+where
+    T: 'static,
+{
+    default fn cast(&self) -> Option<&(dyn GoogleHomeDevice + 'static)> {
+        None
+    }
+
+    default fn cast_mut(&mut self) -> Option<&mut (dyn GoogleHomeDevice + 'static)> {
+        None
+    }
+}
+
+// Specialization
+impl<T> AsGoogleHomeDevice for T
+where
+    T: GoogleHomeDevice + 'static,
+{
+    fn cast(&self) -> Option<&(dyn GoogleHomeDevice + 'static)> {
+        Some(self)
+    }
+
+    fn cast_mut(&mut self) -> Option<&mut (dyn GoogleHomeDevice + 'static)> {
+        Some(self)
+    }
+}
+
+#[async_trait]
 #[impl_cast::device(As: OnOff + Scene)]
-pub trait GoogleHomeDevice: Sync + Send + 'static {
+pub trait GoogleHomeDevice: AsGoogleHomeDevice + Sync + Send + 'static {
     fn get_device_type(&self) -> Type;
     fn get_device_name(&self) -> Name;
     fn get_id(&self) -> &str;
@@ -26,7 +62,7 @@ pub trait GoogleHomeDevice: Sync + Send + 'static {
         None
     }
 
-    fn sync(&self) -> response::sync::Device {
+    async fn sync(&self) -> response::sync::Device {
         let name = self.get_device_name();
         let mut device =
             response::sync::Device::new(self.get_id(), &name.name, self.get_device_type());
@@ -40,9 +76,11 @@ pub trait GoogleHomeDevice: Sync + Send + 'static {
         device.device_info = self.get_device_info();
 
         let mut traits = Vec::new();
+
         // OnOff
         if let Some(on_off) = As::<dyn OnOff>::cast(self) {
             traits.push(Trait::OnOff);
+            let on_off = on_off;
             device.attributes.command_only_on_off = on_off.is_command_only();
             device.attributes.query_only_on_off = on_off.is_query_only();
         }
@@ -58,7 +96,7 @@ pub trait GoogleHomeDevice: Sync + Send + 'static {
         device
     }
 
-    fn query(&self) -> response::query::Device {
+    async fn query(&self) -> response::query::Device {
         let mut device = response::query::Device::new();
         if !self.is_online() {
             device.set_offline();
@@ -72,19 +110,21 @@ pub trait GoogleHomeDevice: Sync + Send + 'static {
         device
     }
 
-    fn execute(&mut self, command: &CommandType) -> Result<(), ErrorCode> {
+    async fn execute(&mut self, command: &CommandType) -> Result<(), ErrorCode> {
         match command {
             CommandType::OnOff { on } => {
-                let on_off = As::<dyn OnOff>::cast_mut(self)
-                    .ok_or::<ErrorCode>(DeviceError::ActionNotAvailable.into())?;
-
-                on_off.set_on(*on)?;
+                if let Some(on_off) = As::<dyn OnOff>::cast_mut(self) {
+                    on_off.set_on(*on)?;
+                } else {
+                    return Err(DeviceError::ActionNotAvailable.into());
+                }
             }
             CommandType::ActivateScene { deactivate } => {
-                let scene = As::<dyn Scene>::cast_mut(self)
-                    .ok_or::<ErrorCode>(DeviceError::ActionNotAvailable.into())?;
-
-                scene.set_active(!deactivate)?;
+                if let Some(scene) = As::<dyn Scene>::cast(self) {
+                    scene.set_active(!deactivate)?;
+                } else {
+                    return Err(DeviceError::ActionNotAvailable.into());
+                }
             }
         }
 
