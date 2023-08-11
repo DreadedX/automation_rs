@@ -80,7 +80,6 @@ pub trait GoogleHomeDevice: AsGoogleHomeDevice + Sync + Send + 'static {
         // OnOff
         if let Some(on_off) = As::<dyn OnOff>::cast(self) {
             traits.push(Trait::OnOff);
-            let on_off = on_off;
             device.attributes.command_only_on_off = on_off.is_command_only();
             device.attributes.query_only_on_off = on_off.is_query_only();
         }
