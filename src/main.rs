@@ -4,20 +4,18 @@ use std::process;
 use axum::{
     extract::FromRef, http::StatusCode, response::IntoResponse, routing::post, Json, Router,
 };
+use dotenvy::dotenv;
+use rumqttc::AsyncClient;
+use tracing::{debug, error, info};
 
 use automation::{
     auth::{OpenIDConfig, User},
     config::Config,
-    devices,
+    device_manager::DeviceManager,
     devices::{DebugBridge, HueBridge, LightSensor, Ntfy, Presence},
     error::ApiError,
     mqtt,
 };
-use dotenvy::dotenv;
-use futures::future::join_all;
-use rumqttc::AsyncClient;
-use tracing::{debug, error, info};
-
 use google_home::{GoogleHome, Request};
 
 #[derive(Clone)]
@@ -59,64 +57,46 @@ async fn app() -> anyhow::Result<()> {
     let (client, eventloop) = AsyncClient::new(config.mqtt.clone(), 10);
 
     // Setup the device handler
-    let (device_handler, event_channel) = devices::start(client.clone());
+    let device_manager = DeviceManager::new(client.clone());
+    let event_channel = device_manager.start();
 
     // Create all the devices specified in the config
-    let mut devices = config
-        .devices
-        .into_iter()
-        .map(|(identifier, device_config)| {
-            device_config.create(
-                &identifier,
-                &event_channel,
-                &client,
-                &config.presence.mqtt.topic,
-            )
-        })
-        .collect::<Result<Vec<_>, _>>()?;
+    for (id, device_config) in config.devices {
+        let device =
+            device_config.create(&id, &event_channel, &client, &config.presence.mqtt.topic)?;
+
+        device_manager.add(device).await;
+    }
 
     // Create and add the light sensor
     {
         let light_sensor = LightSensor::new(config.light_sensor, &event_channel);
-        devices.push(Box::new(light_sensor));
+        device_manager.add(Box::new(light_sensor)).await;
     }
 
     // Create and add the presence system
     {
         let presence = Presence::new(config.presence, &event_channel);
-        devices.push(Box::new(presence));
+        device_manager.add(Box::new(presence)).await;
     }
 
     // If configured, create and add the hue bridge
     if let Some(config) = config.hue_bridge {
         let hue_bridge = HueBridge::new(config);
-        devices.push(Box::new(hue_bridge));
+        device_manager.add(Box::new(hue_bridge)).await;
     }
 
     // Start the debug bridge if it is configured
     if let Some(config) = config.debug_bridge {
         let debug_bridge = DebugBridge::new(config, &client)?;
-        devices.push(Box::new(debug_bridge));
+        device_manager.add(Box::new(debug_bridge)).await;
     }
 
     // Start the ntfy service if it is configured
     if let Some(config) = config.ntfy {
         let ntfy = Ntfy::new(config, &event_channel);
-        devices.push(Box::new(ntfy));
+        device_manager.add(Box::new(ntfy)).await;
     }
-
-    // Can even add some more devices here
-    // devices.push(device)
-
-    // Register all the devices to the device_handler
-    join_all(
-        devices
-            .into_iter()
-            .map(|device| async { device_handler.add_device(device).await }),
-    )
-    .await
-    .into_iter()
-    .collect::<Result<_, _>>()?;
 
     // Wrap the mqtt eventloop and start listening for message
     // NOTE: We wait until all the setup is done, as otherwise we might miss some messages
@@ -128,14 +108,9 @@ async fn app() -> anyhow::Result<()> {
         post(async move |user: User, Json(payload): Json<Request>| {
             debug!(username = user.preferred_username, "{payload:#?}");
             let gc = GoogleHome::new(&user.preferred_username);
-            let result = match device_handler.fullfillment().await {
-                Ok(devices) => match gc.handle_request(payload, &devices).await {
-                    Ok(result) => result,
-                    Err(err) => {
-                        return ApiError::new(StatusCode::INTERNAL_SERVER_ERROR, err.into())
-                            .into_response()
-                    }
-                },
+            let devices = device_manager.devices().await;
+            let result = match gc.handle_request(payload, &devices).await {
+                Ok(result) => result,
                 Err(err) => {
                     return ApiError::new(StatusCode::INTERNAL_SERVER_ERROR, err.into())
                         .into_response()
