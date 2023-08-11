@@ -104,7 +104,11 @@ pub trait GoogleHomeDevice: AsGoogleHomeDevice + Sync + Send + 'static {
 
         // OnOff
         if let Some(on_off) = As::<dyn OnOff>::cast(self) {
-            device.state.on = on_off.is_on().map_err(|err| device.set_error(err)).ok();
+            device.state.on = on_off
+                .is_on()
+                .await
+                .map_err(|err| device.set_error(err))
+                .ok();
         }
 
         device
@@ -114,14 +118,14 @@ pub trait GoogleHomeDevice: AsGoogleHomeDevice + Sync + Send + 'static {
         match command {
             CommandType::OnOff { on } => {
                 if let Some(on_off) = As::<dyn OnOff>::cast_mut(self) {
-                    on_off.set_on(*on)?;
+                    on_off.set_on(*on).await?;
                 } else {
                     return Err(DeviceError::ActionNotAvailable.into());
                 }
             }
             CommandType::ActivateScene { deactivate } => {
                 if let Some(scene) = As::<dyn Scene>::cast(self) {
-                    scene.set_active(!deactivate)?;
+                    scene.set_active(!deactivate).await?;
                 } else {
                     return Err(DeviceError::ActionNotAvailable.into());
                 }

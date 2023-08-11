@@ -1,3 +1,4 @@
+use async_trait::async_trait;
 use serde::Serialize;
 
 use crate::errors::ErrorCode;
@@ -10,6 +11,7 @@ pub enum Trait {
     Scene,
 }
 
+#[async_trait]
 #[impl_cast::device_trait]
 pub trait OnOff {
     fn is_command_only(&self) -> Option<bool> {
@@ -21,15 +23,16 @@ pub trait OnOff {
     }
 
     // TODO: Implement correct error so we can handle them properly
-    fn is_on(&self) -> Result<bool, ErrorCode>;
-    fn set_on(&mut self, on: bool) -> Result<(), ErrorCode>;
+    async fn is_on(&self) -> Result<bool, ErrorCode>;
+    async fn set_on(&mut self, on: bool) -> Result<(), ErrorCode>;
 }
 
+#[async_trait]
 #[impl_cast::device_trait]
 pub trait Scene {
     fn is_scene_reversible(&self) -> Option<bool> {
         None
     }
 
-    fn set_active(&self, activate: bool) -> Result<(), ErrorCode>;
+    async fn set_active(&self, activate: bool) -> Result<(), ErrorCode>;
 }

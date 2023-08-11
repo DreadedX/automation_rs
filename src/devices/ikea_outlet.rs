@@ -6,7 +6,6 @@ use google_home::{
     types::Type,
     GoogleHomeDevice,
 };
-use pollster::FutureExt as _;
 use rumqttc::{AsyncClient, Publish};
 use serde::Deserialize;
 use std::time::Duration;
@@ -170,7 +169,7 @@ impl OnPresence for IkeaOutlet {
         // Turn off the outlet when we leave the house (Not if it is a battery charger)
         if !presence && self.outlet_type != OutletType::Charger {
             debug!(id = self.identifier, "Turning device off");
-            self.set_on(false).ok();
+            self.set_on(false).await.ok();
         }
     }
 }
@@ -206,13 +205,14 @@ impl GoogleHomeDevice for IkeaOutlet {
     }
 }
 
+#[async_trait]
 impl traits::OnOff for IkeaOutlet {
-    fn is_on(&self) -> Result<bool, ErrorCode> {
+    async fn is_on(&self) -> Result<bool, ErrorCode> {
         Ok(self.last_known_state)
     }
 
-    fn set_on(&mut self, on: bool) -> Result<(), ErrorCode> {
-        set_on(self.client.clone(), &self.mqtt.topic, on).block_on();
+    async fn set_on(&mut self, on: bool) -> Result<(), ErrorCode> {
+        set_on(self.client.clone(), &self.mqtt.topic, on).await;
 
         Ok(())
     }

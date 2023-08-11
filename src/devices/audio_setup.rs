@@ -87,21 +87,21 @@ impl OnMqtt for AudioSetup {
 
         match action {
             RemoteAction::On => {
-                if self.mixer.is_on().unwrap() {
-                    self.speakers.set_on(false).unwrap();
-                    self.mixer.set_on(false).unwrap();
+                if self.mixer.is_on().await.unwrap() {
+                    self.speakers.set_on(false).await.unwrap();
+                    self.mixer.set_on(false).await.unwrap();
                 } else {
-                    self.speakers.set_on(true).unwrap();
-                    self.mixer.set_on(true).unwrap();
+                    self.speakers.set_on(true).await.unwrap();
+                    self.mixer.set_on(true).await.unwrap();
                 }
             },
             RemoteAction::BrightnessMoveUp => {
-                if !self.mixer.is_on().unwrap() {
-                    self.mixer.set_on(true).unwrap();
-                } else if self.speakers.is_on().unwrap() {
-                    self.speakers.set_on(false).unwrap();
+                if !self.mixer.is_on().await.unwrap() {
+                    self.mixer.set_on(true).await.unwrap();
+                } else if self.speakers.is_on().await.unwrap() {
+                    self.speakers.set_on(false).await.unwrap();
                 } else {
-                    self.speakers.set_on(true).unwrap();
+                    self.speakers.set_on(true).await.unwrap();
                 }
             },
             RemoteAction::BrightnessStop => { /* Ignore this action */ },
@@ -116,8 +116,8 @@ impl OnPresence for AudioSetup {
         // Turn off the audio setup when we leave the house
         if !presence {
             debug!(id = self.identifier, "Turning devices off");
-            self.speakers.set_on(false).unwrap();
-            self.mixer.set_on(false).unwrap();
+            self.speakers.set_on(false).await.unwrap();
+            self.mixer.set_on(false).await.unwrap();
         }
     }
 }

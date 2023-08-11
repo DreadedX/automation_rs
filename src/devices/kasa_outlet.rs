@@ -1,9 +1,9 @@
 use std::{
-    io::{Read, Write},
-    net::{Ipv4Addr, SocketAddr, TcpStream},
+    net::{Ipv4Addr, SocketAddr},
     str::Utf8Error,
 };
 
+use async_trait::async_trait;
 use bytes::{Buf, BufMut};
 use google_home::{
     errors::{self, DeviceError},
@@ -12,6 +12,10 @@ use google_home::{
 use rumqttc::AsyncClient;
 use serde::{Deserialize, Serialize};
 use thiserror::Error;
+use tokio::{
+    io::{AsyncReadExt, AsyncWriteExt},
+    net::TcpStream,
+};
 use tracing::trace;
 
 use crate::{config::CreateDevice, error::CreateDeviceError, event::EventChannel};
@@ -215,15 +219,18 @@ impl Response {
     }
 }
 
+#[async_trait]
 impl traits::OnOff for KasaOutlet {
-    fn is_on(&self) -> Result<bool, errors::ErrorCode> {
-        let mut stream =
-            TcpStream::connect(self.addr).or::<DeviceError>(Err(DeviceError::DeviceOffline))?;
+    async fn is_on(&self) -> Result<bool, errors::ErrorCode> {
+        let mut stream = TcpStream::connect(self.addr)
+            .await
+            .or::<DeviceError>(Err(DeviceError::DeviceOffline))?;
 
         let body = Request::get_sysinfo().encrypt();
         stream
             .write_all(&body)
-            .and(stream.flush())
+            .await
+            .and(stream.flush().await)
             .or::<DeviceError>(Err(DeviceError::TransientError))?;
 
         let mut received = Vec::new();
@@ -231,6 +238,7 @@ impl traits::OnOff for KasaOutlet {
         loop {
             let read = stream
                 .read(&mut rx_bytes)
+                .await
                 .or::<errors::ErrorCode>(Err(DeviceError::TransientError.into()))?;
 
             received.extend_from_slice(&rx_bytes[..read]);
@@ -247,20 +255,22 @@ impl traits::OnOff for KasaOutlet {
             .or(Err(DeviceError::TransientError.into()))
     }
 
-    fn set_on(&mut self, on: bool) -> Result<(), errors::ErrorCode> {
-        let mut stream =
-            TcpStream::connect(self.addr).or::<DeviceError>(Err(DeviceError::DeviceOffline))?;
+    async fn set_on(&mut self, on: bool) -> Result<(), errors::ErrorCode> {
+        let mut stream = TcpStream::connect(self.addr)
+            .await
+            .or::<DeviceError>(Err(DeviceError::DeviceOffline))?;
 
         let body = Request::set_relay_state(on).encrypt();
         stream
             .write_all(&body)
-            .and(stream.flush())
+            .await
+            .and(stream.flush().await)
             .or::<DeviceError>(Err(DeviceError::TransientError))?;
 
         let mut received = Vec::new();
         let mut rx_bytes = [0; 1024];
         loop {
-            let read = match stream.read(&mut rx_bytes) {
+            let read = match stream.read(&mut rx_bytes).await {
                 Ok(read) => read,
                 Err(_) => return Err(DeviceError::TransientError.into()),
             };

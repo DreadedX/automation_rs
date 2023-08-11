@@ -95,7 +95,7 @@ impl OnMqtt for WakeOnLAN {
             }
         };
 
-        self.set_active(activate).ok();
+        self.set_active(activate).await.ok();
     }
 }
 
@@ -124,8 +124,9 @@ impl GoogleHomeDevice for WakeOnLAN {
     }
 }
 
+#[async_trait]
 impl traits::Scene for WakeOnLAN {
-    fn set_active(&self, activate: bool) -> Result<(), ErrorCode> {
+    async fn set_active(&self, activate: bool) -> Result<(), ErrorCode> {
         if activate {
             debug!(
                 id = self.identifier,
@@ -138,6 +139,7 @@ impl traits::Scene for WakeOnLAN {
                 })?;
 
             wol.send_magic_to((Ipv4Addr::new(0, 0, 0, 0), 0), (self.broadcast_ip, 9))
+                .await
                 .map_err(|err| {
                     error!(id = self.identifier, "Failed to activate computer: {err}");
                     google_home::errors::DeviceError::TransientError.into()

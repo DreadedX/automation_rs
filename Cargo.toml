@@ -39,5 +39,8 @@ console-subscriber = "0.1.8"
 tracing-subscriber = "0.3.16"
 serde-tuple-vec-map = "1.0.1"
 
+[patch.crates-io]
+wakey = { git = "https://github.com/DreadedX/wakey" }
+
 [profile.release]
 lto = true
