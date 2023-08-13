@@ -2,12 +2,12 @@
 base_url = "https://login.huizinga.dev/api/oidc"
 
 [mqtt]
-host="olympus.lan.huizinga.dev"
-port=8883
-client_name="automation-zeus"
-username="mqtt"
-password="${MQTT_PASSWORD}"
-tls=true
+host = "olympus.lan.huizinga.dev"
+port = 8883
+client_name = "automation-zeus"
+username = "mqtt"
+password = "${MQTT_PASSWORD}"
+tls = true
 
 [ntfy]
 topic = "${NTFY_TOPIC}"
@@ -34,6 +34,14 @@ outlet_type = "Kettle"
 name = "Kettle"
 room = "Kitchen"
 topic = "zigbee2mqtt/kitchen/kettle"
+timeout = 5
+
+[devices.bathroom_light]
+type = "IkeaOutlet"
+outlet_type = "Light"
+name = "Bathroom light"
+room = "Bathroom"
+topic = "zigbee2mqtt/bathroom/light"
 timeout = 5
 
 [devices.workbench_charger]

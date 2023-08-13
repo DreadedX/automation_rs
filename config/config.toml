@@ -35,6 +35,14 @@ room = "Kitchen"
 topic = "zigbee2mqtt/kitchen/kettle"
 timeout = 300
 
+[devices.bathroom_light]
+type = "IkeaOutlet"
+outlet_type = "Light"
+name = "Light"
+room = "Bathroom"
+topic = "zigbee2mqtt/bathroom/light"
+timeout = 2700
+
 [devices.workbench_charger]
 type = "IkeaOutlet"
 outlet_type = "Charger"

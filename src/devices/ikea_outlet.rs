@@ -25,6 +25,7 @@ pub enum OutletType {
     Outlet,
     Kettle,
     Charger,
+    Light,
 }
 
 #[derive(Debug, Clone, Deserialize)]
@@ -179,6 +180,7 @@ impl GoogleHomeDevice for IkeaOutlet {
         match self.outlet_type {
             OutletType::Outlet => Type::Outlet,
             OutletType::Kettle => Type::Kettle,
+            OutletType::Light => Type::Light, // Find a better device type for this, ideally would like to use charger, but that needs more work
             OutletType::Charger => Type::Outlet, // Find a better device type for this, ideally would like to use charger, but that needs more work
         }
     }

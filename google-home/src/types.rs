@@ -6,8 +6,8 @@ pub enum Type {
     Kettle,
     #[serde(rename = "action.devices.types.OUTLET")]
     Outlet,
-    #[serde(rename = "action.devices.types.GRILL")]
-    Grill,
+    #[serde(rename = "action.devices.types.LIGHT")]
+    Light,
     #[serde(rename = "action.devices.types.SCENE")]
     Scene,
 }
