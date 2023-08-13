@@ -13,6 +13,7 @@ use tokio::task::JoinHandle;
 use tracing::{debug, error, trace, warn};
 
 use crate::config::{CreateDevice, InfoConfig, MqttDeviceConfig};
+use crate::device_manager::DeviceManager;
 use crate::devices::Device;
 use crate::error::CreateDeviceError;
 use crate::event::EventChannel;
@@ -56,15 +57,17 @@ pub struct IkeaOutlet {
     handle: Option<JoinHandle<()>>,
 }
 
+#[async_trait]
 impl CreateDevice for IkeaOutlet {
     type Config = IkeaOutletConfig;
 
-    fn create(
+    async fn create(
         identifier: &str,
         config: Self::Config,
         _event_channel: &EventChannel,
         client: &AsyncClient,
         _presence_topic: &str,
+        _device_manager: &DeviceManager,
     ) -> Result<Self, CreateDeviceError> {
         trace!(
             id = identifier,

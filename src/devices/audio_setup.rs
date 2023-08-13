@@ -1,11 +1,13 @@
 use async_trait::async_trait;
-use google_home::traits;
+use google_home::traits::OnOff;
 use rumqttc::AsyncClient;
 use serde::Deserialize;
 use tracing::{debug, error, trace, warn};
 
 use crate::{
-    config::{self, CreateDevice, MqttDeviceConfig},
+    config::{CreateDevice, MqttDeviceConfig},
+    device_manager::{DeviceManager, WrappedDevice},
+    devices::As,
     error::CreateDeviceError,
     event::EventChannel,
     event::OnMqtt,
@@ -13,14 +15,14 @@ use crate::{
     messages::{RemoteAction, RemoteMessage},
 };
 
-use super::{As, Device};
+use super::Device;
 
 #[derive(Debug, Clone, Deserialize)]
 pub struct AudioSetupConfig {
     #[serde(flatten)]
     mqtt: MqttDeviceConfig,
-    mixer: Box<config::DeviceConfig>,
-    speakers: Box<config::DeviceConfig>,
+    mixer: String,
+    speakers: String,
 }
 
 // TODO: We need a better way to store the children devices
@@ -28,32 +30,48 @@ pub struct AudioSetupConfig {
 pub struct AudioSetup {
     identifier: String,
     mqtt: MqttDeviceConfig,
-    mixer: Box<dyn traits::OnOff>,
-    speakers: Box<dyn traits::OnOff>,
+    mixer: WrappedDevice,
+    speakers: WrappedDevice,
 }
 
+#[async_trait]
 impl CreateDevice for AudioSetup {
     type Config = AudioSetupConfig;
 
-    fn create(
+    async fn create(
         identifier: &str,
         config: Self::Config,
-        event_channel: &EventChannel,
-        client: &AsyncClient,
-        presence_topic: &str,
+        _event_channel: &EventChannel,
+        _client: &AsyncClient,
+        _presence_topic: &str,
+        device_manager: &DeviceManager,
     ) -> Result<Self, CreateDeviceError> {
         trace!(id = identifier, "Setting up AudioSetup");
 
-        // Create the child devices
-        let mixer_id = format!("{}.mixer", identifier);
-        let mixer = (*config.mixer).create(&mixer_id, event_channel, client, presence_topic)?;
-        let mixer = As::consume(mixer).ok_or(CreateDeviceError::OnOffExpected(mixer_id))?;
+        // TODO: Make sure they implement OnOff?
+        let mixer = device_manager
+            .get(&config.mixer)
+            .await
+            // NOTE: We need to clone to make the compiler happy, how ever if this clone happens the next one can never happen...
+            .ok_or(CreateDeviceError::DeviceDoesNotExist(config.mixer.clone()))?;
 
-        let speakers_id = format!("{}.speakers", identifier);
-        let speakers =
-            (*config.speakers).create(&speakers_id, event_channel, client, presence_topic)?;
-        let speakers =
-            As::consume(speakers).ok_or(CreateDeviceError::OnOffExpected(speakers_id))?;
+        {
+            let mixer = mixer.read().await;
+            if As::<dyn OnOff>::cast(mixer.as_ref()).is_none() {
+                return Err(CreateDeviceError::OnOffExpected(config.mixer));
+            }
+        }
+
+        let speakers = device_manager.get(&config.speakers).await.ok_or(
+            CreateDeviceError::DeviceDoesNotExist(config.speakers.clone()),
+        )?;
+
+        {
+            let speakers = speakers.read().await;
+            if As::<dyn OnOff>::cast(speakers.as_ref()).is_none() {
+                return Err(CreateDeviceError::OnOffExpected(config.speakers));
+            }
+        }
 
         Ok(Self {
             identifier: identifier.to_owned(),
@@ -85,27 +103,34 @@ impl OnMqtt for AudioSetup {
             }
         };
 
-        match action {
-            RemoteAction::On => {
-                if self.mixer.is_on().await.unwrap() {
-                    self.speakers.set_on(false).await.unwrap();
-                    self.mixer.set_on(false).await.unwrap();
-                } else {
-                    self.speakers.set_on(true).await.unwrap();
-                    self.mixer.set_on(true).await.unwrap();
-                }
-            },
-            RemoteAction::BrightnessMoveUp => {
-                if !self.mixer.is_on().await.unwrap() {
-                    self.mixer.set_on(true).await.unwrap();
-                } else if self.speakers.is_on().await.unwrap() {
-                    self.speakers.set_on(false).await.unwrap();
-                } else {
-                    self.speakers.set_on(true).await.unwrap();
-                }
-            },
-            RemoteAction::BrightnessStop => { /* Ignore this action */ },
-            _ => warn!("Expected ikea shortcut button which only supports 'on' and 'brightness_move_up', got: {action:?}")
+        let mut mixer = self.mixer.write().await;
+        let mut speakers = self.speakers.write().await;
+        if let (Some(mixer), Some(speakers)) = (
+            As::<dyn OnOff>::cast_mut(mixer.as_mut()),
+            As::<dyn OnOff>::cast_mut(speakers.as_mut()),
+        ) {
+            match action {
+				RemoteAction::On => {
+					if mixer.is_on().await.unwrap() {
+						speakers.set_on(false).await.unwrap();
+						mixer.set_on(false).await.unwrap();
+					} else {
+						speakers.set_on(true).await.unwrap();
+						mixer.set_on(true).await.unwrap();
+					}
+				},
+				RemoteAction::BrightnessMoveUp => {
+					if !mixer.is_on().await.unwrap() {
+						mixer.set_on(true).await.unwrap();
+					} else if speakers.is_on().await.unwrap() {
+						speakers.set_on(false).await.unwrap();
+					} else {
+						speakers.set_on(true).await.unwrap();
+					}
+				},
+				RemoteAction::BrightnessStop => { /* Ignore this action */ },
+				_ => warn!("Expected ikea shortcut button which only supports 'on' and 'brightness_move_up', got: {action:?}")
+			}
         }
     }
 }
@@ -113,11 +138,19 @@ impl OnMqtt for AudioSetup {
 #[async_trait]
 impl OnPresence for AudioSetup {
     async fn on_presence(&mut self, presence: bool) {
-        // Turn off the audio setup when we leave the house
-        if !presence {
-            debug!(id = self.identifier, "Turning devices off");
-            self.speakers.set_on(false).await.unwrap();
-            self.mixer.set_on(false).await.unwrap();
+        let mut mixer = self.mixer.write().await;
+        let mut speakers = self.speakers.write().await;
+
+        if let (Some(mixer), Some(speakers)) = (
+            As::<dyn OnOff>::cast_mut(mixer.as_mut()),
+            As::<dyn OnOff>::cast_mut(speakers.as_mut()),
+        ) {
+            // Turn off the audio setup when we leave the house
+            if !presence {
+                debug!(id = self.identifier, "Turning devices off");
+                speakers.set_on(false).await.unwrap();
+                mixer.set_on(false).await.unwrap();
+            }
         }
     }
 }

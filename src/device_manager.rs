@@ -14,7 +14,8 @@ use crate::{
     event::{Event, EventChannel, OnMqtt},
 };
 
-pub type DeviceMap = HashMap<String, Arc<RwLock<Box<dyn Device>>>>;
+pub type WrappedDevice = Arc<RwLock<Box<dyn Device>>>;
+pub type DeviceMap = HashMap<String, WrappedDevice>;
 
 #[derive(Debug, Clone)]
 pub struct DeviceManager {
@@ -68,6 +69,10 @@ impl DeviceManager {
         let device = Arc::new(RwLock::new(device));
 
         self.devices.write().await.insert(id, device);
+    }
+
+    pub async fn get(&self, name: &str) -> Option<WrappedDevice> {
+        self.devices.read().await.get(name).cloned()
     }
 
     pub async fn devices(&self) -> RwLockReadGuard<DeviceMap> {

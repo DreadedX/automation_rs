@@ -15,6 +15,7 @@ use tracing::{debug, error, trace};
 
 use crate::{
     config::{CreateDevice, InfoConfig, MqttDeviceConfig},
+    device_manager::DeviceManager,
     error::CreateDeviceError,
     event::EventChannel,
     event::OnMqtt,
@@ -47,15 +48,17 @@ pub struct WakeOnLAN {
     broadcast_ip: Ipv4Addr,
 }
 
+#[async_trait]
 impl CreateDevice for WakeOnLAN {
     type Config = WakeOnLANConfig;
 
-    fn create(
+    async fn create(
         identifier: &str,
         config: Self::Config,
         _event_channel: &EventChannel,
         _client: &AsyncClient,
         _presence_topic: &str,
+        _device_manager: &DeviceManager,
     ) -> Result<Self, CreateDeviceError> {
         trace!(
             id = identifier,

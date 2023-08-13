@@ -8,6 +8,7 @@ use tracing::{debug, error, trace, warn};
 
 use crate::{
     config::{CreateDevice, MqttDeviceConfig},
+    device_manager::DeviceManager,
     devices::DEFAULT_PRESENCE,
     error::{CreateDeviceError, MissingWildcard},
     event::EventChannel,
@@ -72,15 +73,17 @@ pub struct ContactSensor {
     handle: Option<JoinHandle<()>>,
 }
 
+#[async_trait]
 impl CreateDevice for ContactSensor {
     type Config = ContactSensorConfig;
 
-    fn create(
+    async fn create(
         identifier: &str,
         config: Self::Config,
         _event_channel: &EventChannel,
         client: &AsyncClient,
         presence_topic: &str,
+        _device_manager: &DeviceManager,
     ) -> Result<Self, CreateDeviceError> {
         trace!(id = identifier, "Setting up ContactSensor");
 

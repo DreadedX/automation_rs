@@ -4,6 +4,7 @@ use std::{
     time::Duration,
 };
 
+use async_trait::async_trait;
 use regex::{Captures, Regex};
 use rumqttc::{AsyncClient, MqttOptions, Transport};
 use serde::{Deserialize, Deserializer};
@@ -11,6 +12,7 @@ use tracing::debug;
 
 use crate::{
     auth::OpenIDConfig,
+    device_manager::DeviceManager,
     devices::{
         AudioSetup, ContactSensor, DebugBridgeConfig, Device, HueBridgeConfig, IkeaOutlet,
         KasaOutlet, LightSensorConfig, PresenceConfig, WakeOnLAN,
@@ -158,39 +160,42 @@ impl Config {
     }
 }
 
+#[async_trait]
 pub trait CreateDevice {
     type Config;
 
-    fn create(
+    async fn create(
         identifier: &str,
         config: Self::Config,
         event_channel: &EventChannel,
         client: &AsyncClient,
         // TODO: Not a big fan of passing in the global config
         presence_topic: &str,
+        devices: &DeviceManager,
     ) -> Result<Self, CreateDeviceError>
     where
         Self: Sized;
 }
 
 macro_rules! create {
-	(($self:ident, $id:ident, $event_channel:ident, $client:ident, $presence_topic:ident), [ $( $Variant:ident ),* ]) => {
+	(($self:ident, $id:ident, $event_channel:ident, $client:ident, $presence_topic:ident, $device_manager:ident), [ $( $Variant:ident ),* ]) => {
 		match $self {
-			$(DeviceConfig::$Variant(c) => Box::new($Variant::create($id, c, $event_channel, $client, $presence_topic)?),)*
+			$(DeviceConfig::$Variant(c) => Box::new($Variant::create($id, c, $event_channel, $client, $presence_topic, $device_manager).await?),)*
 		}
     };
 }
 
 impl DeviceConfig {
-    pub fn create(
+    pub async fn create(
         self,
         id: &str,
         event_channel: &EventChannel,
         client: &AsyncClient,
         presence_topic: &str,
+        device_manager: &DeviceManager,
     ) -> Result<Box<dyn Device>, CreateDeviceError> {
         Ok(create! {
-            (self, id, event_channel, client, presence_topic), [
+            (self, id, event_channel, client, presence_topic, device_manager), [
                 AudioSetup,
                 ContactSensor,
                 IkeaOutlet,

@@ -18,7 +18,10 @@ use tokio::{
 };
 use tracing::trace;
 
-use crate::{config::CreateDevice, error::CreateDeviceError, event::EventChannel};
+use crate::{
+    config::CreateDevice, device_manager::DeviceManager, error::CreateDeviceError,
+    event::EventChannel,
+};
 
 use super::Device;
 
@@ -33,15 +36,17 @@ pub struct KasaOutlet {
     addr: SocketAddr,
 }
 
+#[async_trait]
 impl CreateDevice for KasaOutlet {
     type Config = KasaOutletConfig;
 
-    fn create(
+    async fn create(
         identifier: &str,
         config: Self::Config,
         _event_channel: &EventChannel,
         _client: &AsyncClient,
         _presence_topic: &str,
+        _device_manager: &DeviceManager,
     ) -> Result<Self, CreateDeviceError> {
         trace!(id = identifier, "Setting up KasaOutlet");
 

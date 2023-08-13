@@ -62,8 +62,15 @@ async fn app() -> anyhow::Result<()> {
 
     // Create all the devices specified in the config
     for (id, device_config) in config.devices {
-        let device =
-            device_config.create(&id, &event_channel, &client, &config.presence.mqtt.topic)?;
+        let device = device_config
+            .create(
+                &id,
+                &event_channel,
+                &client,
+                &config.presence.mqtt.topic,
+                &device_manager,
+            )
+            .await?;
 
         device_manager.add(device).await;
     }

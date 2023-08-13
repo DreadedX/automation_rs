@@ -2,12 +2,12 @@
 base_url = "https://login.huizinga.dev/api/oidc"
 
 [mqtt]
-host="olympus.vpn.huizinga.dev"
-port=8883
-client_name="automation-ares"
-username="mqtt"
-password="${MQTT_PASSWORD}"
-tls=true
+host = "olympus.vpn.huizinga.dev"
+port = 8883
+client_name = "automation-ares"
+username = "mqtt"
+password = "${MQTT_PASSWORD}"
+tls = true
 
 [ntfy]
 topic = "${NTFY_TOPIC}"
