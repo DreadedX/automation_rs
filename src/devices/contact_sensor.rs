@@ -59,6 +59,7 @@ impl PresenceDeviceConfig {
 #[derive(Debug, Clone, Deserialize)]
 pub struct LightsConfig {
     lights: Vec<String>,
+    #[serde(default)]
     timeout: u64, // Timeout in seconds
 }
 
@@ -195,9 +196,14 @@ impl OnMqtt for ContactSensor {
             } else {
                 for (light, previous) in &lights.lights {
                     let mut light = light.write().await;
-                    if !previous && let Some(light) = As::<dyn Timeout>::cast_mut(light.as_mut()) {
-						light.start_timeout(lights.timeout);
-					}
+                    if !previous {
+                        // If the timeout is zero just turn the light off directly
+                        if lights.timeout.is_zero() && let Some(light) = As::<dyn OnOff>::cast_mut(light.as_mut()) {
+                            light.set_on(false).await.ok();
+                        } else if let Some(light) = As::<dyn Timeout>::cast_mut(light.as_mut()) {
+                            light.start_timeout(lights.timeout);
+                        }
+                    }
                 }
             }
         }
