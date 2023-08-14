@@ -20,6 +20,7 @@ use crate::event::EventChannel;
 use crate::event::OnMqtt;
 use crate::event::OnPresence;
 use crate::messages::OnOffMessage;
+use crate::traits::Timeout;
 
 #[derive(Debug, Clone, Deserialize, PartialEq, Eq, Copy)]
 pub enum OutletType {
@@ -50,7 +51,7 @@ pub struct IkeaOutlet {
     info: InfoConfig,
     mqtt: MqttDeviceConfig,
     outlet_type: OutletType,
-    timeout: Option<u64>,
+    timeout: Option<Duration>,
 
     client: AsyncClient,
     last_known_state: bool,
@@ -81,7 +82,7 @@ impl CreateDevice for IkeaOutlet {
             info: config.info,
             mqtt: config.mqtt,
             outlet_type: config.outlet_type,
-            timeout: config.timeout,
+            timeout: config.timeout.map(Duration::from_secs),
             client: client.clone(),
             last_known_state: false,
             handle: None,
@@ -142,27 +143,8 @@ impl OnMqtt for IkeaOutlet {
         self.last_known_state = state;
 
         // If this is a kettle start a timeout for turning it of again
-        if state {
-            let timeout = match self.timeout {
-                Some(timeout) => Duration::from_secs(timeout),
-                None => return,
-            };
-
-            // Turn the kettle of after the specified timeout
-            // TODO: Impl Drop for IkeaOutlet that will abort the handle if the IkeaOutlet
-            // get dropped
-            let client = self.client.clone();
-            let topic = self.mqtt.topic.clone();
-            let id = self.identifier.clone();
-            self.handle = Some(tokio::spawn(async move {
-                debug!(id, "Starting timeout ({timeout:?})...");
-                tokio::time::sleep(timeout).await;
-                debug!(id, "Turning outlet off!");
-                // TODO: Idealy we would call self.set_on(false), however since we want to do
-                // it after a timeout we have to put it in a seperate task.
-                // I don't think we can really get around calling outside function
-                set_on(client, &topic, false).await;
-            }));
+        if state && let Some(timeout) = self.timeout {
+			self.start_timeout(timeout);
         }
     }
 }
@@ -220,5 +202,30 @@ impl traits::OnOff for IkeaOutlet {
         set_on(self.client.clone(), &self.mqtt.topic, on).await;
 
         Ok(())
+    }
+}
+
+impl crate::traits::Timeout for IkeaOutlet {
+    fn start_timeout(&mut self, timeout: Duration) {
+        // Abort any timer that is currently running
+        if let Some(handle) = self.handle.take() {
+            handle.abort();
+        }
+
+        // Turn the kettle of after the specified timeout
+        // TODO: Impl Drop for IkeaOutlet that will abort the handle if the IkeaOutlet
+        // get dropped
+        let client = self.client.clone();
+        let topic = self.mqtt.topic.clone();
+        let id = self.identifier.clone();
+        self.handle = Some(tokio::spawn(async move {
+            debug!(id, "Starting timeout ({timeout:?})...");
+            tokio::time::sleep(timeout).await;
+            debug!(id, "Turning outlet off!");
+            // TODO: Idealy we would call self.set_on(false), however since we want to do
+            // it after a timeout we have to put it in a seperate task.
+            // I don't think we can really get around calling outside function
+            set_on(client, &topic, false).await;
+        }));
     }
 }

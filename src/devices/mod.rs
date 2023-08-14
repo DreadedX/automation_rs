@@ -22,9 +22,10 @@ pub use self::wake_on_lan::WakeOnLAN;
 
 use google_home::{device::AsGoogleHomeDevice, traits::OnOff};
 
+use crate::traits::Timeout;
 use crate::{event::OnDarkness, event::OnMqtt, event::OnNotification, event::OnPresence};
 
-#[impl_cast::device(As: OnMqtt + OnPresence + OnDarkness + OnNotification + OnOff)]
+#[impl_cast::device(As: OnMqtt + OnPresence + OnDarkness + OnNotification + OnOff + Timeout)]
 pub trait Device: AsGoogleHomeDevice + std::fmt::Debug + Sync + Send {
     fn get_id(&self) -> &str;
 }
