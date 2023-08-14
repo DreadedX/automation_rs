@@ -1,7 +1,7 @@
 use async_trait::async_trait;
 use rumqttc::{AsyncClient, Publish};
 use serde::Deserialize;
-use tracing::{error, warn};
+use tracing::{debug, error, warn};
 
 use crate::{
     config::{CreateDevice, MqttDeviceConfig},
@@ -17,6 +17,7 @@ use super::{ntfy::Priority, Device, Notification};
 pub struct WasherConfig {
     #[serde(flatten)]
     mqtt: MqttDeviceConfig,
+    threshold: f32, // Power in Watt
 }
 
 // TODO: Add google home integration
@@ -27,6 +28,7 @@ pub struct Washer {
     mqtt: MqttDeviceConfig,
 
     event_channel: EventChannel,
+    threshold: f32,
     running: bool,
 }
 
@@ -46,6 +48,7 @@ impl CreateDevice for Washer {
             identifier: identifier.to_owned(),
             mqtt: config.mqtt,
             event_channel: event_channel.clone(),
+            threshold: config.threshold,
             running: false,
         })
     }
@@ -72,8 +75,12 @@ impl OnMqtt for Washer {
             }
         };
 
-        if self.running && power < 1.0 {
-            // The washer is done running
+        if self.running && power < self.threshold {
+            debug!(
+                id = self.identifier,
+                power, self.threshold, "Washer is done"
+            );
+
             self.running = false;
             let notification = Notification::new()
                 .set_title("Laundy is done")
@@ -90,8 +97,12 @@ impl OnMqtt for Washer {
             {
                 warn!("There are no receivers on the event channel");
             }
-        } else if !self.running && power >= 1.0 {
-            // We just started washing
+        } else if !self.running && power >= self.threshold {
+            debug!(
+                id = self.identifier,
+                power, self.threshold, "Washer is starting"
+            );
+
             self.running = true
         }
     }
