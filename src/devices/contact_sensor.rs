@@ -1,6 +1,7 @@
 use std::time::Duration;
 
 use async_trait::async_trait;
+use google_home::traits::OnOff;
 use rumqttc::{has_wildcards, AsyncClient};
 use serde::Deserialize;
 use tokio::task::JoinHandle;
@@ -8,13 +9,14 @@ use tracing::{debug, error, trace, warn};
 
 use crate::{
     config::{CreateDevice, MqttDeviceConfig},
-    device_manager::DeviceManager,
-    devices::DEFAULT_PRESENCE,
+    device_manager::{DeviceManager, WrappedDevice},
+    devices::{As, DEFAULT_PRESENCE},
     error::{CreateDeviceError, MissingWildcard},
     event::EventChannel,
     event::OnMqtt,
     event::OnPresence,
     messages::{ContactMessage, PresenceMessage},
+    traits::Timeout,
 };
 
 use super::Device;
@@ -55,10 +57,23 @@ impl PresenceDeviceConfig {
 }
 
 #[derive(Debug, Clone, Deserialize)]
+pub struct LightsConfig {
+    lights: Vec<String>,
+    timeout: u64, // Timeout in seconds
+}
+
+#[derive(Debug, Clone, Deserialize)]
 pub struct ContactSensorConfig {
     #[serde(flatten)]
     mqtt: MqttDeviceConfig,
     presence: Option<PresenceDeviceConfig>,
+    lights: Option<LightsConfig>,
+}
+
+#[derive(Debug)]
+pub struct Lights {
+    lights: Vec<(WrappedDevice, bool)>,
+    timeout: Duration, // Timeout in seconds
 }
 
 #[derive(Debug)]
@@ -71,6 +86,8 @@ pub struct ContactSensor {
     overall_presence: bool,
     is_closed: bool,
     handle: Option<JoinHandle<()>>,
+
+    lights: Option<Lights>,
 }
 
 #[async_trait]
@@ -83,7 +100,7 @@ impl CreateDevice for ContactSensor {
         _event_channel: &EventChannel,
         client: &AsyncClient,
         presence_topic: &str,
-        _device_manager: &DeviceManager,
+        device_manager: &DeviceManager,
     ) -> Result<Self, CreateDeviceError> {
         trace!(id = identifier, "Setting up ContactSensor");
 
@@ -91,6 +108,32 @@ impl CreateDevice for ContactSensor {
             .presence
             .map(|p| p.generate_topic("contact", identifier, presence_topic))
             .transpose()?;
+
+        let lights = if let Some(lights_config) = config.lights {
+            let mut lights = Vec::new();
+            for name in lights_config.lights {
+                let light = device_manager
+                    .get(&name)
+                    .await
+                    .ok_or(CreateDeviceError::DeviceDoesNotExist(name.clone()))?;
+
+                {
+                    let light = light.read().await;
+                    if As::<dyn OnOff>::cast(light.as_ref()).is_none() {
+                        return Err(CreateDeviceError::OnOffExpected(name));
+                    }
+                }
+
+                lights.push((light, false));
+            }
+
+            Some(Lights {
+                lights,
+                timeout: Duration::from_secs(lights_config.timeout),
+            })
+        } else {
+            None
+        };
 
         Ok(Self {
             identifier: identifier.to_owned(),
@@ -100,6 +143,7 @@ impl CreateDevice for ContactSensor {
             overall_presence: DEFAULT_PRESENCE,
             is_closed: true,
             handle: None,
+            lights,
         })
     }
 }
@@ -138,6 +182,25 @@ impl OnMqtt for ContactSensor {
 
         debug!(id = self.identifier, "Updating state to {is_closed}");
         self.is_closed = is_closed;
+
+        if let Some(lights) = &mut self.lights {
+            if !self.is_closed {
+                for (light, previous) in &mut lights.lights {
+                    let mut light = light.write().await;
+                    if let Some(light) = As::<dyn OnOff>::cast_mut(light.as_mut()) {
+                        *previous = light.is_on().await.unwrap();
+                        light.set_on(true).await.ok();
+                    }
+                }
+            } else {
+                for (light, previous) in &lights.lights {
+                    let mut light = light.write().await;
+                    if !previous && let Some(light) = As::<dyn Timeout>::cast_mut(light.as_mut()) {
+						light.start_timeout(lights.timeout);
+					}
+                }
+            }
+        }
 
         // Check if this contact sensor works as a presence device
         // If not we are done here

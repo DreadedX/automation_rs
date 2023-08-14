@@ -42,7 +42,7 @@ outlet_type = "Light"
 name = "Bathroom light"
 room = "Bathroom"
 topic = "zigbee2mqtt/bathroom/light"
-timeout = 5
+timeout = 60
 
 [devices.workbench_charger]
 type = "IkeaOutlet"
@@ -76,10 +76,11 @@ ip = "10.0.0.182"
 [devices.living_audio]
 type = "AudioSetup"
 topic = "zigbee2mqtt/living/remote"
-mixer = "light_sensor"
+mixer = "living_mixer"
 speakers = "living_speakers"
 
 [devices.hallway_frontdoor]
 type = "ContactSensor"
 topic = "zigbee2mqtt/hallway/frontdoor"
 presence = { timeout = 10 }
+lights = { lights = ["bathroom_light"], timeout = 10 }
