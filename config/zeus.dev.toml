@@ -84,3 +84,7 @@ type = "ContactSensor"
 topic = "zigbee2mqtt/hallway/frontdoor"
 presence = { timeout = 10 }
 lights = { lights = ["bathroom_light"], timeout = 10 }
+
+[devices.bathroom_washer]
+type = "Washer"
+topic = "zigbee2mqtt/bathroom/washer"

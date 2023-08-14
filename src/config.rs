@@ -15,7 +15,7 @@ use crate::{
     device_manager::DeviceManager,
     devices::{
         AudioSetup, ContactSensor, DebugBridgeConfig, Device, HueBridgeConfig, IkeaOutlet,
-        KasaOutlet, LightSensorConfig, PresenceConfig, WakeOnLAN,
+        KasaOutlet, LightSensorConfig, PresenceConfig, WakeOnLAN, Washer,
     },
     error::{ConfigParseError, CreateDeviceError, MissingEnv},
     event::EventChannel,
@@ -130,6 +130,7 @@ pub enum DeviceConfig {
     IkeaOutlet(<IkeaOutlet as CreateDevice>::Config),
     KasaOutlet(<KasaOutlet as CreateDevice>::Config),
     WakeOnLAN(<WakeOnLAN as CreateDevice>::Config),
+    Washer(<Washer as CreateDevice>::Config),
 }
 
 impl Config {
@@ -200,7 +201,8 @@ impl DeviceConfig {
                 ContactSensor,
                 IkeaOutlet,
                 KasaOutlet,
-                WakeOnLAN
+                WakeOnLAN,
+                Washer
             ]
         })
     }

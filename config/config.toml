@@ -83,3 +83,7 @@ speakers = "living_speakers"
 type = "ContactSensor"
 topic = "zigbee2mqtt/hallway/frontdoor"
 presence = { timeout = 900 }
+
+[devices.bathroom_washer]
+type = "Washer"
+topic = "zigbee2mqtt/bathroom/washer"

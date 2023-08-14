@@ -119,7 +119,7 @@ impl TryFrom<Publish> for PresenceMessage {
     }
 }
 
-// Message use to report the state of a light sensor
+// Message used to report the state of a light sensor
 #[derive(Debug, Deserialize)]
 pub struct BrightnessMessage {
     illuminance: isize,
@@ -187,6 +187,27 @@ impl DarknessMessage {
 }
 
 impl TryFrom<Publish> for DarknessMessage {
+    type Error = ParseError;
+
+    fn try_from(message: Publish) -> Result<Self, Self::Error> {
+        serde_json::from_slice(&message.payload)
+            .or(Err(ParseError::InvalidPayload(message.payload.clone())))
+    }
+}
+
+// Message used to report the power draw a smart plug
+#[derive(Debug, Deserialize)]
+pub struct PowerMessage {
+    power: f32,
+}
+
+impl PowerMessage {
+    pub fn power(&self) -> f32 {
+        self.power
+    }
+}
+
+impl TryFrom<Publish> for PowerMessage {
     type Error = ParseError;
 
     fn try_from(message: Publish) -> Result<Self, Self::Error> {
