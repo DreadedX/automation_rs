@@ -135,16 +135,14 @@ impl OnMqtt for IkeaOutlet {
         }
 
         // Abort any timer that is currently running
-        if let Some(handle) = self.handle.take() {
-            handle.abort();
-        }
+        self.stop_timeout().await;
 
         debug!(id = self.identifier, "Updating state to {state}");
         self.last_known_state = state;
 
         // If this is a kettle start a timeout for turning it of again
         if state && let Some(timeout) = self.timeout {
-			self.start_timeout(timeout);
+			self.start_timeout(timeout).await;
         }
     }
 }
@@ -205,12 +203,11 @@ impl traits::OnOff for IkeaOutlet {
     }
 }
 
+#[async_trait]
 impl crate::traits::Timeout for IkeaOutlet {
-    fn start_timeout(&mut self, timeout: Duration) {
+    async fn start_timeout(&mut self, timeout: Duration) {
         // Abort any timer that is currently running
-        if let Some(handle) = self.handle.take() {
-            handle.abort();
-        }
+        self.stop_timeout().await;
 
         // Turn the kettle of after the specified timeout
         // TODO: Impl Drop for IkeaOutlet that will abort the handle if the IkeaOutlet
@@ -227,5 +224,11 @@ impl crate::traits::Timeout for IkeaOutlet {
             // I don't think we can really get around calling outside function
             set_on(client, &topic, false).await;
         }));
+    }
+
+    async fn stop_timeout(&mut self) {
+        if let Some(handle) = self.handle.take() {
+            handle.abort();
+        }
     }
 }

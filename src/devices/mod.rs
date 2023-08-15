@@ -13,7 +13,7 @@ mod washer;
 pub use self::audio_setup::AudioSetup;
 pub use self::contact_sensor::ContactSensor;
 pub use self::debug_bridge::{DebugBridge, DebugBridgeConfig};
-pub use self::hue_bridge::{HueBridge, HueBridgeConfig};
+pub use self::hue_bridge::{HueBridge, HueBridgeConfig, HueLight};
 pub use self::ikea_outlet::IkeaOutlet;
 pub use self::kasa_outlet::KasaOutlet;
 pub use self::light_sensor::{LightSensor, LightSensorConfig};

@@ -79,11 +79,18 @@ topic = "zigbee2mqtt/living/remote"
 mixer = "living_mixer"
 speakers = "living_speakers"
 
+[devices.hallway_light]
+type = "HueLight"
+ip = "10.0.0.146"
+login = "${HUE_TOKEN}"
+light_id = 16
+timer_id = 1
+
 [devices.hallway_frontdoor]
 type = "ContactSensor"
 topic = "zigbee2mqtt/hallway/frontdoor"
 presence = { timeout = 10 }
-lights = { lights = ["bathroom_light"], timeout = 10 }
+lights = { lights = ["hallway_light"], timeout = 10 }
 
 [devices.bathroom_washer]
 type = "Washer"
