@@ -95,4 +95,4 @@ lights = { lights = ["hallway_light"], timeout = 60 }
 [devices.bathroom_washer]
 type = "Washer"
 topic = "zigbee2mqtt/bathroom/washer"
-threshold = 1.2
+threshold = 1

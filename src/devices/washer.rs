@@ -29,7 +29,7 @@ pub struct Washer {
 
     event_channel: EventChannel,
     threshold: f32,
-    running: bool,
+    running: isize,
 }
 
 #[async_trait]
@@ -49,7 +49,7 @@ impl CreateDevice for Washer {
             mqtt: config.mqtt,
             event_channel: event_channel.clone(),
             threshold: config.threshold,
-            running: false,
+            running: 0,
         })
     }
 }
@@ -59,6 +59,11 @@ impl Device for Washer {
         &self.identifier
     }
 }
+
+// The washer needs to have a power draw above the theshold multiple times before the washer is
+// actually marked as running
+// This helps prevent false positives
+const HYSTERESIS: isize = 3;
 
 #[async_trait]
 impl OnMqtt for Washer {
@@ -75,13 +80,18 @@ impl OnMqtt for Washer {
             }
         };
 
-        if self.running && power < self.threshold {
+        debug!(id = self.identifier, power, "Washer state update");
+
+        if power < self.threshold && self.running >= HYSTERESIS {
+            // The washer is done running
             debug!(
                 id = self.identifier,
-                power, self.threshold, "Washer is done"
+                power,
+                threshold = self.threshold,
+                "Washer is done"
             );
 
-            self.running = false;
+            self.running = 0;
             let notification = Notification::new()
                 .set_title("Laundy is done")
                 .set_message("Don't forget to hang it!")
@@ -97,13 +107,19 @@ impl OnMqtt for Washer {
             {
                 warn!("There are no receivers on the event channel");
             }
-        } else if !self.running && power >= self.threshold {
+        } else if power < self.threshold {
+            // Prevent false positives
+            self.running = 0;
+        } else if power >= self.threshold && self.running < HYSTERESIS {
+            // Washer could be starting
             debug!(
                 id = self.identifier,
-                power, self.threshold, "Washer is starting"
+                power,
+                threshold = self.threshold,
+                "Washer is starting"
             );
 
-            self.running = true
+            self.running += 1;
         }
     }
 }
