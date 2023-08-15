@@ -175,10 +175,10 @@ impl OnOff for HueLight {
             Ok(res) => {
                 let status = res.status();
                 if !status.is_success() {
-                    warn!(self.identifier, "Status code is not success: {status}");
+                    warn!(id = self.identifier, "Status code is not success: {status}");
                 }
             }
-            Err(err) => error!(self.identifier, "Error: {err}"),
+            Err(err) => error!(id = self.identifier, "Error: {err}"),
         }
 
         Ok(())
@@ -196,14 +196,14 @@ impl OnOff for HueLight {
             Ok(res) => {
                 let status = res.status();
                 if !status.is_success() {
-                    warn!(self.identifier, "Status code is not success: {status}");
+                    warn!(id = self.identifier, "Status code is not success: {status}");
                 }
 
                 let v: Value = serde_json::from_slice(res.bytes().await.unwrap().as_ref()).unwrap();
                 // TODO: This is not very nice
                 return Ok(v["state"]["on"].as_bool().unwrap());
             }
-            Err(err) => error!(self.identifier, "Error: {err}"),
+            Err(err) => error!(id = self.identifier, "Error: {err}"),
         }
 
         Ok(false)
@@ -226,7 +226,7 @@ impl Timeout for HueLight {
         let hours = timeout.as_secs() / 3600;
         let time = format!("PT{hours:<02}:{minutes:<02}:{seconds:<02}");
 
-        debug!(self.identifier, "Starting timeout ({time})...");
+        debug!(id = self.identifier, "Starting timeout ({time})...");
 
         let res = reqwest::Client::new()
             .put(url)
@@ -238,10 +238,10 @@ impl Timeout for HueLight {
             Ok(res) => {
                 let status = res.status();
                 if !status.is_success() {
-                    warn!(self.identifier, "Status code is not success: {status}");
+                    warn!(id = self.identifier, "Status code is not success: {status}");
                 }
             }
-            Err(err) => error!(self.identifier, "Error: {err}"),
+            Err(err) => error!(id = self.identifier, "Error: {err}"),
         }
     }
 
@@ -261,10 +261,10 @@ impl Timeout for HueLight {
             Ok(res) => {
                 let status = res.status();
                 if !status.is_success() {
-                    warn!(self.identifier, "Status code is not success: {status}");
+                    warn!(id = self.identifier, "Status code is not success: {status}");
                 }
             }
-            Err(err) => error!(self.identifier, "Error: {err}"),
+            Err(err) => error!(id = self.identifier, "Error: {err}"),
         }
     }
 }

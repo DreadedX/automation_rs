@@ -80,7 +80,7 @@ impl OnMqtt for Washer {
             }
         };
 
-        debug!(id = self.identifier, power, "Washer state update");
+        // debug!(id = self.identifier, power, "Washer state update");
 
         if power < self.threshold && self.running >= HYSTERESIS {
             // The washer is done running
