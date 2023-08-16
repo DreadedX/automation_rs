@@ -73,7 +73,7 @@ pub fn device(attr: TokenStream, item: TokenStream) -> TokenStream {
 
     let prefix = quote! {
         pub trait #name<T: ?Sized + 'static> {
-            fn consume(self: Box<Self>) -> Option<Box<T>>;
+            fn is(&self) -> bool;
             fn cast(&self) -> Option<&T>;
             fn cast_mut(&mut self) -> Option<&mut T>;
         }
@@ -95,8 +95,8 @@ pub fn device(attr: TokenStream, item: TokenStream) -> TokenStream {
                 where
                     T: #interface_ident + 'static,
                 {
-                    default fn consume(self: Box<Self>) -> Option<Box<dyn #device_trait>> {
-                        None
+                    default fn is(&self) -> bool {
+                        false
                     }
 
                     default fn cast(&self) -> Option<&(dyn #device_trait + 'static)> {
@@ -114,8 +114,8 @@ pub fn device(attr: TokenStream, item: TokenStream) -> TokenStream {
                 where
                     T: #interface_ident + #device_trait + 'static,
                 {
-                    fn consume(self: Box<Self>) -> Option<Box<dyn #device_trait>> {
-                        Some(self)
+                    fn is(&self) -> bool {
+                        true
                     }
 
                     fn cast(&self) -> Option<&(dyn #device_trait + 'static)> {

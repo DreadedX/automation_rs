@@ -1,15 +1,13 @@
 use async_trait::async_trait;
 use google_home::traits::OnOff;
-use rumqttc::AsyncClient;
 use serde::Deserialize;
 use tracing::{debug, error, trace, warn};
 
 use crate::{
-    config::{CreateDevice, MqttDeviceConfig},
-    device_manager::{DeviceManager, WrappedDevice},
+    config::{ConfigExternal, DeviceConfig, MqttDeviceConfig},
+    device_manager::WrappedDevice,
     devices::As,
-    error::CreateDeviceError,
-    event::EventChannel,
+    error::DeviceConfigError,
     event::OnMqtt,
     event::OnPresence,
     messages::{RemoteAction, RemoteMessage},
@@ -25,61 +23,64 @@ pub struct AudioSetupConfig {
     speakers: String,
 }
 
+#[async_trait]
+impl DeviceConfig for AudioSetupConfig {
+    async fn create(
+        self,
+        identifier: &str,
+        ext: &ConfigExternal,
+    ) -> Result<Box<dyn Device>, DeviceConfigError> {
+        trace!(id = identifier, "Setting up AudioSetup");
+
+        // TODO: Make sure they implement OnOff?
+        let mixer = ext
+            .device_manager
+            .get(&self.mixer)
+            .await
+            // NOTE: We need to clone to make the compiler happy, how ever if this clone happens the next one can never happen...
+            .ok_or(DeviceConfigError::MissingChild(
+                identifier.into(),
+                self.mixer.clone(),
+            ))?;
+
+        if !As::<dyn OnOff>::is(mixer.read().await.as_ref()) {
+            return Err(DeviceConfigError::MissingTrait(self.mixer, "OnOff".into()));
+        }
+
+        let speakers =
+            ext.device_manager
+                .get(&self.speakers)
+                .await
+                .ok_or(DeviceConfigError::MissingChild(
+                    identifier.into(),
+                    self.speakers.clone(),
+                ))?;
+
+        if !As::<dyn OnOff>::is(speakers.read().await.as_ref()) {
+            return Err(DeviceConfigError::MissingTrait(
+                self.speakers,
+                "OnOff".into(),
+            ));
+        }
+
+        let device = AudioSetup {
+            identifier: identifier.to_owned(),
+            mqtt: self.mqtt,
+            mixer,
+            speakers,
+        };
+
+        Ok(Box::new(device))
+    }
+}
+
 // TODO: We need a better way to store the children devices
 #[derive(Debug)]
-pub struct AudioSetup {
+struct AudioSetup {
     identifier: String,
     mqtt: MqttDeviceConfig,
     mixer: WrappedDevice,
     speakers: WrappedDevice,
-}
-
-#[async_trait]
-impl CreateDevice for AudioSetup {
-    type Config = AudioSetupConfig;
-
-    async fn create(
-        identifier: &str,
-        config: Self::Config,
-        _event_channel: &EventChannel,
-        _client: &AsyncClient,
-        _presence_topic: &str,
-        device_manager: &DeviceManager,
-    ) -> Result<Self, CreateDeviceError> {
-        trace!(id = identifier, "Setting up AudioSetup");
-
-        // TODO: Make sure they implement OnOff?
-        let mixer = device_manager
-            .get(&config.mixer)
-            .await
-            // NOTE: We need to clone to make the compiler happy, how ever if this clone happens the next one can never happen...
-            .ok_or(CreateDeviceError::DeviceDoesNotExist(config.mixer.clone()))?;
-
-        {
-            let mixer = mixer.read().await;
-            if As::<dyn OnOff>::cast(mixer.as_ref()).is_none() {
-                return Err(CreateDeviceError::OnOffExpected(config.mixer));
-            }
-        }
-
-        let speakers = device_manager.get(&config.speakers).await.ok_or(
-            CreateDeviceError::DeviceDoesNotExist(config.speakers.clone()),
-        )?;
-
-        {
-            let speakers = speakers.read().await;
-            if As::<dyn OnOff>::cast(speakers.as_ref()).is_none() {
-                return Err(CreateDeviceError::OnOffExpected(config.speakers));
-            }
-        }
-
-        Ok(Self {
-            identifier: identifier.to_owned(),
-            mqtt: config.mqtt,
-            mixer,
-            speakers,
-        })
-    }
 }
 
 impl Device for AudioSetup {

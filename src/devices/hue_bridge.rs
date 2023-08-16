@@ -5,14 +5,17 @@ use std::{
 
 use async_trait::async_trait;
 use google_home::{errors::ErrorCode, traits::OnOff};
-use rumqttc::AsyncClient;
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
 use tracing::{debug, error, trace, warn};
 
 use crate::{
-    config::CreateDevice, device_manager::DeviceManager, devices::Device, error::CreateDeviceError,
-    event::EventChannel, event::OnDarkness, event::OnPresence, traits::Timeout,
+    config::{ConfigExternal, DeviceConfig},
+    devices::Device,
+    error::DeviceConfigError,
+    event::OnDarkness,
+    event::OnPresence,
+    traits::Timeout,
 };
 
 #[derive(Debug)]
@@ -117,35 +120,32 @@ pub struct HueLightConfig {
     pub timer_id: isize,
 }
 
+#[async_trait]
+impl DeviceConfig for HueLightConfig {
+    async fn create(
+        self,
+        identifier: &str,
+        _ext: &ConfigExternal,
+    ) -> Result<Box<dyn Device>, DeviceConfigError> {
+        let device = HueLight {
+            identifier: identifier.to_owned(),
+            addr: (self.ip, 80).into(),
+            login: self.login,
+            light_id: self.light_id,
+            timer_id: self.timer_id,
+        };
+
+        Ok(Box::new(device))
+    }
+}
+
 #[derive(Debug)]
-pub struct HueLight {
+struct HueLight {
     pub identifier: String,
     pub addr: SocketAddr,
     pub login: String,
     pub light_id: isize,
     pub timer_id: isize,
-}
-
-#[async_trait]
-impl CreateDevice for HueLight {
-    type Config = HueLightConfig;
-
-    async fn create(
-        identifier: &str,
-        config: Self::Config,
-        _event_channel: &EventChannel,
-        _client: &AsyncClient,
-        _presence_topic: &str,
-        _devices: &DeviceManager,
-    ) -> Result<Self, CreateDeviceError> {
-        Ok(Self {
-            identifier: identifier.to_owned(),
-            addr: (config.ip, 80).into(),
-            login: config.login,
-            light_id: config.light_id,
-            timer_id: config.timer_id,
-        })
-    }
 }
 
 impl Device for HueLight {

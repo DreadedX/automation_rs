@@ -38,6 +38,8 @@ wakey = "0.3.0"
 console-subscriber = "0.1.8"
 tracing-subscriber = "0.3.16"
 serde-tuple-vec-map = "1.0.1"
+serde_with = "3.2.0"
+enum_dispatch = "0.3.12"
 
 [patch.crates-io]
 wakey = { git = "https://github.com/DreadedX/wakey" }

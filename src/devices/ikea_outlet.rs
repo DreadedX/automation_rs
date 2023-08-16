@@ -8,15 +8,15 @@ use google_home::{
 };
 use rumqttc::{AsyncClient, Publish};
 use serde::Deserialize;
+use serde_with::serde_as;
+use serde_with::DurationSeconds;
 use std::time::Duration;
 use tokio::task::JoinHandle;
 use tracing::{debug, error, trace, warn};
 
-use crate::config::{CreateDevice, InfoConfig, MqttDeviceConfig};
-use crate::device_manager::DeviceManager;
+use crate::config::{ConfigExternal, DeviceConfig, InfoConfig, MqttDeviceConfig};
 use crate::devices::Device;
-use crate::error::CreateDeviceError;
-use crate::event::EventChannel;
+use crate::error::DeviceConfigError;
 use crate::event::OnMqtt;
 use crate::event::OnPresence;
 use crate::messages::OnOffMessage;
@@ -30,6 +30,7 @@ pub enum OutletType {
     Light,
 }
 
+#[serde_as]
 #[derive(Debug, Clone, Deserialize)]
 pub struct IkeaOutletConfig {
     #[serde(flatten)]
@@ -38,15 +39,45 @@ pub struct IkeaOutletConfig {
     mqtt: MqttDeviceConfig,
     #[serde(default = "default_outlet_type")]
     outlet_type: OutletType,
-    timeout: Option<u64>, // Timeout in seconds
+    #[serde_as(as = "Option<DurationSeconds>")]
+    timeout: Option<Duration>, // Timeout in seconds
 }
 
 fn default_outlet_type() -> OutletType {
     OutletType::Outlet
 }
 
+#[async_trait]
+impl DeviceConfig for IkeaOutletConfig {
+    async fn create(
+        self,
+        identifier: &str,
+        ext: &ConfigExternal,
+    ) -> Result<Box<dyn Device>, DeviceConfigError> {
+        trace!(
+            id = identifier,
+            name = self.info.name,
+            room = self.info.room,
+            "Setting up IkeaOutlet"
+        );
+
+        let device = IkeaOutlet {
+            identifier: identifier.to_owned(),
+            info: self.info,
+            mqtt: self.mqtt,
+            outlet_type: self.outlet_type,
+            timeout: self.timeout,
+            client: ext.client.clone(),
+            last_known_state: false,
+            handle: None,
+        };
+
+        Ok(Box::new(device))
+    }
+}
+
 #[derive(Debug)]
-pub struct IkeaOutlet {
+struct IkeaOutlet {
     identifier: String,
     info: InfoConfig,
     mqtt: MqttDeviceConfig,
@@ -56,38 +87,6 @@ pub struct IkeaOutlet {
     client: AsyncClient,
     last_known_state: bool,
     handle: Option<JoinHandle<()>>,
-}
-
-#[async_trait]
-impl CreateDevice for IkeaOutlet {
-    type Config = IkeaOutletConfig;
-
-    async fn create(
-        identifier: &str,
-        config: Self::Config,
-        _event_channel: &EventChannel,
-        client: &AsyncClient,
-        _presence_topic: &str,
-        _device_manager: &DeviceManager,
-    ) -> Result<Self, CreateDeviceError> {
-        trace!(
-            id = identifier,
-            name = config.info.name,
-            room = config.info.room,
-            "Setting up IkeaOutlet"
-        );
-
-        Ok(Self {
-            identifier: identifier.to_owned(),
-            info: config.info,
-            mqtt: config.mqtt,
-            outlet_type: config.outlet_type,
-            timeout: config.timeout.map(Duration::from_secs),
-            client: client.clone(),
-            last_known_state: false,
-            handle: None,
-        })
-    }
 }
 
 async fn set_on(client: AsyncClient, topic: &str, on: bool) {

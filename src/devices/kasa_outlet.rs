@@ -9,7 +9,6 @@ use google_home::{
     errors::{self, DeviceError},
     traits,
 };
-use rumqttc::AsyncClient;
 use serde::{Deserialize, Serialize};
 use thiserror::Error;
 use tokio::{
@@ -19,8 +18,8 @@ use tokio::{
 use tracing::trace;
 
 use crate::{
-    config::CreateDevice, device_manager::DeviceManager, error::CreateDeviceError,
-    event::EventChannel,
+    config::{ConfigExternal, DeviceConfig},
+    error::DeviceConfigError,
 };
 
 use super::Device;
@@ -30,31 +29,28 @@ pub struct KasaOutletConfig {
     ip: Ipv4Addr,
 }
 
-#[derive(Debug)]
-pub struct KasaOutlet {
-    identifier: String,
-    addr: SocketAddr,
-}
-
 #[async_trait]
-impl CreateDevice for KasaOutlet {
-    type Config = KasaOutletConfig;
-
+impl DeviceConfig for KasaOutletConfig {
     async fn create(
+        self,
         identifier: &str,
-        config: Self::Config,
-        _event_channel: &EventChannel,
-        _client: &AsyncClient,
-        _presence_topic: &str,
-        _device_manager: &DeviceManager,
-    ) -> Result<Self, CreateDeviceError> {
+        _ext: &ConfigExternal,
+    ) -> Result<Box<dyn Device>, DeviceConfigError> {
         trace!(id = identifier, "Setting up KasaOutlet");
 
-        Ok(Self {
+        let device = KasaOutlet {
             identifier: identifier.to_owned(),
-            addr: (config.ip, 9999).into(),
-        })
+            addr: (self.ip, 9999).into(),
+        };
+
+        Ok(Box::new(device))
     }
+}
+
+#[derive(Debug)]
+struct KasaOutlet {
+    identifier: String,
+    addr: SocketAddr,
 }
 
 impl Device for KasaOutlet {

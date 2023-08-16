@@ -10,7 +10,7 @@ use tracing::{debug, error, info};
 
 use automation::{
     auth::{OpenIDConfig, User},
-    config::Config,
+    config::{Config, ConfigExternal, DeviceConfig},
     device_manager::DeviceManager,
     devices::{DebugBridge, HueBridge, LightSensor, Ntfy, Presence},
     error::ApiError,
@@ -61,16 +61,15 @@ async fn app() -> anyhow::Result<()> {
     let event_channel = device_manager.start();
 
     // Create all the devices specified in the config
+    let ext = ConfigExternal {
+        client: &client,
+        device_manager: &device_manager,
+        presence_topic: &config.presence.mqtt.topic,
+        event_channel: &event_channel,
+    };
+
     for (id, device_config) in config.devices {
-        let device = device_config
-            .create(
-                &id,
-                &event_channel,
-                &client,
-                &config.presence.mqtt.topic,
-                &device_manager,
-            )
-            .await?;
+        let device = device_config.create(&id, &ext).await?;
 
         device_manager.add(device).await;
     }
@@ -95,7 +94,7 @@ async fn app() -> anyhow::Result<()> {
 
     // Start the debug bridge if it is configured
     if let Some(config) = config.debug_bridge {
-        let debug_bridge = DebugBridge::new(config, &client)?;
+        let debug_bridge = DebugBridge::new(config, &client);
         device_manager.add(Box::new(debug_bridge)).await;
     }
 

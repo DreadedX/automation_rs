@@ -10,17 +10,17 @@ mod presence;
 mod wake_on_lan;
 mod washer;
 
-pub use self::audio_setup::AudioSetup;
-pub use self::contact_sensor::ContactSensor;
+pub use self::audio_setup::AudioSetupConfig;
+pub use self::contact_sensor::ContactSensorConfig;
 pub use self::debug_bridge::{DebugBridge, DebugBridgeConfig};
-pub use self::hue_bridge::{HueBridge, HueBridgeConfig, HueLight};
-pub use self::ikea_outlet::IkeaOutlet;
-pub use self::kasa_outlet::KasaOutlet;
+pub use self::hue_bridge::{HueBridge, HueBridgeConfig, HueLightConfig};
+pub use self::ikea_outlet::IkeaOutletConfig;
+pub use self::kasa_outlet::KasaOutletConfig;
 pub use self::light_sensor::{LightSensor, LightSensorConfig};
 pub use self::ntfy::{Notification, Ntfy};
 pub use self::presence::{Presence, PresenceConfig, DEFAULT_PRESENCE};
-pub use self::wake_on_lan::WakeOnLAN;
-pub use self::washer::Washer;
+pub use self::wake_on_lan::WakeOnLANConfig;
+pub use self::washer::WasherConfig;
 
 use google_home::{device::AsGoogleHomeDevice, traits::OnOff};
 

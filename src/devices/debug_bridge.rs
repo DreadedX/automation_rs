@@ -24,14 +24,11 @@ pub struct DebugBridge {
 }
 
 impl DebugBridge {
-    pub fn new(
-        config: DebugBridgeConfig,
-        client: &AsyncClient,
-    ) -> Result<Self, crate::error::CreateDeviceError> {
-        Ok(Self {
+    pub fn new(config: DebugBridgeConfig, client: &AsyncClient) -> Self {
+        Self {
             mqtt: config.mqtt,
             client: client.clone(),
-        })
+        }
     }
 }
 

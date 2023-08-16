@@ -1,12 +1,11 @@
 use async_trait::async_trait;
-use rumqttc::{AsyncClient, Publish};
+use rumqttc::Publish;
 use serde::Deserialize;
 use tracing::{debug, error, warn};
 
 use crate::{
-    config::{CreateDevice, MqttDeviceConfig},
-    device_manager::DeviceManager,
-    error::CreateDeviceError,
+    config::{ConfigExternal, DeviceConfig, MqttDeviceConfig},
+    error::DeviceConfigError,
     event::{Event, EventChannel, OnMqtt},
     messages::PowerMessage,
 };
@@ -20,38 +19,35 @@ pub struct WasherConfig {
     threshold: f32, // Power in Watt
 }
 
+#[async_trait]
+impl DeviceConfig for WasherConfig {
+    async fn create(
+        self,
+        identifier: &str,
+        ext: &ConfigExternal,
+    ) -> Result<Box<dyn Device>, DeviceConfigError> {
+        let device = Washer {
+            identifier: identifier.to_owned(),
+            mqtt: self.mqtt,
+            event_channel: ext.event_channel.clone(),
+            threshold: self.threshold,
+            running: 0,
+        };
+
+        Ok(Box::new(device))
+    }
+}
+
 // TODO: Add google home integration
 
 #[derive(Debug)]
-pub struct Washer {
+struct Washer {
     identifier: String,
     mqtt: MqttDeviceConfig,
 
     event_channel: EventChannel,
     threshold: f32,
     running: isize,
-}
-
-#[async_trait]
-impl CreateDevice for Washer {
-    type Config = WasherConfig;
-
-    async fn create(
-        identifier: &str,
-        config: Self::Config,
-        event_channel: &EventChannel,
-        _client: &AsyncClient,
-        _presence_topic: &str,
-        _device_manager: &DeviceManager,
-    ) -> Result<Self, CreateDeviceError> {
-        Ok(Self {
-            identifier: identifier.to_owned(),
-            mqtt: config.mqtt,
-            event_channel: event_channel.clone(),
-            threshold: config.threshold,
-            running: 0,
-        })
-    }
 }
 
 impl Device for Washer {

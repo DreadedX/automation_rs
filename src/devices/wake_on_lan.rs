@@ -9,15 +9,13 @@ use google_home::{
     types::Type,
     GoogleHomeDevice,
 };
-use rumqttc::{AsyncClient, Publish};
+use rumqttc::Publish;
 use serde::Deserialize;
 use tracing::{debug, error, trace};
 
 use crate::{
-    config::{CreateDevice, InfoConfig, MqttDeviceConfig},
-    device_manager::DeviceManager,
-    error::CreateDeviceError,
-    event::EventChannel,
+    config::{ConfigExternal, DeviceConfig, InfoConfig, MqttDeviceConfig},
+    error::DeviceConfigError,
     event::OnMqtt,
     messages::ActivateMessage,
 };
@@ -39,42 +37,39 @@ fn default_broadcast_ip() -> Ipv4Addr {
     Ipv4Addr::new(255, 255, 255, 255)
 }
 
+#[async_trait]
+impl DeviceConfig for WakeOnLANConfig {
+    async fn create(
+        self,
+        identifier: &str,
+        _ext: &ConfigExternal,
+    ) -> Result<Box<dyn Device>, DeviceConfigError> {
+        trace!(
+            id = identifier,
+            name = self.info.name,
+            room = self.info.room,
+            "Setting up WakeOnLAN"
+        );
+
+        let device = WakeOnLAN {
+            identifier: identifier.to_owned(),
+            info: self.info,
+            mqtt: self.mqtt,
+            mac_address: self.mac_address,
+            broadcast_ip: self.broadcast_ip,
+        };
+
+        Ok(Box::new(device))
+    }
+}
+
 #[derive(Debug)]
-pub struct WakeOnLAN {
+struct WakeOnLAN {
     identifier: String,
     info: InfoConfig,
     mqtt: MqttDeviceConfig,
     mac_address: MacAddress,
     broadcast_ip: Ipv4Addr,
-}
-
-#[async_trait]
-impl CreateDevice for WakeOnLAN {
-    type Config = WakeOnLANConfig;
-
-    async fn create(
-        identifier: &str,
-        config: Self::Config,
-        _event_channel: &EventChannel,
-        _client: &AsyncClient,
-        _presence_topic: &str,
-        _device_manager: &DeviceManager,
-    ) -> Result<Self, CreateDeviceError> {
-        trace!(
-            id = identifier,
-            name = config.info.name,
-            room = config.info.room,
-            "Setting up WakeOnLAN"
-        );
-
-        Ok(Self {
-            identifier: identifier.to_owned(),
-            info: config.info,
-            mqtt: config.mqtt,
-            mac_address: config.mac_address,
-            broadcast_ip: config.broadcast_ip,
-        })
-    }
 }
 
 impl Device for WakeOnLAN {

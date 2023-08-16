@@ -5,6 +5,7 @@ use std::{
 };
 
 use async_trait::async_trait;
+use enum_dispatch::enum_dispatch;
 use regex::{Captures, Regex};
 use rumqttc::{AsyncClient, MqttOptions, Transport};
 use serde::{Deserialize, Deserializer};
@@ -14,10 +15,11 @@ use crate::{
     auth::OpenIDConfig,
     device_manager::DeviceManager,
     devices::{
-        AudioSetup, ContactSensor, DebugBridgeConfig, Device, HueBridgeConfig, HueLight,
-        IkeaOutlet, KasaOutlet, LightSensorConfig, PresenceConfig, WakeOnLAN, Washer,
+        AudioSetupConfig, ContactSensorConfig, DebugBridgeConfig, Device, HueBridgeConfig,
+        HueLightConfig, IkeaOutletConfig, KasaOutletConfig, LightSensorConfig, PresenceConfig,
+        WakeOnLANConfig, WasherConfig,
     },
-    error::{ConfigParseError, CreateDeviceError, MissingEnv},
+    error::{ConfigParseError, DeviceConfigError, MissingEnv},
     event::EventChannel,
 };
 
@@ -34,7 +36,7 @@ pub struct Config {
     pub hue_bridge: Option<HueBridgeConfig>,
     pub debug_bridge: Option<DebugBridgeConfig>,
     #[serde(default, with = "tuple_vec_map")]
-    pub devices: Vec<(String, DeviceConfig)>,
+    pub devices: Vec<(String, DeviceConfigs)>,
 }
 
 #[derive(Debug, Clone, Deserialize)]
@@ -122,18 +124,6 @@ pub struct MqttDeviceConfig {
     pub topic: String,
 }
 
-#[derive(Debug, Clone, Deserialize)]
-#[serde(tag = "type")]
-pub enum DeviceConfig {
-    AudioSetup(<AudioSetup as CreateDevice>::Config),
-    ContactSensor(<ContactSensor as CreateDevice>::Config),
-    IkeaOutlet(<IkeaOutlet as CreateDevice>::Config),
-    KasaOutlet(<KasaOutlet as CreateDevice>::Config),
-    WakeOnLAN(<WakeOnLAN as CreateDevice>::Config),
-    Washer(<Washer as CreateDevice>::Config),
-    HueLight(<HueLight as CreateDevice>::Config),
-}
-
 impl Config {
     pub fn parse_file(filename: &str) -> Result<Self, ConfigParseError> {
         debug!("Loading config: {filename}");
@@ -162,50 +152,32 @@ impl Config {
     }
 }
 
+pub struct ConfigExternal<'a> {
+    pub client: &'a AsyncClient,
+    pub device_manager: &'a DeviceManager,
+    pub presence_topic: &'a str,
+    pub event_channel: &'a EventChannel,
+}
+
 #[async_trait]
-pub trait CreateDevice {
-    type Config;
-
+#[enum_dispatch]
+pub trait DeviceConfig {
     async fn create(
-        identifier: &str,
-        config: Self::Config,
-        event_channel: &EventChannel,
-        client: &AsyncClient,
-        // TODO: Not a big fan of passing in the global config
-        presence_topic: &str,
-        devices: &DeviceManager,
-    ) -> Result<Self, CreateDeviceError>
-    where
-        Self: Sized;
-}
-
-macro_rules! create {
-	(($self:ident, $id:ident, $event_channel:ident, $client:ident, $presence_topic:ident, $device_manager:ident), [ $( $Variant:ident ),* ]) => {
-		match $self {
-			$(DeviceConfig::$Variant(c) => Box::new($Variant::create($id, c, $event_channel, $client, $presence_topic, $device_manager).await?),)*
-		}
-    };
-}
-
-impl DeviceConfig {
-    pub async fn create(
         self,
-        id: &str,
-        event_channel: &EventChannel,
-        client: &AsyncClient,
-        presence_topic: &str,
-        device_manager: &DeviceManager,
-    ) -> Result<Box<dyn Device>, CreateDeviceError> {
-        Ok(create! {
-            (self, id, event_channel, client, presence_topic, device_manager), [
-                AudioSetup,
-                ContactSensor,
-                IkeaOutlet,
-                KasaOutlet,
-                WakeOnLAN,
-                Washer,
-                HueLight
-            ]
-        })
-    }
+        identifier: &str,
+        ext: &ConfigExternal,
+    ) -> Result<Box<dyn Device>, DeviceConfigError>;
+}
+
+#[derive(Debug, Deserialize)]
+#[serde(tag = "type")]
+#[enum_dispatch(DeviceConfig)]
+pub enum DeviceConfigs {
+    AudioSetup(AudioSetupConfig),
+    ContactSensor(ContactSensorConfig),
+    IkeaOutlet(IkeaOutletConfig),
+    KasaOutlet(KasaOutletConfig),
+    WakeOnLAN(WakeOnLANConfig),
+    Washer(WasherConfig),
+    HueLight(HueLightConfig),
 }

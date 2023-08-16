@@ -90,11 +90,11 @@ impl MissingWildcard {
 }
 
 #[derive(Debug, Error)]
-pub enum CreateDeviceError {
-    #[error("Child device '{0}' does not exist (yet?)")]
-    DeviceDoesNotExist(String),
-    #[error("Expected device '{0}' to implement OnOff trait")]
-    OnOffExpected(String),
+pub enum DeviceConfigError {
+    #[error("Child '{1}' of device '{0}' does not exist")]
+    MissingChild(String, String),
+    #[error("Device '{0}' does not implement expected trait '{1}'")]
+    MissingTrait(String, String),
     #[error(transparent)]
     MissingWildcard(#[from] MissingWildcard),
 }
