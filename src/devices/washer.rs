@@ -60,7 +60,7 @@ impl Device for Washer {
 // The washer needs to have a power draw above the theshold multiple times before the washer is
 // actually marked as running
 // This helps prevent false positives
-const HYSTERESIS: isize = 3;
+const HYSTERESIS: isize = 10;
 
 #[async_trait]
 impl OnMqtt for Washer {
