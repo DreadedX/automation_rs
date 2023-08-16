@@ -18,7 +18,7 @@ use tokio::{
 use tracing::trace;
 
 use crate::{
-    config::{ConfigExternal, DeviceConfig},
+    device_manager::{ConfigExternal, DeviceConfig},
     error::DeviceConfigError,
 };
 
@@ -39,7 +39,7 @@ impl DeviceConfig for KasaOutletConfig {
         trace!(id = identifier, "Setting up KasaOutlet");
 
         let device = KasaOutlet {
-            identifier: identifier.to_owned(),
+            identifier: identifier.into(),
             addr: (self.ip, 9999).into(),
         };
 

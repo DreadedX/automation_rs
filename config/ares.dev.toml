@@ -15,15 +15,18 @@ topic = "${NTFY_TOPIC}"
 [presence]
 topic = "automation_dev/presence/+/#"
 
-[debug_bridge]
+# Devices
+[device.debug_bridge]
+type = "DebugBridge"
 topic = "automation_dev/debug"
 
-[light_sensor]
+[device.light_sensor]
+type = "LightSensor"
 topic = "zigbee2mqtt_dev/living/light"
 min = 23_000
 max = 25_000
 
-[devices.kitchen_kettle]
+[device.kitchen_kettle]
 type = "IkeaOutlet"
 outlet_type = "Kettle"
 name = "Kettle"
@@ -31,7 +34,7 @@ room = "Kitchen"
 topic = "zigbee2mqtt/kitchen/kettle"
 timeout = 5
 
-[devices.workbench_charger]
+[device.workbench_charger]
 type = "IkeaOutlet"
 outlet_type = "Charger"
 name = "Charger"
@@ -39,20 +42,20 @@ room = "Workbench"
 topic = "zigbee2mqtt/workbench/charger"
 timeout = 5
 
-[devices.workbench_outlet]
+[device.workbench_outlet]
 type = "IkeaOutlet"
 name = "Outlet"
 room = "Workbench"
 topic = "zigbee2mqtt/workbench/outlet"
 
-[devices.living_zeus]
+[device.living_zeus]
 type = "WakeOnLAN"
 name = "Zeus"
 room = "Living Room"
 topic = "automation/appliance/living_room/zeus"
 mac_address = "30:9c:23:60:9c:13"
 
-[devices.hallway_frontdoor]
+[device.hallway_frontdoor]
 type = "ContactSensor"
 topic = "zigbee2mqtt/hallway/frontdoor"
-presence = { timeout = 10 }
+presence = { topic = "automation_dev/presence/contact/frontdoor", timeout = 10 }

@@ -1,18 +1,58 @@
 use std::collections::HashMap;
 use std::sync::Arc;
 
+use async_trait::async_trait;
+use enum_dispatch::enum_dispatch;
 use futures::future::join_all;
 use rumqttc::{matches, AsyncClient, QoS};
+use serde::Deserialize;
 use tokio::sync::{RwLock, RwLockReadGuard};
 use tracing::{debug, error, instrument, trace};
 
 use crate::{
-    devices::{As, Device},
+    devices::{
+        As, AudioSetupConfig, ContactSensorConfig, DebugBridgeConfig, Device, HueBridgeConfig,
+        HueLightConfig, IkeaOutletConfig, KasaOutletConfig, LightSensorConfig, WakeOnLANConfig,
+        WasherConfig,
+    },
+    error::DeviceConfigError,
     event::OnDarkness,
     event::OnNotification,
     event::OnPresence,
     event::{Event, EventChannel, OnMqtt},
 };
+
+pub struct ConfigExternal<'a> {
+    pub client: &'a AsyncClient,
+    pub device_manager: &'a DeviceManager,
+    pub event_channel: &'a EventChannel,
+}
+
+#[async_trait]
+#[enum_dispatch]
+pub trait DeviceConfig {
+    async fn create(
+        self,
+        identifier: &str,
+        ext: &ConfigExternal,
+    ) -> Result<Box<dyn Device>, DeviceConfigError>;
+}
+
+#[derive(Debug, Deserialize)]
+#[serde(tag = "type")]
+#[enum_dispatch(DeviceConfig)]
+pub enum DeviceConfigs {
+    AudioSetup(AudioSetupConfig),
+    ContactSensor(ContactSensorConfig),
+    DebugBridge(DebugBridgeConfig),
+    IkeaOutlet(IkeaOutletConfig),
+    KasaOutlet(KasaOutletConfig),
+    WakeOnLAN(WakeOnLANConfig),
+    Washer(WasherConfig),
+    HueBridge(HueBridgeConfig),
+    HueLight(HueLightConfig),
+    LightSensor(LightSensorConfig),
+}
 
 pub type WrappedDevice = Arc<RwLock<Box<dyn Device>>>;
 pub type DeviceMap = HashMap<String, WrappedDevice>;
@@ -21,31 +61,33 @@ pub type DeviceMap = HashMap<String, WrappedDevice>;
 pub struct DeviceManager {
     devices: Arc<RwLock<DeviceMap>>,
     client: AsyncClient,
+    event_channel: EventChannel,
 }
 
 impl DeviceManager {
     pub fn new(client: AsyncClient) -> Self {
-        Self {
-            devices: Arc::new(RwLock::new(HashMap::new())),
-            client,
-        }
-    }
-
-    pub fn start(&self) -> EventChannel {
         let (event_channel, mut event_rx) = EventChannel::new();
 
-        let devices = self.clone();
-        tokio::spawn(async move {
-            loop {
-                if let Some(event) = event_rx.recv().await {
-                    devices.handle_event(event).await;
-                } else {
-                    todo!("Handle errors with the event channel properly")
+        let device_manager = Self {
+            devices: Arc::new(RwLock::new(HashMap::new())),
+            client,
+            event_channel,
+        };
+
+        tokio::spawn({
+            let device_manager = device_manager.clone();
+            async move {
+                loop {
+                    if let Some(event) = event_rx.recv().await {
+                        device_manager.handle_event(event).await;
+                    } else {
+                        todo!("Handle errors with the event channel properly")
+                    }
                 }
             }
         });
 
-        event_channel
+        device_manager
     }
 
     pub async fn add(&self, device: Box<dyn Device>) {
@@ -69,6 +111,28 @@ impl DeviceManager {
         let device = Arc::new(RwLock::new(device));
 
         self.devices.write().await.insert(id, device);
+    }
+
+    pub async fn create(
+        &self,
+        identifier: &str,
+        device_config: DeviceConfigs,
+    ) -> Result<(), DeviceConfigError> {
+        let ext = ConfigExternal {
+            client: &self.client,
+            device_manager: self,
+            event_channel: &self.event_channel,
+        };
+
+        let device = device_config.create(identifier, &ext).await?;
+
+        self.add(device).await;
+
+        Ok(())
+    }
+
+    pub fn event_channel(&self) -> EventChannel {
+        self.event_channel.clone()
     }
 
     pub async fn get(&self, name: &str) -> Option<WrappedDevice> {

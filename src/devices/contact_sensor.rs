@@ -2,17 +2,17 @@ use std::time::Duration;
 
 use async_trait::async_trait;
 use google_home::traits::OnOff;
-use rumqttc::{has_wildcards, AsyncClient};
+use rumqttc::AsyncClient;
 use serde::Deserialize;
 use serde_with::{serde_as, DurationSeconds};
 use tokio::task::JoinHandle;
 use tracing::{debug, error, trace, warn};
 
 use crate::{
-    config::{ConfigExternal, DeviceConfig, MqttDeviceConfig},
-    device_manager::WrappedDevice,
+    config::MqttDeviceConfig,
+    device_manager::{ConfigExternal, DeviceConfig, WrappedDevice},
     devices::{As, DEFAULT_PRESENCE},
-    error::{DeviceConfigError, MissingWildcard},
+    error::DeviceConfigError,
     event::OnMqtt,
     event::OnPresence,
     messages::{ContactMessage, PresenceMessage},
@@ -26,42 +26,15 @@ use super::Device;
 #[derive(Debug, Clone, Deserialize)]
 pub struct PresenceDeviceConfig {
     #[serde(flatten)]
-    pub mqtt: Option<MqttDeviceConfig>,
+    pub mqtt: MqttDeviceConfig,
     #[serde_as(as = "DurationSeconds")]
     pub timeout: Duration,
 }
 
-impl PresenceDeviceConfig {
-    /// Set the mqtt topic to an appropriate value if it is not already set
-    fn generate_topic(
-        mut self,
-        class: &str,
-        identifier: &str,
-        presence_topic: &str,
-    ) -> Result<PresenceDeviceConfig, MissingWildcard> {
-        if self.mqtt.is_none() {
-            if !has_wildcards(presence_topic) {
-                return Err(MissingWildcard::new(presence_topic));
-            }
-
-            // TODO: This is not perfect, if the topic is some/+/thing/# this will fail
-            let offset = presence_topic
-                .find('+')
-                .or(presence_topic.find('#'))
-                .unwrap();
-            let topic = format!("{}/{class}/{identifier}", &presence_topic[..offset - 1]);
-            trace!("Setting presence mqtt topic: {topic}");
-            self.mqtt = Some(MqttDeviceConfig { topic });
-        }
-
-        Ok(self)
-    }
-}
-
 #[serde_as]
 #[derive(Debug, Clone, Deserialize)]
-pub struct LightsConfig {
-    lights: Vec<String>,
+pub struct TriggerConfig {
+    devices: Vec<String>,
     #[serde(default)]
     #[serde_as(as = "DurationSeconds")]
     pub timeout: Duration,
@@ -72,7 +45,7 @@ pub struct ContactSensorConfig {
     #[serde(flatten)]
     mqtt: MqttDeviceConfig,
     presence: Option<PresenceDeviceConfig>,
-    lights: Option<LightsConfig>,
+    trigger: Option<TriggerConfig>,
 }
 
 #[async_trait]
@@ -84,43 +57,49 @@ impl DeviceConfig for ContactSensorConfig {
     ) -> Result<Box<dyn Device>, DeviceConfigError> {
         trace!(id = identifier, "Setting up ContactSensor");
 
-        let presence = self
-            .presence
-            .map(|p| p.generate_topic("contact", identifier, ext.presence_topic))
-            .transpose()?;
+        let trigger = if let Some(trigger_config) = &self.trigger {
+            let mut devices = Vec::new();
+            for device_name in &trigger_config.devices {
+                let device = ext.device_manager.get(device_name).await.ok_or(
+                    DeviceConfigError::MissingChild(device_name.into(), "OnOff".into()),
+                )?;
 
-        let lights =
-            if let Some(lights_config) = self.lights {
-                let mut lights = Vec::new();
-                for name in lights_config.lights {
-                    let light = ext.device_manager.get(&name).await.ok_or(
-                        DeviceConfigError::MissingChild(name.clone(), "OnOff".into()),
-                    )?;
-
-                    if !As::<dyn OnOff>::is(light.read().await.as_ref()) {
-                        return Err(DeviceConfigError::MissingTrait(name, "OnOff".into()));
-                    }
-
-                    lights.push((light, false));
+                if !As::<dyn OnOff>::is(device.read().await.as_ref()) {
+                    return Err(DeviceConfigError::MissingTrait(
+                        device_name.into(),
+                        "OnOff".into(),
+                    ));
                 }
 
-                Some(Lights {
-                    lights,
-                    timeout: lights_config.timeout,
-                })
-            } else {
-                None
-            };
+                if !trigger_config.timeout.is_zero()
+                    && !As::<dyn Timeout>::is(device.read().await.as_ref())
+                {
+                    return Err(DeviceConfigError::MissingTrait(
+                        device_name.into(),
+                        "Timeout".into(),
+                    ));
+                }
+
+                devices.push((device, false));
+            }
+
+            Some(Trigger {
+                devices,
+                timeout: trigger_config.timeout,
+            })
+        } else {
+            None
+        };
 
         let device = ContactSensor {
-            identifier: identifier.to_owned(),
+            identifier: identifier.into(),
             mqtt: self.mqtt,
-            presence,
+            presence: self.presence,
             client: ext.client.clone(),
             overall_presence: DEFAULT_PRESENCE,
             is_closed: true,
             handle: None,
-            lights,
+            trigger,
         };
 
         Ok(Box::new(device))
@@ -128,8 +107,8 @@ impl DeviceConfig for ContactSensorConfig {
 }
 
 #[derive(Debug)]
-struct Lights {
-    lights: Vec<(WrappedDevice, bool)>,
+struct Trigger {
+    devices: Vec<(WrappedDevice, bool)>,
     timeout: Duration, // Timeout in seconds
 }
 
@@ -144,7 +123,7 @@ struct ContactSensor {
     is_closed: bool,
     handle: Option<JoinHandle<()>>,
 
-    lights: Option<Lights>,
+    trigger: Option<Trigger>,
 }
 
 impl Device for ContactSensor {
@@ -182,9 +161,9 @@ impl OnMqtt for ContactSensor {
         debug!(id = self.identifier, "Updating state to {is_closed}");
         self.is_closed = is_closed;
 
-        if let Some(lights) = &mut self.lights {
+        if let Some(trigger) = &mut self.trigger {
             if !self.is_closed {
-                for (light, previous) in &mut lights.lights {
+                for (light, previous) in &mut trigger.devices {
                     let mut light = light.write().await;
                     if let Some(light) = As::<dyn OnOff>::cast_mut(light.as_mut()) {
                         *previous = light.is_on().await.unwrap();
@@ -192,14 +171,14 @@ impl OnMqtt for ContactSensor {
                     }
                 }
             } else {
-                for (light, previous) in &lights.lights {
+                for (light, previous) in &trigger.devices {
                     let mut light = light.write().await;
                     if !previous {
                         // If the timeout is zero just turn the light off directly
-                        if lights.timeout.is_zero() && let Some(light) = As::<dyn OnOff>::cast_mut(light.as_mut()) {
+                        if trigger.timeout.is_zero() && let Some(light) = As::<dyn OnOff>::cast_mut(light.as_mut()) {
                             light.set_on(false).await.ok();
                         } else if let Some(light) = As::<dyn Timeout>::cast_mut(light.as_mut()) {
-                            light.start_timeout(lights.timeout).await;
+                            light.start_timeout(trigger.timeout).await;
                         }
                         // TODO: Put a warning/error on creation if either of this has to option to fail
                     }
@@ -214,14 +193,6 @@ impl OnMqtt for ContactSensor {
             None => return,
         };
 
-        let topic = match &presence.mqtt {
-            Some(mqtt) => mqtt.topic.clone(),
-            None => {
-                warn!("Contact sensors is configured as a presence sensor, but no mqtt topic is specified");
-                return;
-            }
-        };
-
         if !is_closed {
             // Activate presence and stop any timeout once we open the door
             if let Some(handle) = self.handle.take() {
@@ -234,13 +205,18 @@ impl OnMqtt for ContactSensor {
             if !self.overall_presence {
                 self.client
                     .publish(
-                        topic.clone(),
+                        presence.mqtt.topic.clone(),
                         rumqttc::QoS::AtLeastOnce,
                         false,
                         serde_json::to_string(&PresenceMessage::new(true)).unwrap(),
                     )
                     .await
-                    .map_err(|err| warn!("Failed to publish presence on {topic}: {err}"))
+                    .map_err(|err| {
+                        warn!(
+                            "Failed to publish presence on {}: {err}",
+                            presence.mqtt.topic
+                        )
+                    })
                     .ok();
             }
         } else {
@@ -248,6 +224,7 @@ impl OnMqtt for ContactSensor {
             let client = self.client.clone();
             let id = self.identifier.clone();
             let timeout = presence.timeout;
+            let topic = presence.mqtt.topic.clone();
             self.handle = Some(tokio::spawn(async move {
                 debug!(id, "Starting timeout ({timeout:?}) for contact sensor...");
                 tokio::time::sleep(timeout).await;

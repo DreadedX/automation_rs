@@ -3,7 +3,10 @@ use rumqttc::AsyncClient;
 use serde::Deserialize;
 use tracing::warn;
 
+use crate::device_manager::ConfigExternal;
+use crate::device_manager::DeviceConfig;
 use crate::devices::Device;
+use crate::error::DeviceConfigError;
 use crate::event::OnDarkness;
 use crate::event::OnPresence;
 use crate::{
@@ -17,24 +20,33 @@ pub struct DebugBridgeConfig {
     pub mqtt: MqttDeviceConfig,
 }
 
+#[async_trait]
+impl DeviceConfig for DebugBridgeConfig {
+    async fn create(
+        self,
+        identifier: &str,
+        ext: &ConfigExternal,
+    ) -> Result<Box<dyn Device>, DeviceConfigError> {
+        let device = DebugBridge {
+            identifier: identifier.into(),
+            mqtt: self.mqtt,
+            client: ext.client.clone(),
+        };
+
+        Ok(Box::new(device))
+    }
+}
+
 #[derive(Debug)]
 pub struct DebugBridge {
+    identifier: String,
     mqtt: MqttDeviceConfig,
     client: AsyncClient,
 }
 
-impl DebugBridge {
-    pub fn new(config: DebugBridgeConfig, client: &AsyncClient) -> Self {
-        Self {
-            mqtt: config.mqtt,
-            client: client.clone(),
-        }
-    }
-}
-
 impl Device for DebugBridge {
     fn get_id(&self) -> &str {
-        "debug_bridge"
+        &self.identifier
     }
 }
 

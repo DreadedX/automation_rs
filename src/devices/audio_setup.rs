@@ -4,8 +4,8 @@ use serde::Deserialize;
 use tracing::{debug, error, trace, warn};
 
 use crate::{
-    config::{ConfigExternal, DeviceConfig, MqttDeviceConfig},
-    device_manager::WrappedDevice,
+    config::MqttDeviceConfig,
+    device_manager::{ConfigExternal, DeviceConfig, WrappedDevice},
     devices::As,
     error::DeviceConfigError,
     event::OnMqtt,
@@ -64,7 +64,7 @@ impl DeviceConfig for AudioSetupConfig {
         }
 
         let device = AudioSetup {
-            identifier: identifier.to_owned(),
+            identifier: identifier.into(),
             mqtt: self.mqtt,
             mixer,
             speakers,

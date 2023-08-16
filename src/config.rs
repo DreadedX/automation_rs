@@ -4,23 +4,17 @@ use std::{
     time::Duration,
 };
 
-use async_trait::async_trait;
-use enum_dispatch::enum_dispatch;
+use indexmap::IndexMap;
 use regex::{Captures, Regex};
-use rumqttc::{AsyncClient, MqttOptions, Transport};
+use rumqttc::{MqttOptions, Transport};
 use serde::{Deserialize, Deserializer};
 use tracing::debug;
 
 use crate::{
     auth::OpenIDConfig,
-    device_manager::DeviceManager,
-    devices::{
-        AudioSetupConfig, ContactSensorConfig, DebugBridgeConfig, Device, HueBridgeConfig,
-        HueLightConfig, IkeaOutletConfig, KasaOutletConfig, LightSensorConfig, PresenceConfig,
-        WakeOnLANConfig, WasherConfig,
-    },
-    error::{ConfigParseError, DeviceConfigError, MissingEnv},
-    event::EventChannel,
+    device_manager::DeviceConfigs,
+    devices::{DebugBridgeConfig, PresenceConfig},
+    error::{ConfigParseError, MissingEnv},
 };
 
 #[derive(Debug, Deserialize)]
@@ -32,11 +26,9 @@ pub struct Config {
     pub fullfillment: FullfillmentConfig,
     pub ntfy: Option<NtfyConfig>,
     pub presence: PresenceConfig,
-    pub light_sensor: LightSensorConfig,
-    pub hue_bridge: Option<HueBridgeConfig>,
     pub debug_bridge: Option<DebugBridgeConfig>,
-    #[serde(default, with = "tuple_vec_map")]
-    pub devices: Vec<(String, DeviceConfigs)>,
+    #[serde(rename = "device")]
+    pub devices: IndexMap<String, DeviceConfigs>,
 }
 
 #[derive(Debug, Clone, Deserialize)]
@@ -150,34 +142,4 @@ impl Config {
 
         Ok(config)
     }
-}
-
-pub struct ConfigExternal<'a> {
-    pub client: &'a AsyncClient,
-    pub device_manager: &'a DeviceManager,
-    pub presence_topic: &'a str,
-    pub event_channel: &'a EventChannel,
-}
-
-#[async_trait]
-#[enum_dispatch]
-pub trait DeviceConfig {
-    async fn create(
-        self,
-        identifier: &str,
-        ext: &ConfigExternal,
-    ) -> Result<Box<dyn Device>, DeviceConfigError>;
-}
-
-#[derive(Debug, Deserialize)]
-#[serde(tag = "type")]
-#[enum_dispatch(DeviceConfig)]
-pub enum DeviceConfigs {
-    AudioSetup(AudioSetupConfig),
-    ContactSensor(ContactSensorConfig),
-    IkeaOutlet(IkeaOutletConfig),
-    KasaOutlet(KasaOutletConfig),
-    WakeOnLAN(WakeOnLANConfig),
-    Washer(WasherConfig),
-    HueLight(HueLightConfig),
 }

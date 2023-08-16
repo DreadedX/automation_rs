@@ -10,9 +10,9 @@ use tracing::{debug, error, info};
 
 use automation::{
     auth::{OpenIDConfig, User},
-    config::{Config, ConfigExternal, DeviceConfig},
+    config::Config,
     device_manager::DeviceManager,
-    devices::{DebugBridge, HueBridge, LightSensor, Ntfy, Presence},
+    devices::{Ntfy, Presence},
     error::ApiError,
     mqtt,
 };
@@ -58,44 +58,17 @@ async fn app() -> anyhow::Result<()> {
 
     // Setup the device handler
     let device_manager = DeviceManager::new(client.clone());
-    let event_channel = device_manager.start();
-
-    // Create all the devices specified in the config
-    let ext = ConfigExternal {
-        client: &client,
-        device_manager: &device_manager,
-        presence_topic: &config.presence.mqtt.topic,
-        event_channel: &event_channel,
-    };
 
     for (id, device_config) in config.devices {
-        let device = device_config.create(&id, &ext).await?;
-
-        device_manager.add(device).await;
+        device_manager.create(&id, device_config).await?;
     }
 
-    // Create and add the light sensor
-    {
-        let light_sensor = LightSensor::new(config.light_sensor, &event_channel);
-        device_manager.add(Box::new(light_sensor)).await;
-    }
+    let event_channel = device_manager.event_channel();
 
     // Create and add the presence system
     {
         let presence = Presence::new(config.presence, &event_channel);
         device_manager.add(Box::new(presence)).await;
-    }
-
-    // If configured, create and add the hue bridge
-    if let Some(config) = config.hue_bridge {
-        let hue_bridge = HueBridge::new(config);
-        device_manager.add(Box::new(hue_bridge)).await;
-    }
-
-    // Start the debug bridge if it is configured
-    if let Some(config) = config.debug_bridge {
-        let debug_bridge = DebugBridge::new(config, &client);
-        device_manager.add(Box::new(debug_bridge)).await;
     }
 
     // Start the ntfy service if it is configured

@@ -14,7 +14,8 @@ use std::time::Duration;
 use tokio::task::JoinHandle;
 use tracing::{debug, error, trace, warn};
 
-use crate::config::{ConfigExternal, DeviceConfig, InfoConfig, MqttDeviceConfig};
+use crate::config::{InfoConfig, MqttDeviceConfig};
+use crate::device_manager::{ConfigExternal, DeviceConfig};
 use crate::devices::Device;
 use crate::error::DeviceConfigError;
 use crate::event::OnMqtt;
@@ -62,7 +63,7 @@ impl DeviceConfig for IkeaOutletConfig {
         );
 
         let device = IkeaOutlet {
-            identifier: identifier.to_owned(),
+            identifier: identifier.into(),
             info: self.info,
             mqtt: self.mqtt,
             outlet_type: self.outlet_type,

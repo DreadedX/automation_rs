@@ -15,20 +15,49 @@ topic = "${NTFY_TOPIC}"
 [presence]
 topic = "automation_dev/presence/+/#"
 
-[hue_bridge]
+# Devices
+[device.debug_bridge]
+type = "DebugBridge"
+topic = "automation_dev/debug"
+
+[device.hue_bridge]
+type = "HueBridge"
 ip = "10.0.0.146"
 login = "${HUE_TOKEN}"
 flags = { presence = 41, darkness = 43 }
 
-[debug_bridge]
-topic = "automation_dev/debug"
 
-[light_sensor]
+[device.living_light_sensor]
+type = "LightSensor"
 topic = "zigbee2mqtt_dev/living/light"
 min = 23_000
 max = 25_000
+# TODO: Implement this:
+trigger = ["hue_bridge", "debug_bridge"]
 
-[devices.kitchen_kettle]
+[device.living_zeus]
+type = "WakeOnLAN"
+name = "Zeus"
+room = "Living Room"
+topic = "automation/appliance/living_room/zeus"
+mac_address = "30:9c:23:60:9c:13"
+
+[device.living_mixer]
+type = "KasaOutlet"
+ip = "10.0.0.49"
+
+[device.living_speakers]
+type = "KasaOutlet"
+ip = "10.0.0.182"
+
+[device.living_audio]
+type = "AudioSetup"
+topic = "zigbee2mqtt/living/remote"
+mixer = "living_mixer"
+speakers = "living_speakers"
+
+
+[device.kitchen_kettle]
 type = "IkeaOutlet"
 outlet_type = "Kettle"
 name = "Kettle"
@@ -36,7 +65,8 @@ room = "Kitchen"
 topic = "zigbee2mqtt/kitchen/kettle"
 timeout = 5
 
-[devices.bathroom_light]
+
+[device.bathroom_light]
 type = "IkeaOutlet"
 outlet_type = "Light"
 name = "Bathroom light"
@@ -44,7 +74,13 @@ room = "Bathroom"
 topic = "zigbee2mqtt/bathroom/light"
 timeout = 60
 
-[devices.workbench_charger]
+[device.bathroom_washer]
+type = "Washer"
+topic = "zigbee2mqtt/bathroom/washer"
+threshold = 1
+
+
+[device.workbench_charger]
 type = "IkeaOutlet"
 outlet_type = "Charger"
 name = "Charger"
@@ -52,47 +88,22 @@ room = "Workbench"
 topic = "zigbee2mqtt/workbench/charger"
 timeout = 5
 
-[devices.workbench_outlet]
+[device.workbench_outlet]
 type = "IkeaOutlet"
 name = "Outlet"
 room = "Workbench"
 topic = "zigbee2mqtt/workbench/outlet"
 
-[devices.living_zeus]
-type = "WakeOnLAN"
-name = "Zeus"
-room = "Living Room"
-topic = "automation/appliance/living_room/zeus"
-mac_address = "30:9c:23:60:9c:13"
 
-[devices.living_mixer]
-type = "KasaOutlet"
-ip = "10.0.0.49"
-
-[devices.living_speakers]
-type = "KasaOutlet"
-ip = "10.0.0.182"
-
-[devices.living_audio]
-type = "AudioSetup"
-topic = "zigbee2mqtt/living/remote"
-mixer = "living_mixer"
-speakers = "living_speakers"
-
-[devices.hallway_light]
+[device.hallway_light]
 type = "HueLight"
 ip = "10.0.0.146"
 login = "${HUE_TOKEN}"
 light_id = 16
 timer_id = 1
 
-[devices.hallway_frontdoor]
+[device.hallway_frontdoor]
 type = "ContactSensor"
 topic = "zigbee2mqtt/hallway/frontdoor"
-presence = { timeout = 10 }
-lights = { lights = ["hallway_light"], timeout = 10 }
-
-[devices.bathroom_washer]
-type = "Washer"
-topic = "zigbee2mqtt/bathroom/washer"
-threshold = 1
+presence = { topic = "automation_dev/presence/contact/frontdoor", timeout = 10 }
+trigger = { devices = ["hallway_light"], timeout = 10 }

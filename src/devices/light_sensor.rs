@@ -5,9 +5,11 @@ use tracing::{debug, trace, warn};
 
 use crate::{
     config::MqttDeviceConfig,
+    device_manager::{ConfigExternal, DeviceConfig},
     devices::Device,
+    error::DeviceConfigError,
     event::OnMqtt,
-    event::{self, Event, EventChannel},
+    event::{self, Event},
     messages::BrightnessMessage,
 };
 
@@ -21,8 +23,31 @@ pub struct LightSensorConfig {
 
 pub const DEFAULT: bool = false;
 
+// TODO: The light sensor should get a list of devices that it should inform
+
+#[async_trait]
+impl DeviceConfig for LightSensorConfig {
+    async fn create(
+        self,
+        identifier: &str,
+        ext: &ConfigExternal,
+    ) -> Result<Box<dyn Device>, DeviceConfigError> {
+        let device = LightSensor {
+            identifier: identifier.into(),
+            tx: ext.event_channel.get_tx(),
+            mqtt: self.mqtt,
+            min: self.min,
+            max: self.max,
+            is_dark: DEFAULT,
+        };
+
+        Ok(Box::new(device))
+    }
+}
+
 #[derive(Debug)]
 pub struct LightSensor {
+    identifier: String,
     tx: event::Sender,
     mqtt: MqttDeviceConfig,
     min: isize,
@@ -30,21 +55,9 @@ pub struct LightSensor {
     is_dark: bool,
 }
 
-impl LightSensor {
-    pub fn new(config: LightSensorConfig, event_channel: &EventChannel) -> Self {
-        Self {
-            tx: event_channel.get_tx(),
-            mqtt: config.mqtt,
-            min: config.min,
-            max: config.max,
-            is_dark: DEFAULT,
-        }
-    }
-}
-
 impl Device for LightSensor {
     fn get_id(&self) -> &str {
-        "light_sensor"
+        &self.identifier
     }
 }
 

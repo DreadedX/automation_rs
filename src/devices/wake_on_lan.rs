@@ -14,7 +14,8 @@ use serde::Deserialize;
 use tracing::{debug, error, trace};
 
 use crate::{
-    config::{ConfigExternal, DeviceConfig, InfoConfig, MqttDeviceConfig},
+    config::{InfoConfig, MqttDeviceConfig},
+    device_manager::{ConfigExternal, DeviceConfig},
     error::DeviceConfigError,
     event::OnMqtt,
     messages::ActivateMessage,
@@ -52,7 +53,7 @@ impl DeviceConfig for WakeOnLANConfig {
         );
 
         let device = WakeOnLAN {
-            identifier: identifier.to_owned(),
+            identifier: identifier.into(),
             info: self.info,
             mqtt: self.mqtt,
             mac_address: self.mac_address,

@@ -4,7 +4,8 @@ use serde::Deserialize;
 use tracing::{debug, error, warn};
 
 use crate::{
-    config::{ConfigExternal, DeviceConfig, MqttDeviceConfig},
+    config::MqttDeviceConfig,
+    device_manager::{ConfigExternal, DeviceConfig},
     error::DeviceConfigError,
     event::{Event, EventChannel, OnMqtt},
     messages::PowerMessage,
@@ -27,7 +28,7 @@ impl DeviceConfig for WasherConfig {
         ext: &ConfigExternal,
     ) -> Result<Box<dyn Device>, DeviceConfigError> {
         let device = Washer {
-            identifier: identifier.to_owned(),
+            identifier: identifier.into(),
             mqtt: self.mqtt,
             event_channel: ext.event_channel.clone(),
             threshold: self.threshold,
