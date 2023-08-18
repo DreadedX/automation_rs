@@ -95,15 +95,16 @@ room = "Workbench"
 topic = "zigbee2mqtt/workbench/outlet"
 
 
-[device.hallway_light]
-type = "HueLight"
+[device.hallway_lights]
+type = "HueGroup"
 ip = "10.0.0.146"
 login = "${HUE_TOKEN}"
-light_id = 16
+group_id = 81
+scene_id = "3qWKxGVadXFFG4o"
 timer_id = 1
 
 [device.hallway_frontdoor]
 type = "ContactSensor"
 topic = "zigbee2mqtt/hallway/frontdoor"
 presence = { topic = "automation_dev/presence/contact/frontdoor", timeout = 10 }
-trigger = { devices = ["hallway_light"], timeout = 10 }
+trigger = { devices = ["hallway_lights"], timeout = 10 }

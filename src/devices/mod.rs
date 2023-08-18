@@ -15,7 +15,7 @@ pub use self::audio_setup::AudioSetupConfig;
 pub use self::contact_sensor::ContactSensorConfig;
 pub use self::debug_bridge::DebugBridgeConfig;
 pub use self::hue_bridge::HueBridgeConfig;
-pub use self::hue_light::HueLightConfig;
+pub use self::hue_light::HueGroupConfig;
 pub use self::ikea_outlet::IkeaOutletConfig;
 pub use self::kasa_outlet::KasaOutletConfig;
 pub use self::light_sensor::{LightSensor, LightSensorConfig};

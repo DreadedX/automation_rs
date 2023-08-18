@@ -12,7 +12,7 @@ use tracing::{debug, error, instrument, trace};
 use crate::{
     devices::{
         As, AudioSetupConfig, ContactSensorConfig, DebugBridgeConfig, Device, HueBridgeConfig,
-        HueLightConfig, IkeaOutletConfig, KasaOutletConfig, LightSensorConfig, WakeOnLANConfig,
+        HueGroupConfig, IkeaOutletConfig, KasaOutletConfig, LightSensorConfig, WakeOnLANConfig,
         WasherConfig,
     },
     error::DeviceConfigError,
@@ -50,7 +50,7 @@ pub enum DeviceConfigs {
     WakeOnLAN(WakeOnLANConfig),
     Washer(WasherConfig),
     HueBridge(HueBridgeConfig),
-    HueLight(HueLightConfig),
+    HueGroup(HueGroupConfig),
     LightSensor(LightSensorConfig),
 }
 

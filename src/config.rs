@@ -13,7 +13,7 @@ use tracing::debug;
 use crate::{
     auth::OpenIDConfig,
     device_manager::DeviceConfigs,
-    devices::{DebugBridgeConfig, PresenceConfig},
+    devices::PresenceConfig,
     error::{ConfigParseError, MissingEnv},
 };
 
@@ -26,7 +26,6 @@ pub struct Config {
     pub fullfillment: FullfillmentConfig,
     pub ntfy: Option<NtfyConfig>,
     pub presence: PresenceConfig,
-    pub debug_bridge: Option<DebugBridgeConfig>,
     #[serde(rename = "device")]
     pub devices: IndexMap<String, DeviceConfigs>,
 }

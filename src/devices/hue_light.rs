@@ -18,25 +18,27 @@ use crate::{
 use super::Device;
 
 #[derive(Debug, Clone, Deserialize)]
-pub struct HueLightConfig {
+pub struct HueGroupConfig {
     pub ip: Ipv4Addr,
     pub login: String,
-    pub light_id: isize,
+    pub group_id: isize,
     pub timer_id: isize,
+    pub scene_id: String,
 }
 
 #[async_trait]
-impl DeviceConfig for HueLightConfig {
+impl DeviceConfig for HueGroupConfig {
     async fn create(
         self,
         identifier: &str,
         _ext: &ConfigExternal,
     ) -> Result<Box<dyn Device>, DeviceConfigError> {
-        let device = HueLight {
+        let device = HueGroup {
             identifier: identifier.into(),
             addr: (self.ip, 80).into(),
             login: self.login,
-            light_id: self.light_id,
+            group_id: self.group_id,
+            scene_id: self.scene_id,
             timer_id: self.timer_id,
         };
 
@@ -45,16 +47,17 @@ impl DeviceConfig for HueLightConfig {
 }
 
 #[derive(Debug)]
-struct HueLight {
+struct HueGroup {
     pub identifier: String,
     pub addr: SocketAddr,
     pub login: String,
-    pub light_id: isize,
+    pub group_id: isize,
     pub timer_id: isize,
+    pub scene_id: String,
 }
 
 // Couple of helper function to get the correct urls
-impl HueLight {
+impl HueGroup {
     fn url_base(&self) -> String {
         format!("http://{}/api/{}", self.addr, self.login)
     }
@@ -63,30 +66,35 @@ impl HueLight {
         format!("{}/schedules/{}", self.url_base(), self.timer_id)
     }
 
-    fn url_set_state(&self) -> String {
-        format!("{}/lights/{}/state", self.url_base(), self.light_id)
+    fn url_set_action(&self) -> String {
+        format!("{}/groups/{}/action", self.url_base(), self.group_id)
     }
 
     fn url_get_state(&self) -> String {
-        format!("{}/lights/{}", self.url_base(), self.light_id)
+        format!("{}/groups/{}", self.url_base(), self.group_id)
     }
 }
 
-impl Device for HueLight {
+impl Device for HueGroup {
     fn get_id(&self) -> &str {
         &self.identifier
     }
 }
 
 #[async_trait]
-impl OnOff for HueLight {
+impl OnOff for HueGroup {
     async fn set_on(&mut self, on: bool) -> Result<(), ErrorCode> {
         // Abort any timer that is currently running
         self.stop_timeout().await.unwrap();
 
-        let message = message::State::new(on);
+        let message = if on {
+            message::Action::scene(self.scene_id.clone())
+        } else {
+            message::Action::on(true)
+        };
+
         let res = reqwest::Client::new()
-            .put(self.url_set_state())
+            .put(self.url_set_action())
             .json(&message)
             .send()
             .await;
@@ -118,7 +126,7 @@ impl OnOff for HueLight {
                 }
 
                 let on = match res.json::<message::Info>().await {
-                    Ok(info) => info.is_on(),
+                    Ok(info) => info.any_on(),
                     Err(err) => {
                         error!(id = self.identifier, "Failed to parse message: {err}");
                         // TODO: Error code
@@ -136,11 +144,12 @@ impl OnOff for HueLight {
 }
 
 #[async_trait]
-impl Timeout for HueLight {
+impl Timeout for HueGroup {
     async fn start_timeout(&mut self, timeout: Duration) -> Result<()> {
         // Abort any timer that is currently running
         self.stop_timeout().await?;
 
+        // NOTE: This uses an existing timer, as we are unable to cancel it on the hub otherwise
         let message = message::Timeout::new(Some(timeout));
         let res = reqwest::Client::new()
             .put(self.url_set_schedule())
@@ -185,14 +194,33 @@ mod message {
     use serde::{ser::SerializeStruct, Deserialize, Serialize};
 
     #[derive(Debug, Serialize, Deserialize)]
-    pub struct State {
-        on: bool,
+    pub struct Action {
+        #[serde(skip_serializing_if = "Option::is_none")]
+        on: Option<bool>,
+        #[serde(skip_serializing_if = "Option::is_none")]
+        scene: Option<String>,
     }
 
-    impl State {
-        pub fn new(on: bool) -> Self {
-            Self { on }
+    impl Action {
+        pub fn on(on: bool) -> Self {
+            Self {
+                on: Some(on),
+                scene: None,
+            }
         }
+
+        pub fn scene(scene: String) -> Self {
+            Self {
+                on: None,
+                scene: Some(scene),
+            }
+        }
+    }
+
+    #[derive(Debug, Serialize, Deserialize)]
+    struct State {
+        all_on: bool,
+        any_on: bool,
     }
 
     #[derive(Debug, Serialize, Deserialize)]
@@ -201,9 +229,13 @@ mod message {
     }
 
     impl Info {
-        pub fn is_on(&self) -> bool {
-            self.state.on
+        pub fn any_on(&self) -> bool {
+            self.state.any_on
         }
+
+        // pub fn all_on(&self) -> bool {
+        // 	self.state.all_on
+        // }
     }
 
     #[derive(Debug)]
