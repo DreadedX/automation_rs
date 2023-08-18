@@ -18,7 +18,7 @@ impl MissingEnv {
     }
 
     pub fn add_missing(&mut self, key: &str) {
-        self.keys.push(key.to_owned());
+        self.keys.push(key.into());
     }
 
     pub fn has_missing(self) -> result::Result<(), Self> {
@@ -84,7 +84,7 @@ pub struct MissingWildcard {
 impl MissingWildcard {
     pub fn new(topic: &str) -> Self {
         Self {
-            topic: topic.to_owned(),
+            topic: topic.into(),
         }
     }
 }
@@ -145,7 +145,8 @@ impl IntoResponse for ApiError {
     fn into_response(self) -> axum::response::Response {
         (
             self.status_code,
-            serde_json::to_string::<ApiErrorJson>(&self.into()).unwrap(),
+            serde_json::to_string::<ApiErrorJson>(&self.into())
+                .expect("Serialization should not fail"),
         )
             .into_response()
     }

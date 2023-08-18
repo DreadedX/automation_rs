@@ -195,9 +195,8 @@ impl GoogleHome {
 
         join_all(f).await;
 
-        // We await all the futures that use resp_payload so try_unwrap should never fail
         std::sync::Arc::<tokio::sync::Mutex<response::execute::Payload>>::try_unwrap(resp_payload)
-            .unwrap()
+            .expect("All futures are done, so there should only be one strong reference")
             .into_inner()
     }
 }
@@ -331,11 +330,11 @@ impl GoogleHome {
 //         let mut lamp = TestOutlet::new("living/lamp");
 //         let mut scene = TestScene::new();
 //         let mut devices: HashMap<&str, &mut dyn GoogleHomeDevice> = HashMap::new();
-//         let id = nightstand.get_id().to_owned();
+//         let id = nightstand.get_id().into();
 //         devices.insert(&id, &mut nightstand);
-//         let id = lamp.get_id().to_owned();
+//         let id = lamp.get_id().into();
 //         devices.insert(&id, &mut lamp);
-//         let id = scene.get_id().to_owned();
+//         let id = scene.get_id().into();
 //         devices.insert(&id, &mut scene);
 //
 //         let resp = gh.handle_request(req, &mut devices).unwrap();
@@ -374,11 +373,11 @@ impl GoogleHome {
 //         let mut lamp = TestOutlet::new("living/lamp");
 //         let mut scene = TestScene::new();
 //         let mut devices: HashMap<&str, &mut dyn GoogleHomeDevice> = HashMap::new();
-//         let id = nightstand.get_id().to_owned();
+//         let id = nightstand.get_id().into();
 //         devices.insert(&id, &mut nightstand);
-//         let id = lamp.get_id().to_owned();
+//         let id = lamp.get_id().into();
 //         devices.insert(&id, &mut lamp);
-//         let id = scene.get_id().to_owned();
+//         let id = scene.get_id().into();
 //         devices.insert(&id, &mut scene);
 //
 //         let resp = gh.handle_request(req, &mut devices).unwrap();
@@ -429,11 +428,11 @@ impl GoogleHome {
 //         let mut lamp = TestOutlet::new("living/lamp");
 //         let mut scene = TestScene::new();
 //         let mut devices: HashMap<&str, &mut dyn GoogleHomeDevice> = HashMap::new();
-//         let id = nightstand.get_id().to_owned();
+//         let id = nightstand.get_id().into();
 //         devices.insert(&id, &mut nightstand);
-//         let id = lamp.get_id().to_owned();
+//         let id = lamp.get_id().into();
 //         devices.insert(&id, &mut lamp);
-//         let id = scene.get_id().to_owned();
+//         let id = scene.get_id().into();
 //         devices.insert(&id, &mut scene);
 //
 //         let resp = gh.handle_request(req, &mut devices).unwrap();

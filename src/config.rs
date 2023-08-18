@@ -122,16 +122,16 @@ impl Config {
         let file = fs::read_to_string(filename)?;
 
         // Substitute in environment variables
-        let re = Regex::new(r"\$\{(.*)\}").unwrap();
+        let re = Regex::new(r"\$\{(.*)\}").expect("Regex should be valid");
         let mut missing = MissingEnv::new();
         let file = re.replace_all(&file, |caps: &Captures| {
-            let key = caps.get(1).unwrap().as_str();
+            let key = caps.get(1).expect("Capture group should exist").as_str();
             debug!("Substituting '{key}' in config");
             match std::env::var(key) {
                 Ok(value) => value,
                 Err(_) => {
                     missing.add_missing(key);
-                    "".to_string()
+                    "".into()
                 }
             }
         });

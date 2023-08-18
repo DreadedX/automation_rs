@@ -60,7 +60,7 @@ impl OnPresence for DebugBridge {
                 topic,
                 rumqttc::QoS::AtLeastOnce,
                 true,
-                serde_json::to_string(&message).unwrap(),
+                serde_json::to_string(&message).expect("Serialization should not fail"),
             )
             .await
             .map_err(|err| {

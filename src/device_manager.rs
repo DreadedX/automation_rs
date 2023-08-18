@@ -91,7 +91,7 @@ impl DeviceManager {
     }
 
     pub async fn add(&self, device: Box<dyn Device>) {
-        let id = device.get_id().to_owned();
+        let id = device.get_id().into();
 
         debug!(id, "Adding device");
 

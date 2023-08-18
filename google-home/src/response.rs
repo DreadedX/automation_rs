@@ -14,7 +14,7 @@ pub struct Response {
 impl Response {
     pub fn new(request_id: &str, payload: ResponsePayload) -> Self {
         Self {
-            request_id: request_id.to_owned(),
+            request_id: request_id.into(),
             payload,
         }
     }

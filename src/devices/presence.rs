@@ -59,7 +59,7 @@ impl OnMqtt for Presence {
             .find('+')
             .or(self.mqtt.topic.find('#'))
             .expect("Presence::create fails if it does not contain wildcards");
-        let device_name = message.topic[offset..].to_owned();
+        let device_name = message.topic[offset..].into();
 
         if message.payload.is_empty() {
             // Remove the device from the map

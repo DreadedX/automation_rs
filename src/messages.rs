@@ -1,5 +1,6 @@
 use std::time::{SystemTime, UNIX_EPOCH};
 
+use bytes::Bytes;
 use rumqttc::Publish;
 use serde::{Deserialize, Serialize};
 
@@ -213,5 +214,30 @@ impl TryFrom<Publish> for PowerMessage {
     fn try_from(message: Publish) -> Result<Self, Self::Error> {
         serde_json::from_slice(&message.payload)
             .or(Err(ParseError::InvalidPayload(message.payload.clone())))
+    }
+}
+
+// Message used to report the power state of a hue light
+#[derive(Debug, Deserialize)]
+pub struct HueState {
+    on: bool,
+}
+
+#[derive(Debug, Deserialize)]
+pub struct HueMessage {
+    state: HueState,
+}
+
+impl HueMessage {
+    pub fn is_on(&self) -> bool {
+        self.state.on
+    }
+}
+
+impl TryFrom<Bytes> for HueMessage {
+    type Error = ParseError;
+
+    fn try_from(bytes: Bytes) -> Result<Self, Self::Error> {
+        serde_json::from_slice(&bytes).or(Err(ParseError::InvalidPayload(bytes.clone())))
     }
 }

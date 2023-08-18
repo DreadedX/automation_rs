@@ -81,17 +81,17 @@ impl Notification {
     }
 
     pub fn set_title(mut self, title: &str) -> Self {
-        self.title = Some(title.to_owned());
+        self.title = Some(title.into());
         self
     }
 
     pub fn set_message(mut self, message: &str) -> Self {
-        self.message = Some(message.to_owned());
+        self.message = Some(message.into());
         self
     }
 
     pub fn add_tag(mut self, tag: &str) -> Self {
-        self.tags.push(tag.to_owned());
+        self.tags.push(tag.into());
         self
     }
 
@@ -107,7 +107,7 @@ impl Notification {
 
     fn finalize(self, topic: &str) -> NotificationFinal {
         NotificationFinal {
-            topic: topic.to_owned(),
+            topic: topic.into(),
             inner: self,
         }
     }
@@ -168,7 +168,7 @@ impl OnPresence for Ntfy {
         // Create broadcast action
         let action = Action {
             action: ActionType::Broadcast { extras },
-            label: if presence { "Set away" } else { "Set home" }.to_owned(),
+            label: if presence { "Set away" } else { "Set home" }.into(),
             clear: Some(true),
         };
 

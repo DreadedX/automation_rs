@@ -1,3 +1,4 @@
+use anyhow::Result;
 use async_trait::async_trait;
 use google_home::errors::ErrorCode;
 use google_home::{
@@ -135,14 +136,14 @@ impl OnMqtt for IkeaOutlet {
         }
 
         // Abort any timer that is currently running
-        self.stop_timeout().await;
+        self.stop_timeout().await.unwrap();
 
         debug!(id = self.identifier, "Updating state to {state}");
         self.last_known_state = state;
 
         // If this is a kettle start a timeout for turning it of again
         if state && let Some(timeout) = self.timeout {
-			self.start_timeout(timeout).await;
+			self.start_timeout(timeout).await.unwrap();
         }
     }
 }
@@ -205,9 +206,9 @@ impl traits::OnOff for IkeaOutlet {
 
 #[async_trait]
 impl crate::traits::Timeout for IkeaOutlet {
-    async fn start_timeout(&mut self, timeout: Duration) {
+    async fn start_timeout(&mut self, timeout: Duration) -> Result<()> {
         // Abort any timer that is currently running
-        self.stop_timeout().await;
+        self.stop_timeout().await?;
 
         // Turn the kettle of after the specified timeout
         // TODO: Impl Drop for IkeaOutlet that will abort the handle if the IkeaOutlet
@@ -224,11 +225,15 @@ impl crate::traits::Timeout for IkeaOutlet {
             // I don't think we can really get around calling outside function
             set_on(client, &topic, false).await;
         }));
+
+        Ok(())
     }
 
-    async fn stop_timeout(&mut self) {
+    async fn stop_timeout(&mut self) -> Result<()> {
         if let Some(handle) = self.handle.take() {
             handle.abort();
         }
+
+        Ok(())
     }
 }

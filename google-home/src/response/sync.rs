@@ -86,10 +86,10 @@ mod tests {
 
         device.room_hint = Some("kitchen".into());
         device.device_info = Some(device::Info {
-            manufacturer: Some("lights-out-inc".to_string()),
-            model: Some("hs1234".to_string()),
-            hw_version: Some("3.2".to_string()),
-            sw_version: Some("11.4".to_string()),
+            manufacturer: Some("lights-out-inc".into()),
+            model: Some("hs1234".into()),
+            hw_version: Some("3.2".into()),
+            sw_version: Some("11.4".into()),
         });
 
         sync_resp.add_device(device);

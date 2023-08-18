@@ -19,7 +19,7 @@ mod tests {
 
         assert_eq!(
             req.request_id,
-            "ff36a3cc-ec34-11e6-b1a0-64510650abcf".to_owned()
+            "ff36a3cc-ec34-11e6-b1a0-64510650abcf".to_string()
         );
         assert_eq!(req.inputs.len(), 1);
         match req.inputs[0] {
