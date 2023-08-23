@@ -100,6 +100,7 @@ login = "${HUE_TOKEN}"
 group_id = 81
 scene_id = "3qWKxGVadXFFG4o"
 timer_id = 1
+remotes = [{ topic = "zigbee2mqtt/hallway/remote" }]
 
 [device.hallway_frontdoor]
 type = "ContactSensor"

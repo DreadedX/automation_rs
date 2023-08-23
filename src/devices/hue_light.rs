@@ -6,12 +6,16 @@ use std::{
 use anyhow::{anyhow, Context, Result};
 use async_trait::async_trait;
 use google_home::{errors::ErrorCode, traits::OnOff};
+use rumqttc::Publish;
 use serde::Deserialize;
-use tracing::{error, warn};
+use tracing::{debug, error, warn};
 
 use crate::{
+    config::MqttDeviceConfig,
     device_manager::{ConfigExternal, DeviceConfig},
     error::DeviceConfigError,
+    event::OnMqtt,
+    messages::{RemoteAction, RemoteMessage},
     traits::Timeout,
 };
 
@@ -24,6 +28,8 @@ pub struct HueGroupConfig {
     pub group_id: isize,
     pub timer_id: isize,
     pub scene_id: String,
+    #[serde(default)]
+    pub remotes: Vec<MqttDeviceConfig>,
 }
 
 #[async_trait]
@@ -40,6 +46,7 @@ impl DeviceConfig for HueGroupConfig {
             group_id: self.group_id,
             scene_id: self.scene_id,
             timer_id: self.timer_id,
+            remotes: self.remotes,
         };
 
         Ok(Box::new(device))
@@ -48,12 +55,13 @@ impl DeviceConfig for HueGroupConfig {
 
 #[derive(Debug)]
 struct HueGroup {
-    pub identifier: String,
-    pub addr: SocketAddr,
-    pub login: String,
-    pub group_id: isize,
-    pub timer_id: isize,
-    pub scene_id: String,
+    identifier: String,
+    addr: SocketAddr,
+    login: String,
+    group_id: isize,
+    timer_id: isize,
+    scene_id: String,
+    remotes: Vec<MqttDeviceConfig>,
 }
 
 // Couple of helper function to get the correct urls
@@ -82,6 +90,36 @@ impl Device for HueGroup {
 }
 
 #[async_trait]
+impl OnMqtt for HueGroup {
+    fn topics(&self) -> Vec<&str> {
+        self.remotes
+            .iter()
+            .map(|mqtt| mqtt.topic.as_str())
+            .collect()
+    }
+
+    async fn on_mqtt(&mut self, message: Publish) {
+        let action = match RemoteMessage::try_from(message) {
+            Ok(message) => message.action(),
+            Err(err) => {
+                error!(id = self.identifier, "Failed to parse message: {err}");
+                return;
+            }
+        };
+
+        debug!("Action: {action:#?}");
+
+        match action {
+            RemoteAction::On | RemoteAction::BrightnessMoveUp => self.set_on(true).await.unwrap(),
+            RemoteAction::Off | RemoteAction::BrightnessMoveDown => {
+                self.set_on(false).await.unwrap()
+            }
+            RemoteAction::BrightnessStop => { /* Ignore this action */ }
+        };
+    }
+}
+
+#[async_trait]
 impl OnOff for HueGroup {
     async fn set_on(&mut self, on: bool) -> Result<(), ErrorCode> {
         // Abort any timer that is currently running
@@ -90,7 +128,7 @@ impl OnOff for HueGroup {
         let message = if on {
             message::Action::scene(self.scene_id.clone())
         } else {
-            message::Action::on(true)
+            message::Action::on(false)
         };
 
         let res = reqwest::Client::new()
