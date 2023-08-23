@@ -54,7 +54,8 @@ async fn app() -> anyhow::Result<()> {
     let config = Config::parse_file(&config_filename)?;
 
     // Create a mqtt client
-    let (client, eventloop) = AsyncClient::new(config.mqtt.clone(), 10);
+    // TODO: Since we wait with starting the eventloop we might fill the queue while setting up devices
+    let (client, eventloop) = AsyncClient::new(config.mqtt.clone(), 100);
 
     // Setup the device handler
     let device_manager = DeviceManager::new(client.clone());
