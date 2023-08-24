@@ -64,7 +64,7 @@ name = "Kettle"
 room = "Kitchen"
 topic = "zigbee2mqtt/kitchen/kettle"
 timeout = 5
-
+remotes = [{ topic = "zigbee2mqtt/bedroom/remote" }]
 
 [device.bathroom_light]
 type = "IkeaOutlet"

@@ -7,7 +7,7 @@ use google_home::{
     types::Type,
     GoogleHomeDevice,
 };
-use rumqttc::{AsyncClient, Publish};
+use rumqttc::{matches, AsyncClient, Publish};
 use serde::Deserialize;
 use serde_with::serde_as;
 use serde_with::DurationSeconds;
@@ -21,7 +21,7 @@ use crate::devices::Device;
 use crate::error::DeviceConfigError;
 use crate::event::OnMqtt;
 use crate::event::OnPresence;
-use crate::messages::OnOffMessage;
+use crate::messages::{OnOffMessage, RemoteAction, RemoteMessage};
 use crate::traits::Timeout;
 
 #[derive(Debug, Clone, Deserialize, PartialEq, Eq, Copy)]
@@ -43,6 +43,8 @@ pub struct IkeaOutletConfig {
     outlet_type: OutletType,
     #[serde_as(as = "Option<DurationSeconds>")]
     timeout: Option<Duration>, // Timeout in seconds
+    #[serde(default)]
+    pub remotes: Vec<MqttDeviceConfig>,
 }
 
 fn default_outlet_type() -> OutletType {
@@ -69,6 +71,7 @@ impl DeviceConfig for IkeaOutletConfig {
             mqtt: self.mqtt,
             outlet_type: self.outlet_type,
             timeout: self.timeout,
+            remotes: self.remotes,
             client: ext.client.clone(),
             last_known_state: false,
             handle: None,
@@ -85,6 +88,7 @@ struct IkeaOutlet {
     mqtt: MqttDeviceConfig,
     outlet_type: OutletType,
     timeout: Option<Duration>,
+    remotes: Vec<MqttDeviceConfig>,
 
     client: AsyncClient,
     last_known_state: bool,
@@ -117,33 +121,59 @@ impl Device for IkeaOutlet {
 #[async_trait]
 impl OnMqtt for IkeaOutlet {
     fn topics(&self) -> Vec<&str> {
-        vec![&self.mqtt.topic]
+        let mut topics: Vec<_> = self
+            .remotes
+            .iter()
+            .map(|mqtt| mqtt.topic.as_str())
+            .collect();
+
+        topics.push(&self.mqtt.topic);
+
+        topics
     }
 
     async fn on_mqtt(&mut self, message: Publish) {
-        // Update the internal state based on what the device has reported
-        let state = match OnOffMessage::try_from(message) {
-            Ok(state) => state.state(),
-            Err(err) => {
-                error!(id = self.identifier, "Failed to parse message: {err}");
+        // Check if the message is from the deviec itself or from a remote
+        if matches(&message.topic, &self.mqtt.topic) {
+            // Update the internal state based on what the device has reported
+            let state = match OnOffMessage::try_from(message) {
+                Ok(state) => state.state(),
+                Err(err) => {
+                    error!(id = self.identifier, "Failed to parse message: {err}");
+                    return;
+                }
+            };
+
+            // No need to do anything if the state has not changed
+            if state == self.last_known_state {
                 return;
             }
-        };
 
-        // No need to do anything if the state has not changed
-        if state == self.last_known_state {
-            return;
-        }
+            // Abort any timer that is currently running
+            self.stop_timeout().await.unwrap();
 
-        // Abort any timer that is currently running
-        self.stop_timeout().await.unwrap();
+            debug!(id = self.identifier, "Updating state to {state}");
+            self.last_known_state = state;
 
-        debug!(id = self.identifier, "Updating state to {state}");
-        self.last_known_state = state;
+            // If this is a kettle start a timeout for turning it of again
+            if state && let Some(timeout) = self.timeout {
+				self.start_timeout(timeout).await.unwrap();
+			}
+        } else {
+            let action = match RemoteMessage::try_from(message) {
+                Ok(message) => message.action(),
+                Err(err) => {
+                    error!(id = self.identifier, "Failed to parse message: {err}");
+                    return;
+                }
+            };
 
-        // If this is a kettle start a timeout for turning it of again
-        if state && let Some(timeout) = self.timeout {
-			self.start_timeout(timeout).await.unwrap();
+            match action {
+				RemoteAction::On => self.set_on(true).await.unwrap(),
+				RemoteAction::BrightnessMoveUp => self.set_on(false).await.unwrap(),
+				RemoteAction::BrightnessStop => { /* Ignore this action */ },
+				_ => warn!("Expected ikea shortcut button which only supports 'on' and 'brightness_move_up', got: {action:?}")
+			}
         }
     }
 }
