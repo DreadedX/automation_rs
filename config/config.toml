@@ -62,7 +62,10 @@ name = "Kettle"
 room = "Kitchen"
 topic = "zigbee2mqtt/kitchen/kettle"
 timeout = 300
-remotes = [{ topic = "zigbee2mqtt/bedroom/remote" }]
+remotes = [
+	{ topic = "zigbee2mqtt/bedroom/remote" },
+	{ topic = "zigbee2mqtt/kitchen/remote" },
+]
 
 
 [device.bathroom_light]
