@@ -1876,7 +1876,7 @@ checksum = "830b7e5d4d90034032940e4ace0d9a9a057e7a45cd94e6c007832e39edb82f6d"
 [[package]]
 name = "wakey"
 version = "0.3.0"
-source = "git+https://github.com/DreadedX/wakey#a982950203aa56a93a7ba7a63062eccdd24046c5"
+source = "git+https://git.huizinga.dev/Dreaded_X/wakey#a982950203aa56a93a7ba7a63062eccdd24046c5"
 dependencies = [
  "arrayvec",
  "hex",
