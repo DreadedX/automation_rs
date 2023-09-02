@@ -1,4 +1,4 @@
-FROM rust:latest AS build
+FROM rust:bookworm AS build
 
 # Create user
 ENV USER=automation
@@ -48,7 +48,7 @@ CMD ["/app/target/release/automation"]
 
 
 # FINAL IMAGE
-FROM gcr.io/distroless/cc
+FROM gcr.io/distroless/cc-debian12:latest
 
 COPY --from=build /etc/passwd /etc/passwd
 COPY --from=build /etc/group /etc/group
