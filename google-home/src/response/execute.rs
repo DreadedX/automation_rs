@@ -96,7 +96,10 @@ mod tests {
     fn serialize() {
         let mut execute_resp = Payload::new();
 
-        let state = State { on: Some(true) };
+        let state = State {
+            on: Some(true),
+            current_fan_speed_setting: None,
+        };
         let mut command = Command::new(Status::Success);
         command.states = Some(States {
             online: true,

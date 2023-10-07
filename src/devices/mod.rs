@@ -1,3 +1,4 @@
+mod air_filter;
 mod audio_setup;
 mod contact_sensor;
 mod debug_bridge;
@@ -11,6 +12,7 @@ mod presence;
 mod wake_on_lan;
 mod washer;
 
+pub use self::air_filter::AirFilterConfig;
 pub use self::audio_setup::AudioSetupConfig;
 pub use self::contact_sensor::ContactSensorConfig;
 pub use self::debug_bridge::DebugBridgeConfig;

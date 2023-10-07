@@ -11,9 +11,9 @@ use tracing::{debug, error, instrument, trace};
 
 use crate::{
     devices::{
-        As, AudioSetupConfig, ContactSensorConfig, DebugBridgeConfig, Device, HueBridgeConfig,
-        HueGroupConfig, IkeaOutletConfig, KasaOutletConfig, LightSensorConfig, WakeOnLANConfig,
-        WasherConfig,
+        AirFilterConfig, As, AudioSetupConfig, ContactSensorConfig, DebugBridgeConfig, Device,
+        HueBridgeConfig, HueGroupConfig, IkeaOutletConfig, KasaOutletConfig, LightSensorConfig,
+        WakeOnLANConfig, WasherConfig,
     },
     error::DeviceConfigError,
     event::OnDarkness,
@@ -42,6 +42,7 @@ pub trait DeviceConfig {
 #[serde(tag = "type")]
 #[enum_dispatch(DeviceConfig)]
 pub enum DeviceConfigs {
+    AirFilter(AirFilterConfig),
     AudioSetup(AudioSetupConfig),
     ContactSensor(ContactSensorConfig),
     DebugBridge(DebugBridgeConfig),

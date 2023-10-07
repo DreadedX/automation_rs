@@ -5,7 +5,7 @@ use crate::{
     errors::{DeviceError, ErrorCode},
     request::execute::CommandType,
     response,
-    traits::{OnOff, Scene, Trait},
+    traits::{FanSpeed, OnOff, Scene, Trait},
     types::Type,
 };
 
@@ -44,7 +44,7 @@ where
 }
 
 #[async_trait]
-#[impl_cast::device(As: OnOff + Scene)]
+#[impl_cast::device(As: OnOff + Scene + FanSpeed)]
 pub trait GoogleHomeDevice: AsGoogleHomeDevice + Sync + Send + 'static {
     fn get_device_type(&self) -> Type;
     fn get_device_name(&self) -> Name;
@@ -90,6 +90,13 @@ pub trait GoogleHomeDevice: AsGoogleHomeDevice + Sync + Send + 'static {
             device.attributes.scene_reversible = scene.is_scene_reversible();
         }
 
+        // FanSpeed
+        if let Some(fan_speed) = As::<dyn FanSpeed>::cast(self) {
+            traits.push(Trait::FanSpeed);
+            device.attributes.command_only_fan_speed = fan_speed.command_only_fan_speed();
+            device.attributes.available_fan_speeds = Some(fan_speed.available_speeds());
+        }
+
         device.traits = traits;
 
         device
@@ -110,23 +117,33 @@ pub trait GoogleHomeDevice: AsGoogleHomeDevice + Sync + Send + 'static {
                 .ok();
         }
 
+        // FanSpeed
+        if let Some(fan_speed) = As::<dyn FanSpeed>::cast(self) {
+            device.state.current_fan_speed_setting = Some(fan_speed.current_speed().await);
+        }
+
         device
     }
 
     async fn execute(&mut self, command: &CommandType) -> Result<(), ErrorCode> {
         match command {
             CommandType::OnOff { on } => {
-                if let Some(on_off) = As::<dyn OnOff>::cast_mut(self) {
-                    on_off.set_on(*on).await?;
+                if let Some(t) = As::<dyn OnOff>::cast_mut(self) {
+                    t.set_on(*on).await?;
                 } else {
                     return Err(DeviceError::ActionNotAvailable.into());
                 }
             }
             CommandType::ActivateScene { deactivate } => {
-                if let Some(scene) = As::<dyn Scene>::cast(self) {
-                    scene.set_active(!deactivate).await?;
+                if let Some(t) = As::<dyn Scene>::cast(self) {
+                    t.set_active(!deactivate).await?;
                 } else {
                     return Err(DeviceError::ActionNotAvailable.into());
+                }
+            }
+            CommandType::SetFanSpeed { fan_speed } => {
+                if let Some(t) = As::<dyn FanSpeed>::cast(self) {
+                    t.set_speed(fan_speed).await?;
                 }
             }
         }

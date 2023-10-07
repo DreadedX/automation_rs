@@ -241,3 +241,37 @@ impl TryFrom<Bytes> for HueMessage {
         serde_json::from_slice(&bytes).or(Err(ParseError::InvalidPayload(bytes.clone())))
     }
 }
+
+// TODO: Import this from the air_filter code itself instead of copying
+#[derive(PartialEq, Eq, Debug, Clone, Copy, Deserialize, Serialize)]
+#[serde(rename_all = "snake_case")]
+pub enum AirFilterState {
+    Off,
+    Low,
+    Medium,
+    High,
+}
+
+#[derive(Debug, Clone, Copy, Deserialize, Serialize)]
+pub struct AirFilterMessage {
+    state: AirFilterState,
+}
+
+impl AirFilterMessage {
+    pub fn state(&self) -> AirFilterState {
+        self.state
+    }
+
+    pub fn new(state: AirFilterState) -> Self {
+        Self { state }
+    }
+}
+
+impl TryFrom<Publish> for AirFilterMessage {
+    type Error = ParseError;
+
+    fn try_from(message: Publish) -> Result<Self, Self::Error> {
+        serde_json::from_slice(&message.payload)
+            .or(Err(ParseError::InvalidPayload(message.payload.clone())))
+    }
+}

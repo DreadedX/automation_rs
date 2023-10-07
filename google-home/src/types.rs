@@ -10,4 +10,6 @@ pub enum Type {
     Light,
     #[serde(rename = "action.devices.types.SCENE")]
     Scene,
+    #[serde(rename = "action.devices.types.AIRPURIFIER")]
+    AirPurifier,
 }

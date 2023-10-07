@@ -20,13 +20,15 @@ pub struct Device {
     // customData
 }
 
-#[derive(Debug, Deserialize, Clone, Copy)]
+#[derive(Debug, Deserialize, Clone)]
 #[serde(tag = "command", content = "params")]
 pub enum CommandType {
     #[serde(rename = "action.devices.commands.OnOff")]
     OnOff { on: bool },
     #[serde(rename = "action.devices.commands.ActivateScene")]
     ActivateScene { deactivate: bool },
+    #[serde(rename = "action.devices.commands.SetFanSpeed")]
+    SetFanSpeed { fan_speed: String },
 }
 
 #[cfg(test)]

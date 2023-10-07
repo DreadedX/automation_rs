@@ -33,4 +33,7 @@ pub enum ResponsePayload {
 pub struct State {
     #[serde(skip_serializing_if = "Option::is_none")]
     pub on: Option<bool>,
+
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub current_fan_speed_setting: Option<String>,
 }

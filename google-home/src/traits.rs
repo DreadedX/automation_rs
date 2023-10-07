@@ -9,6 +9,8 @@ pub enum Trait {
     OnOff,
     #[serde(rename = "action.devices.traits.Scene")]
     Scene,
+    #[serde(rename = "action.devices.traits.FanSpeed")]
+    FanSpeed,
 }
 
 #[async_trait]
@@ -35,4 +37,38 @@ pub trait Scene {
     }
 
     async fn set_active(&self, activate: bool) -> Result<(), ErrorCode>;
+}
+
+#[derive(Debug, Serialize)]
+pub struct SpeedValues {
+    pub speed_synonym: Vec<String>,
+    pub lang: String,
+}
+
+#[derive(Debug, Serialize)]
+pub struct Speed {
+    pub speed_name: String,
+    pub speed_values: Vec<SpeedValues>,
+}
+
+#[derive(Debug, Serialize)]
+pub struct AvailableSpeeds {
+    pub speeds: Vec<Speed>,
+    pub ordered: bool,
+}
+
+#[async_trait]
+#[impl_cast::device_trait]
+pub trait FanSpeed {
+    fn reversible(&self) -> Option<bool> {
+        None
+    }
+
+    fn command_only_fan_speed(&self) -> Option<bool> {
+        None
+    }
+
+    fn available_speeds(&self) -> AvailableSpeeds;
+    async fn current_speed(&self) -> String;
+    async fn set_speed(&self, speed: &str) -> Result<(), ErrorCode>;
 }

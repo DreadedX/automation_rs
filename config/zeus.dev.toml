@@ -112,3 +112,9 @@ type = "ContactSensor"
 topic = "zigbee2mqtt/hallway/frontdoor"
 presence = { topic = "automation_dev/presence/contact/frontdoor", timeout = 10 }
 trigger = { devices = ["hallway_lights"], timeout = 10 }
+
+[device.bedroom_air_filter]
+type = "AirFilter"
+name = "Air Filter"
+room = "Bedroom"
+topic = "pico/filter/test"
