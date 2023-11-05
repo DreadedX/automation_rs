@@ -53,8 +53,8 @@ FROM gcr.io/distroless/cc-debian12:latest
 COPY --from=build /etc/passwd /etc/passwd
 COPY --from=build /etc/group /etc/group
 
-ENV AUTOMATION_CONFIG=/app/config.toml
-COPY config/config.toml /app/config.toml
+ENV AUTOMATION_CONFIG=/app/config.yml
+COPY config/config.yml /app/config.yml
 
 WORKDIR /app
 COPY --from=build /app/target/x86_64-unknown-linux-gnu/release/automation ./
