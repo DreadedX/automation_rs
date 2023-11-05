@@ -39,7 +39,6 @@ pub trait DeviceConfig {
 }
 
 #[derive(Debug, Deserialize)]
-#[serde(tag = "type")]
 #[enum_dispatch(DeviceConfig)]
 pub enum DeviceConfigs {
     AirFilter(AirFilterConfig),

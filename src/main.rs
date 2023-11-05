@@ -50,7 +50,7 @@ async fn app() -> anyhow::Result<()> {
     info!("Starting automation_rs...");
 
     let config_filename =
-        std::env::var("AUTOMATION_CONFIG").unwrap_or("./config/config.toml".into());
+        std::env::var("AUTOMATION_CONFIG").unwrap_or("./config/config.yml".into());
     let config = Config::parse_file(&config_filename)?;
 
     // Create a mqtt client

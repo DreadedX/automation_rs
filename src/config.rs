@@ -26,7 +26,6 @@ pub struct Config {
     pub fullfillment: FullfillmentConfig,
     pub ntfy: Option<NtfyConfig>,
     pub presence: PresenceConfig,
-    #[serde(rename = "device")]
     pub devices: IndexMap<String, DeviceConfigs>,
 }
 
@@ -137,7 +136,7 @@ impl Config {
 
         missing.has_missing()?;
 
-        let config: Config = toml::from_str(&file)?;
+        let config: Config = serde_yaml::from_str(&file)?;
 
         Ok(config)
     }

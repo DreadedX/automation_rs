@@ -1,0 +1,66 @@
+openid:
+    base_url: "https://login.huizinga.dev/api/oidc"
+
+mqtt:
+    host: "olympus.vpn.huizinga.dev"
+    port: 8883
+    client_name: "automation-ares"
+    username: "mqtt"
+    password: "${MQTT_PASSWORD}"
+    tls: true
+
+ntfy:
+    topic: "${NTFY_TOPIC}"
+
+presence:
+    topic: "automation_dev/presence/+/#"
+
+devices:
+    debug_bridge:
+        !DebugBridge
+        topic: "automation_dev/debug"
+
+    living_light_sensor:
+        !LightSensor
+        topic: "zigbee2mqtt_dev/living/light"
+        min: 23000
+        max: 25000
+
+    kitchen_kettle:
+        !IkeaOutlet
+        outlet_type: "Kettle"
+        name: "Kettle"
+        room: "Kitchen"
+        topic: "zigbee2mqtt/kitchen/kettle"
+        timeout: 5
+        remotes:
+        - topic: "zigbee2mqtt/bedroom/remote"
+        - topic: "zigbee2mqtt/kitchen/remote"
+
+    workbench_charger:
+        !IkeaOutlet
+        outlet_type: "Charger"
+        name: "Charger"
+        room: "Workbench"
+        topic: "zigbee2mqtt/workbench/charger"
+        timeout: 5
+
+    workbench_outlet:
+        !IkeaOutlet
+        name: "Outlet"
+        room: "Workbench"
+        topic: "zigbee2mqtt/workbench/outlet"
+
+    living_zeus:
+        !WakeOnLAN
+        name: "Zeus"
+        room: "Living Room"
+        topic: "automation/appliance/living_room/zeus"
+        mac_address: "30:9c:23:60:9c:13"
+
+    hallway_frontdoor:
+        !ContactSensor
+        topic: "zigbee2mqtt/hallway/frontdoor"
+        presence:
+            topic: "automation_dev/presence/contact/frontdoor"
+            timeout: 10

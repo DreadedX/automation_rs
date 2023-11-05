@@ -71,7 +71,7 @@ pub enum ConfigParseError {
     #[error(transparent)]
     IoError(#[from] std::io::Error),
     #[error(transparent)]
-    DeserializeError(#[from] toml::de::Error),
+    YamlError(#[from] serde_yaml::Error),
 }
 
 // TODO: Would be nice to somehow get the line number of the expected wildcard topic
