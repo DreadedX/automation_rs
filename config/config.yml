@@ -121,4 +121,4 @@ devices:
         !AirFilter
         name: "Air Filter"
         room: "Bedroom"
-        topic: "pio/filter/test"
+        topic: "pico/filter/test"
