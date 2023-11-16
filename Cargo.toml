@@ -40,6 +40,7 @@ serde_with = "3.2.0"
 enum_dispatch = "0.3.12"
 indexmap = { version = "2.0.0", features = ["serde"] }
 serde_yaml = "0.9.27"
+tokio-cron-scheduler = "0.9.4"
 
 [patch.crates-io]
 wakey = { git = "https://git.huizinga.dev/Dreaded_X/wakey" }

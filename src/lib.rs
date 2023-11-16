@@ -9,4 +9,5 @@ pub mod error;
 pub mod event;
 pub mod messages;
 pub mod mqtt;
+pub mod schedule;
 pub mod traits;

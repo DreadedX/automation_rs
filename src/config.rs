@@ -15,6 +15,7 @@ use crate::{
     device_manager::DeviceConfigs,
     devices::PresenceConfig,
     error::{ConfigParseError, MissingEnv},
+    schedule::Schedule,
 };
 
 #[derive(Debug, Deserialize)]
@@ -27,6 +28,7 @@ pub struct Config {
     pub ntfy: Option<NtfyConfig>,
     pub presence: PresenceConfig,
     pub devices: IndexMap<String, DeviceConfigs>,
+    pub schedule: Schedule,
 }
 
 #[derive(Debug, Clone, Deserialize)]

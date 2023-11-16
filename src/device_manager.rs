@@ -4,9 +4,11 @@ use std::sync::Arc;
 use async_trait::async_trait;
 use enum_dispatch::enum_dispatch;
 use futures::future::join_all;
+use google_home::traits::OnOff;
 use rumqttc::{matches, AsyncClient, QoS};
 use serde::Deserialize;
 use tokio::sync::{RwLock, RwLockReadGuard};
+use tokio_cron_scheduler::{Job, JobScheduler};
 use tracing::{debug, error, instrument, trace};
 
 use crate::{
@@ -20,6 +22,7 @@ use crate::{
     event::OnNotification,
     event::OnPresence,
     event::{Event, EventChannel, OnMqtt},
+    schedule::{Action, Schedule},
 };
 
 pub struct ConfigExternal<'a> {
@@ -88,6 +91,55 @@ impl DeviceManager {
         });
 
         device_manager
+    }
+
+    // TODO: This function is currently extremely cursed...
+    pub async fn add_schedule(&self, schedule: Schedule) {
+        let sched = JobScheduler::new().await.unwrap();
+
+        for (when, actions) in schedule {
+            let manager = self.clone();
+            sched
+                .add(
+                    Job::new_async(when.as_str(), move |_uuid, _l| {
+                        let actions = actions.clone();
+                        let manager = manager.clone();
+
+                        Box::pin(async move {
+                            for (action, targets) in actions {
+                                for target in targets {
+                                    let device = manager.get(&target).await.unwrap();
+                                    match action {
+                                        Action::On => {
+                                            As::<dyn OnOff>::cast_mut(
+                                                device.write().await.as_mut(),
+                                            )
+                                            .unwrap()
+                                            .set_on(true)
+                                            .await
+                                            .unwrap();
+                                        }
+                                        Action::Off => {
+                                            As::<dyn OnOff>::cast_mut(
+                                                device.write().await.as_mut(),
+                                            )
+                                            .unwrap()
+                                            .set_on(false)
+                                            .await
+                                            .unwrap();
+                                        }
+                                    }
+                                }
+                            }
+                        })
+                    })
+                    .unwrap(),
+                )
+                .await
+                .unwrap();
+        }
+
+        sched.start().await.unwrap();
     }
 
     pub async fn add(&self, device: Box<dyn Device>) {

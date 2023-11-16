@@ -89,7 +89,7 @@ devices:
         topic: "zigbee2mqtt/workbench/charger"
         timeout: 5
 
-    workbench_outlet:
+    &outlet workbench_outlet:
         !IkeaOutlet
         name: "Outlet"
         room: "Workbench"
@@ -121,4 +121,13 @@ devices:
         !AirFilter
         name: "Air Filter"
         room: "Bedroom"
-        topic: "pio/filter/test"
+        topic: "pico/filter/test"
+
+# schedule:
+#     0/30 * * * * *:
+#         on:
+#         - *outlet
+#
+#     15/30 * * * * *:
+#         off:
+#         - *outlet

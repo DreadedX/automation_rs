@@ -117,8 +117,18 @@ devices:
             timeout: 60
 
 
-    bedroom_air_filter:
+    &air_filter bedroom_air_filter:
         !AirFilter
         name: "Air Filter"
         room: "Bedroom"
         topic: "pico/filter/test"
+
+# Run the air filter everyday for 19:00 to 20:00
+schedule:
+    0 0 19 * * *:
+        on:
+        - *air_filter
+
+    0 0 20 * * *:
+        off:
+        - *air_filter
