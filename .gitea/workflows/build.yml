@@ -1,0 +1,69 @@
+# Based on: https://pastebin.com/99Fq2b2w
+name: Build and deploy automation_rs
+on:
+    push:
+        branches:
+            - main
+            - feature/actions
+
+jobs:
+    build:
+        name: Build
+        runs-on: ubuntu-latest
+        container: catthehacker/ubuntu:act-latest
+        steps:
+            - name: Checkout
+              uses: actions/checkout@v4
+
+            - name: Setup Rust
+              uses: actions-rust-lang/setup-rust-toolchain@v1
+              with:
+                  rustflags: ""
+
+            - name: Formatting
+              uses: actions-rust-lang/rustfmt@v1
+
+            - name: Clippy
+              run: cargo clippy --all-targets --all -- -D warnings
+
+            - name: Build
+              run: cargo build --release
+
+            - name: Upload artifact
+              uses: actions/upload-artifact@v3
+              with:
+                  name: build
+                  path: target/x86_64-unknown-linux-gnu/release/automation
+
+    create-docker-container:
+        name: Create Docker container
+        runs-on: ubuntu-latest
+        needs: [build]
+        container: catthehacker/ubuntu:act-latest
+        steps:
+            - name: Checkout
+              uses: actions/checkout@v4
+
+            - name: Download artifact
+              uses: actions/download-artifact@v3
+              with:
+                  name: build
+
+            - name: Set permissions
+              run: |
+                  chown 65532:65532 ./build/*
+                  chmod 0755 ./build/*
+
+            - name: Login to registry
+              uses: https://github.com/docker/login-action@v3
+              with:
+                  registry: git.huizinga.dev
+                  username: ${{ gitea.actor }}
+                  password: ${{ secrets.REGISTRY_TOKEN }}
+
+            - name: Build & Push Docker Image
+              uses: https://github.com/docker/build-push-action@v5
+              with:
+                  context: .
+                  push: true
+                  tags: git.huizinga.dev/dreaded_x/automation_rs:latest
