@@ -157,8 +157,8 @@ impl OnMqtt for IkeaOutlet {
 
             // If this is a kettle start a timeout for turning it of again
             if state && let Some(timeout) = self.timeout {
-				self.start_timeout(timeout).await.unwrap();
-			}
+                self.start_timeout(timeout).await.unwrap();
+            }
         } else {
             let action = match RemoteMessage::try_from(message) {
                 Ok(message) => message.action(),

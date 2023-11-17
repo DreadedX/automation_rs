@@ -181,7 +181,9 @@ impl OnMqtt for ContactSensor {
                     let mut light = light.write().await;
                     if !previous {
                         // If the timeout is zero just turn the light off directly
-                        if trigger.timeout.is_zero() && let Some(light) = As::<dyn OnOff>::cast_mut(light.as_mut()) {
+                        if trigger.timeout.is_zero()
+                            && let Some(light) = As::<dyn OnOff>::cast_mut(light.as_mut())
+                        {
                             light.set_on(false).await.ok();
                         } else if let Some(light) = As::<dyn Timeout>::cast_mut(light.as_mut()) {
                             light.start_timeout(trigger.timeout).await.unwrap();
