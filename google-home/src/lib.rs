@@ -13,7 +13,6 @@ pub mod traits;
 pub mod types;
 
 pub use device::GoogleHomeDevice;
-pub use fullfillment::FullfillmentError;
-pub use fullfillment::GoogleHome;
+pub use fullfillment::{FullfillmentError, GoogleHome};
 pub use request::Request;
 pub use response::Response;

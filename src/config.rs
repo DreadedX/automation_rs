@@ -1,8 +1,6 @@
-use std::{
-    fs,
-    net::{Ipv4Addr, SocketAddr},
-    time::Duration,
-};
+use std::fs;
+use std::net::{Ipv4Addr, SocketAddr};
+use std::time::Duration;
 
 use indexmap::IndexMap;
 use regex::{Captures, Regex};
@@ -10,13 +8,11 @@ use rumqttc::{MqttOptions, Transport};
 use serde::{Deserialize, Deserializer};
 use tracing::debug;
 
-use crate::{
-    auth::OpenIDConfig,
-    device_manager::DeviceConfigs,
-    devices::PresenceConfig,
-    error::{ConfigParseError, MissingEnv},
-    schedule::Schedule,
-};
+use crate::auth::OpenIDConfig;
+use crate::device_manager::DeviceConfigs;
+use crate::devices::PresenceConfig;
+use crate::error::{ConfigParseError, MissingEnv};
+use crate::schedule::Schedule;
 
 #[derive(Debug, Deserialize)]
 pub struct Config {

@@ -69,11 +69,9 @@ impl Device {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::{
-        response::{Response, ResponsePayload},
-        traits::Trait,
-        types::Type,
-    };
+    use crate::response::{Response, ResponsePayload};
+    use crate::traits::Trait;
+    use crate::types::Type;
 
     #[test]
     fn serialize() {

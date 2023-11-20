@@ -1,6 +1,5 @@
-use tracing::{debug, warn};
-
 use rumqttc::{Event, EventLoop, Incoming};
+use tracing::{debug, warn};
 
 use crate::event::{self, EventChannel};
 

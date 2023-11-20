@@ -3,17 +3,13 @@ use google_home::traits::OnOff;
 use serde::Deserialize;
 use tracing::{debug, error, trace, warn};
 
-use crate::{
-    config::MqttDeviceConfig,
-    device_manager::{ConfigExternal, DeviceConfig, WrappedDevice},
-    devices::As,
-    error::DeviceConfigError,
-    event::OnMqtt,
-    event::OnPresence,
-    messages::{RemoteAction, RemoteMessage},
-};
-
 use super::Device;
+use crate::config::MqttDeviceConfig;
+use crate::device_manager::{ConfigExternal, DeviceConfig, WrappedDevice};
+use crate::devices::As;
+use crate::error::DeviceConfigError;
+use crate::event::{OnMqtt, OnPresence};
+use crate::messages::{RemoteAction, RemoteMessage};
 
 #[derive(Debug, Clone, Deserialize)]
 pub struct AudioSetupConfig {

@@ -8,18 +8,14 @@ use serde_with::{serde_as, DurationSeconds};
 use tokio::task::JoinHandle;
 use tracing::{debug, error, trace, warn};
 
-use crate::{
-    config::MqttDeviceConfig,
-    device_manager::{ConfigExternal, DeviceConfig, WrappedDevice},
-    devices::{As, DEFAULT_PRESENCE},
-    error::DeviceConfigError,
-    event::OnMqtt,
-    event::OnPresence,
-    messages::{ContactMessage, PresenceMessage},
-    traits::Timeout,
-};
-
 use super::Device;
+use crate::config::MqttDeviceConfig;
+use crate::device_manager::{ConfigExternal, DeviceConfig, WrappedDevice};
+use crate::devices::{As, DEFAULT_PRESENCE};
+use crate::error::DeviceConfigError;
+use crate::event::{OnMqtt, OnPresence};
+use crate::messages::{ContactMessage, PresenceMessage};
+use crate::traits::Timeout;
 
 // NOTE: If we add more presence devices we might need to move this out of here
 #[serde_as]

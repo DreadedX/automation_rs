@@ -1,8 +1,7 @@
-use axum::{
-    async_trait,
-    extract::{FromRef, FromRequestParts},
-    http::{request::Parts, StatusCode},
-};
+use axum::async_trait;
+use axum::extract::{FromRef, FromRequestParts};
+use axum::http::request::Parts;
+use axum::http::StatusCode;
 use serde::Deserialize;
 
 use crate::error::{ApiError, ApiErrorJson};

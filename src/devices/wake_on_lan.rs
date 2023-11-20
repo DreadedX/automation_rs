@@ -2,26 +2,20 @@ use std::net::Ipv4Addr;
 
 use async_trait::async_trait;
 use eui48::MacAddress;
-use google_home::{
-    device,
-    errors::ErrorCode,
-    traits::{self, Scene},
-    types::Type,
-    GoogleHomeDevice,
-};
+use google_home::errors::ErrorCode;
+use google_home::traits::{self, Scene};
+use google_home::types::Type;
+use google_home::{device, GoogleHomeDevice};
 use rumqttc::Publish;
 use serde::Deserialize;
 use tracing::{debug, error, trace};
 
-use crate::{
-    config::{InfoConfig, MqttDeviceConfig},
-    device_manager::{ConfigExternal, DeviceConfig},
-    error::DeviceConfigError,
-    event::OnMqtt,
-    messages::ActivateMessage,
-};
-
 use super::Device;
+use crate::config::{InfoConfig, MqttDeviceConfig};
+use crate::device_manager::{ConfigExternal, DeviceConfig};
+use crate::error::DeviceConfigError;
+use crate::event::OnMqtt;
+use crate::messages::ActivateMessage;
 
 #[derive(Debug, Clone, Deserialize)]
 pub struct WakeOnLANConfig {

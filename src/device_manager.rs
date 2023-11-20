@@ -11,19 +11,14 @@ use tokio::sync::{RwLock, RwLockReadGuard};
 use tokio_cron_scheduler::{Job, JobScheduler};
 use tracing::{debug, error, instrument, trace};
 
-use crate::{
-    devices::{
-        AirFilterConfig, As, AudioSetupConfig, ContactSensorConfig, DebugBridgeConfig, Device,
-        HueBridgeConfig, HueGroupConfig, IkeaOutletConfig, KasaOutletConfig, LightSensorConfig,
-        WakeOnLANConfig, WasherConfig,
-    },
-    error::DeviceConfigError,
-    event::OnDarkness,
-    event::OnNotification,
-    event::OnPresence,
-    event::{Event, EventChannel, OnMqtt},
-    schedule::{Action, Schedule},
+use crate::devices::{
+    AirFilterConfig, As, AudioSetupConfig, ContactSensorConfig, DebugBridgeConfig, Device,
+    HueBridgeConfig, HueGroupConfig, IkeaOutletConfig, KasaOutletConfig, LightSensorConfig,
+    WakeOnLANConfig, WasherConfig,
 };
+use crate::error::DeviceConfigError;
+use crate::event::{Event, EventChannel, OnDarkness, OnMqtt, OnNotification, OnPresence};
+use crate::schedule::{Action, Schedule};
 
 pub struct ConfigExternal<'a> {
     pub client: &'a AsyncClient,

@@ -3,15 +3,12 @@ use rumqttc::Publish;
 use serde::Deserialize;
 use tracing::{debug, trace, warn};
 
-use crate::{
-    config::MqttDeviceConfig,
-    device_manager::{ConfigExternal, DeviceConfig},
-    devices::Device,
-    error::DeviceConfigError,
-    event::OnMqtt,
-    event::{self, Event},
-    messages::BrightnessMessage,
-};
+use crate::config::MqttDeviceConfig;
+use crate::device_manager::{ConfigExternal, DeviceConfig};
+use crate::devices::Device;
+use crate::error::DeviceConfigError;
+use crate::event::{self, Event, OnMqtt};
+use crate::messages::BrightnessMessage;
 
 #[derive(Debug, Clone, Deserialize)]
 pub struct LightSensorConfig {

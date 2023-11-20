@@ -1,28 +1,19 @@
-use std::{
-    net::{Ipv4Addr, SocketAddr},
-    str::Utf8Error,
-};
+use std::net::{Ipv4Addr, SocketAddr};
+use std::str::Utf8Error;
 
 use async_trait::async_trait;
 use bytes::{Buf, BufMut};
-use google_home::{
-    errors::{self, DeviceError},
-    traits,
-};
+use google_home::errors::{self, DeviceError};
+use google_home::traits;
 use serde::{Deserialize, Serialize};
 use thiserror::Error;
-use tokio::{
-    io::{AsyncReadExt, AsyncWriteExt},
-    net::TcpStream,
-};
+use tokio::io::{AsyncReadExt, AsyncWriteExt};
+use tokio::net::TcpStream;
 use tracing::trace;
 
-use crate::{
-    device_manager::{ConfigExternal, DeviceConfig},
-    error::DeviceConfigError,
-};
-
 use super::Device;
+use crate::device_manager::{ConfigExternal, DeviceConfig};
+use crate::error::DeviceConfigError;
 
 #[derive(Debug, Clone, Deserialize)]
 pub struct KasaOutletConfig {

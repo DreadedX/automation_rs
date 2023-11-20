@@ -5,13 +5,10 @@ use rumqttc::Publish;
 use serde::Deserialize;
 use tracing::{debug, warn};
 
-use crate::{
-    config::MqttDeviceConfig,
-    devices::Device,
-    event::OnMqtt,
-    event::{self, Event, EventChannel},
-    messages::PresenceMessage,
-};
+use crate::config::MqttDeviceConfig;
+use crate::devices::Device;
+use crate::event::{self, Event, EventChannel, OnMqtt};
+use crate::messages::PresenceMessage;
 
 #[derive(Debug, Deserialize)]
 pub struct PresenceConfig {

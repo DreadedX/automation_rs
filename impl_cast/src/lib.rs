@@ -1,6 +1,7 @@
 use proc_macro::TokenStream;
 use quote::{format_ident, quote, ToTokens};
-use syn::{parse::Parse, parse_macro_input, Ident, ItemTrait, Path, Token, TypeParamBound};
+use syn::parse::Parse;
+use syn::{parse_macro_input, Ident, ItemTrait, Path, Token, TypeParamBound};
 
 struct Attr {
     name: Ident,

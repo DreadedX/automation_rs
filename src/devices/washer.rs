@@ -3,15 +3,13 @@ use rumqttc::Publish;
 use serde::Deserialize;
 use tracing::{debug, error, warn};
 
-use crate::{
-    config::MqttDeviceConfig,
-    device_manager::{ConfigExternal, DeviceConfig},
-    error::DeviceConfigError,
-    event::{Event, EventChannel, OnMqtt},
-    messages::PowerMessage,
-};
-
-use super::{ntfy::Priority, Device, Notification};
+use super::ntfy::Priority;
+use super::{Device, Notification};
+use crate::config::MqttDeviceConfig;
+use crate::device_manager::{ConfigExternal, DeviceConfig};
+use crate::error::DeviceConfigError;
+use crate::event::{Event, EventChannel, OnMqtt};
+use crate::messages::PowerMessage;
 
 #[derive(Debug, Clone, Deserialize)]
 pub struct WasherConfig {

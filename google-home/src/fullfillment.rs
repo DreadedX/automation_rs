@@ -1,15 +1,14 @@
-use std::{collections::HashMap, sync::Arc};
+use std::collections::HashMap;
+use std::sync::Arc;
 
 use futures::future::{join_all, OptionFuture};
 use thiserror::Error;
 use tokio::sync::{Mutex, RwLock};
 
-use crate::{
-    device::AsGoogleHomeDevice,
-    errors::{DeviceError, ErrorCode},
-    request::{self, Intent, Request},
-    response::{self, execute, query, sync, Response, ResponsePayload, State},
-};
+use crate::device::AsGoogleHomeDevice;
+use crate::errors::{DeviceError, ErrorCode};
+use crate::request::{self, Intent, Request};
+use crate::response::{self, execute, query, sync, Response, ResponsePayload, State};
 
 #[derive(Debug)]
 pub struct GoogleHome {

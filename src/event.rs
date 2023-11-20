@@ -1,8 +1,7 @@
 use async_trait::async_trait;
+use impl_cast::device_trait;
 use rumqttc::Publish;
 use tokio::sync::mpsc;
-
-use impl_cast::device_trait;
 
 use crate::devices::Notification;
 

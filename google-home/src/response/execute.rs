@@ -1,6 +1,7 @@
 use serde::Serialize;
 
-use crate::{errors::ErrorCode, response::State};
+use crate::errors::ErrorCode;
+use crate::response::State;
 
 #[derive(Debug, Serialize, Clone)]
 #[serde(rename_all = "camelCase")]
@@ -87,10 +88,8 @@ pub enum Status {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::{
-        errors::DeviceError,
-        response::{Response, ResponsePayload, State},
-    };
+    use crate::errors::DeviceError;
+    use crate::response::{Response, ResponsePayload, State};
 
     #[test]
     fn serialize() {

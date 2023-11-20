@@ -1,22 +1,21 @@
 #![feature(async_closure)]
 use std::process;
 
-use axum::{
-    extract::FromRef, http::StatusCode, response::IntoResponse, routing::post, Json, Router,
-};
+use automation::auth::{OpenIDConfig, User};
+use automation::config::Config;
+use automation::device_manager::DeviceManager;
+use automation::devices::{Ntfy, Presence};
+use automation::error::ApiError;
+use automation::mqtt;
+use axum::extract::FromRef;
+use axum::http::StatusCode;
+use axum::response::IntoResponse;
+use axum::routing::post;
+use axum::{Json, Router};
 use dotenvy::dotenv;
+use google_home::{GoogleHome, Request};
 use rumqttc::AsyncClient;
 use tracing::{debug, error, info};
-
-use automation::{
-    auth::{OpenIDConfig, User},
-    config::Config,
-    device_manager::DeviceManager,
-    devices::{Ntfy, Presence},
-    error::ApiError,
-    mqtt,
-};
-use google_home::{GoogleHome, Request};
 
 #[derive(Clone)]
 struct AppState {

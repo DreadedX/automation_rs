@@ -5,12 +5,9 @@ use serde::Serialize;
 use serde_repr::*;
 use tracing::{debug, error, warn};
 
-use crate::{
-    config::NtfyConfig,
-    devices::Device,
-    event::{self, Event, EventChannel},
-    event::{OnNotification, OnPresence},
-};
+use crate::config::NtfyConfig;
+use crate::devices::Device;
+use crate::event::{self, Event, EventChannel, OnNotification, OnPresence};
 
 #[derive(Debug)]
 pub struct Ntfy {

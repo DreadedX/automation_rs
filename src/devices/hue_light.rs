@@ -1,25 +1,21 @@
-use std::{
-    net::{Ipv4Addr, SocketAddr},
-    time::Duration,
-};
+use std::net::{Ipv4Addr, SocketAddr};
+use std::time::Duration;
 
 use anyhow::{anyhow, Context, Result};
 use async_trait::async_trait;
-use google_home::{errors::ErrorCode, traits::OnOff};
+use google_home::errors::ErrorCode;
+use google_home::traits::OnOff;
 use rumqttc::Publish;
 use serde::Deserialize;
 use tracing::{debug, error, warn};
 
-use crate::{
-    config::MqttDeviceConfig,
-    device_manager::{ConfigExternal, DeviceConfig},
-    error::DeviceConfigError,
-    event::OnMqtt,
-    messages::{RemoteAction, RemoteMessage},
-    traits::Timeout,
-};
-
 use super::Device;
+use crate::config::MqttDeviceConfig;
+use crate::device_manager::{ConfigExternal, DeviceConfig};
+use crate::error::DeviceConfigError;
+use crate::event::OnMqtt;
+use crate::messages::{RemoteAction, RemoteMessage};
+use crate::traits::Timeout;
 
 #[derive(Debug, Clone, Deserialize)]
 pub struct HueGroupConfig {
@@ -229,7 +225,8 @@ impl Timeout for HueGroup {
 mod message {
     use std::time::Duration;
 
-    use serde::{ser::SerializeStruct, Deserialize, Serialize};
+    use serde::ser::SerializeStruct;
+    use serde::{Deserialize, Serialize};
 
     #[derive(Debug, Serialize, Deserialize)]
     pub struct Action {

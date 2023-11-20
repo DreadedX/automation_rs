@@ -12,6 +12,9 @@ mod presence;
 mod wake_on_lan;
 mod washer;
 
+use google_home::device::AsGoogleHomeDevice;
+use google_home::traits::OnOff;
+
 pub use self::air_filter::AirFilterConfig;
 pub use self::audio_setup::AudioSetupConfig;
 pub use self::contact_sensor::ContactSensorConfig;
@@ -25,11 +28,8 @@ pub use self::ntfy::{Notification, Ntfy};
 pub use self::presence::{Presence, PresenceConfig, DEFAULT_PRESENCE};
 pub use self::wake_on_lan::WakeOnLANConfig;
 pub use self::washer::WasherConfig;
-
-use google_home::{device::AsGoogleHomeDevice, traits::OnOff};
-
+use crate::event::{OnDarkness, OnMqtt, OnNotification, OnPresence};
 use crate::traits::Timeout;
-use crate::{event::OnDarkness, event::OnMqtt, event::OnNotification, event::OnPresence};
 
 #[impl_cast::device(As: OnMqtt + OnPresence + OnDarkness + OnNotification + OnOff + Timeout)]
 pub trait Device: AsGoogleHomeDevice + std::fmt::Debug + Sync + Send {

@@ -4,13 +4,10 @@ use async_trait::async_trait;
 use serde::{Deserialize, Serialize};
 use tracing::{error, trace, warn};
 
-use crate::{
-    device_manager::{ConfigExternal, DeviceConfig},
-    devices::Device,
-    error::DeviceConfigError,
-    event::OnDarkness,
-    event::OnPresence,
-};
+use crate::device_manager::{ConfigExternal, DeviceConfig};
+use crate::devices::Device;
+use crate::error::DeviceConfigError;
+use crate::event::{OnDarkness, OnPresence};
 
 #[derive(Debug)]
 pub enum Flag {

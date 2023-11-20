@@ -2,7 +2,8 @@ use std::collections::HashMap;
 
 use serde::Serialize;
 
-use crate::{errors::ErrorCode, response::State};
+use crate::errors::ErrorCode;
+use crate::response::State;
 
 #[derive(Debug, Serialize)]
 #[serde(rename_all = "camelCase")]

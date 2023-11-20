@@ -1,17 +1,14 @@
+use std::time::Duration;
+
 use anyhow::Result;
 use async_trait::async_trait;
 use google_home::errors::ErrorCode;
-use google_home::{
-    device,
-    traits::{self, OnOff},
-    types::Type,
-    GoogleHomeDevice,
-};
+use google_home::traits::{self, OnOff};
+use google_home::types::Type;
+use google_home::{device, GoogleHomeDevice};
 use rumqttc::{matches, AsyncClient, Publish};
 use serde::Deserialize;
-use serde_with::serde_as;
-use serde_with::DurationSeconds;
-use std::time::Duration;
+use serde_with::{serde_as, DurationSeconds};
 use tokio::task::JoinHandle;
 use tracing::{debug, error, trace, warn};
 
@@ -19,8 +16,7 @@ use crate::config::{InfoConfig, MqttDeviceConfig};
 use crate::device_manager::{ConfigExternal, DeviceConfig};
 use crate::devices::Device;
 use crate::error::DeviceConfigError;
-use crate::event::OnMqtt;
-use crate::event::OnPresence;
+use crate::event::{OnMqtt, OnPresence};
 use crate::messages::{OnOffMessage, RemoteAction, RemoteMessage};
 use crate::traits::Timeout;
 

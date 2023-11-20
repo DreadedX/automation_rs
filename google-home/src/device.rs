@@ -1,13 +1,11 @@
 use async_trait::async_trait;
 use serde::Serialize;
 
-use crate::{
-    errors::{DeviceError, ErrorCode},
-    request::execute::CommandType,
-    response,
-    traits::{FanSpeed, OnOff, Scene, Trait},
-    types::Type,
-};
+use crate::errors::{DeviceError, ErrorCode};
+use crate::request::execute::CommandType;
+use crate::response;
+use crate::traits::{FanSpeed, OnOff, Scene, Trait};
+use crate::types::Type;
 
 // TODO: Find a more elegant way to do this
 pub trait AsGoogleHomeDevice {
