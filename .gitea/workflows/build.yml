@@ -35,8 +35,8 @@ jobs:
                   name: build
                   path: target/x86_64-unknown-linux-gnu/release/automation
 
-    create-docker-container:
-        name: Create Docker container
+    container:
+        name: Create container
         runs-on: ubuntu-latest
         needs: [build]
         container: catthehacker/ubuntu:act-latest
@@ -67,3 +67,35 @@ jobs:
                   context: .
                   push: true
                   tags: git.huizinga.dev/dreaded_x/automation_rs:latest
+
+    deploy:
+        name: Deploy Docker container
+        runs-on: ubuntu-latest
+        container: catthehacker/ubuntu:act-latest
+        needs: [container]
+        if: gitea.ref == 'refs/heads/master'
+        steps:
+            - name: Stop and remove current container
+              run: |
+                  docker stop automation_rs || true
+                  docker rm automation_rs || true
+
+            - name: Create container
+              run: |
+                  docker create \
+                    --pull always \
+                    --restart unless-stopped \
+                    --name automation_rs \
+                    -e RUST_LOG=automation=debug \
+                    -e MQTT_PASSWORD=${{ secrets.MQTT_PASSWORD }} \
+                    -e HUE_TOKEN=${{ secrets.HUE_TOKEN }} \
+                    -e NTFY_TOPIC=${{ secrets.NTFY_TOPIC }} \
+                    git.huizinga.dev/dreaded_x/automation_rs:latest
+
+                  docker network connect mqtt automation_rs
+                  docker network connect web automation_rs
+
+            - name: Start container
+              run: docker start automation_rs
+
+            # TODO: Perform a healthcheck
