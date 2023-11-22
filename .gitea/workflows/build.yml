@@ -3,8 +3,8 @@ name: Build and deploy automation_rs
 on:
     push:
         branches:
-            - main
-            - feature/actions
+            - master
+            - feature/**
 
 jobs:
     build:
