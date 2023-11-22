@@ -65,7 +65,8 @@ jobs:
               uses: https://github.com/docker/build-push-action@v5
               with:
                   context: .
-                  push: true
+                  push: ${{ gitea.ref == 'refs/heads/master' }}
+                  # TODO: Automatically add the correct tags here
                   tags: git.huizinga.dev/dreaded_x/automation_rs:latest
 
     deploy:
