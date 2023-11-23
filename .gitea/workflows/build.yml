@@ -87,13 +87,13 @@ jobs:
                     --pull always \
                     --restart unless-stopped \
                     --name automation_rs \
+                    --network mqtt
                     -e RUST_LOG=automation=debug \
                     -e MQTT_PASSWORD=${{ secrets.MQTT_PASSWORD }} \
                     -e HUE_TOKEN=${{ secrets.HUE_TOKEN }} \
                     -e NTFY_TOPIC=${{ secrets.NTFY_TOPIC }} \
                     git.huizinga.dev/dreaded_x/automation_rs:latest
 
-                  docker network connect mqtt automation_rs
                   docker network connect web automation_rs
 
             - name: Start container
