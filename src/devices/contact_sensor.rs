@@ -159,17 +159,10 @@ impl OnMqtt for ContactSensor {
 
         if let Some(trigger) = &mut self.trigger {
             if !self.is_closed {
-                for (light, previous) in &mut trigger.devices {
+                for (light, _) in &mut trigger.devices {
                     let mut light = light.write().await;
                     if let Some(light) = As::<dyn OnOff>::cast_mut(light.as_mut()) {
-                        *previous = light.is_on().await.unwrap();
-                        // Only turn the light on when it is currently off
-                        // This is done such that if the light is on but dimmed for example it
-                        // won't suddenly blast at full brightness but instead retain the current
-                        // state
-                        if !*previous {
-                            light.set_on(true).await.ok();
-                        }
+                        light.set_on(true).await.ok();
                     }
                 }
             } else {
