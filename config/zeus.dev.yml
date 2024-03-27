@@ -121,7 +121,7 @@ devices:
         !AirFilter
         name: "Air Filter"
         room: "Bedroom"
-        topic: "pico/filter/test"
+        topic: "pico/filter/bedroom"
 
 # schedule:
 #     0/30 * * * * *:

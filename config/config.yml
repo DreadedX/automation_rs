@@ -121,7 +121,7 @@ devices:
         !AirFilter
         name: "Air Filter"
         room: "Bedroom"
-        topic: "pico/filter/test"
+        topic: "pico/filter/bedroom"
 
 # Run the air filter everyday for 19:00 to 20:00
 schedule:
