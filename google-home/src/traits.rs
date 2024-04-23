@@ -11,6 +11,8 @@ pub enum Trait {
     Scene,
     #[serde(rename = "action.devices.traits.FanSpeed")]
     FanSpeed,
+    #[serde(rename = "action.devices.traits.HumiditySetting")]
+    HumiditySetting,
 }
 
 #[async_trait]
@@ -71,4 +73,15 @@ pub trait FanSpeed {
     fn available_speeds(&self) -> AvailableSpeeds;
     async fn current_speed(&self) -> String;
     async fn set_speed(&self, speed: &str) -> Result<(), ErrorCode>;
+}
+
+#[async_trait]
+#[impl_cast::device_trait]
+pub trait HumiditySetting {
+    // TODO: This implementation is not complete, I have only implemented what I need right now
+    fn query_only_humidity_setting(&self) -> Option<bool> {
+        None
+    }
+
+    async fn humidity_ambient_percent(&self) -> isize;
 }

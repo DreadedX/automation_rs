@@ -245,7 +245,7 @@ impl TryFrom<Bytes> for HueMessage {
 // TODO: Import this from the air_filter code itself instead of copying
 #[derive(PartialEq, Eq, Debug, Clone, Copy, Deserialize, Serialize)]
 #[serde(rename_all = "snake_case")]
-pub enum AirFilterState {
+pub enum AirFilterFanState {
     Off,
     Low,
     Medium,
@@ -253,21 +253,23 @@ pub enum AirFilterState {
 }
 
 #[derive(Debug, Clone, Copy, Deserialize, Serialize)]
-pub struct AirFilterMessage {
-    state: AirFilterState,
+pub struct SetAirFilterFanState {
+    state: AirFilterFanState,
 }
 
-impl AirFilterMessage {
-    pub fn state(&self) -> AirFilterState {
-        self.state
-    }
+#[derive(PartialEq, Debug, Clone, Copy, Deserialize, Serialize)]
+pub struct AirFilterState {
+    pub state: AirFilterFanState,
+    pub humidity: f32,
+}
 
-    pub fn new(state: AirFilterState) -> Self {
+impl SetAirFilterFanState {
+    pub fn new(state: AirFilterFanState) -> Self {
         Self { state }
     }
 }
 
-impl TryFrom<Publish> for AirFilterMessage {
+impl TryFrom<Publish> for AirFilterState {
     type Error = ParseError;
 
     fn try_from(message: Publish) -> Result<Self, Self::Error> {

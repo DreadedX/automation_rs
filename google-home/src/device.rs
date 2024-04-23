@@ -4,7 +4,7 @@ use serde::Serialize;
 use crate::errors::{DeviceError, ErrorCode};
 use crate::request::execute::CommandType;
 use crate::response;
-use crate::traits::{FanSpeed, OnOff, Scene, Trait};
+use crate::traits::{FanSpeed, HumiditySetting, OnOff, Scene, Trait};
 use crate::types::Type;
 
 // TODO: Find a more elegant way to do this
@@ -42,7 +42,7 @@ where
 }
 
 #[async_trait]
-#[impl_cast::device(As: OnOff + Scene + FanSpeed)]
+#[impl_cast::device(As: OnOff + Scene + FanSpeed + HumiditySetting)]
 pub trait GoogleHomeDevice: AsGoogleHomeDevice + Sync + Send + 'static {
     fn get_device_type(&self) -> Type;
     fn get_device_name(&self) -> Name;
@@ -95,6 +95,12 @@ pub trait GoogleHomeDevice: AsGoogleHomeDevice + Sync + Send + 'static {
             device.attributes.available_fan_speeds = Some(fan_speed.available_speeds());
         }
 
+        if let Some(humidity_setting) = As::<dyn HumiditySetting>::cast(self) {
+            traits.push(Trait::HumiditySetting);
+            device.attributes.query_only_humidity_setting =
+                humidity_setting.query_only_humidity_setting();
+        }
+
         device.traits = traits;
 
         device
@@ -118,6 +124,11 @@ pub trait GoogleHomeDevice: AsGoogleHomeDevice + Sync + Send + 'static {
         // FanSpeed
         if let Some(fan_speed) = As::<dyn FanSpeed>::cast(self) {
             device.state.current_fan_speed_setting = Some(fan_speed.current_speed().await);
+        }
+
+        if let Some(humidity_setting) = As::<dyn HumiditySetting>::cast(self) {
+            device.state.humidity_ambient_percent =
+                Some(humidity_setting.humidity_ambient_percent().await);
         }
 
         device

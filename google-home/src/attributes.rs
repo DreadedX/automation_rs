@@ -17,4 +17,6 @@ pub struct Attributes {
     pub command_only_fan_speed: Option<bool>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub available_fan_speeds: Option<AvailableSpeeds>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub query_only_humidity_setting: Option<bool>,
 }

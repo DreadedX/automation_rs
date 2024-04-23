@@ -1,7 +1,7 @@
 use async_trait::async_trait;
 use google_home::device::Name;
 use google_home::errors::ErrorCode;
-use google_home::traits::{AvailableSpeeds, FanSpeed, OnOff, Speed, SpeedValues};
+use google_home::traits::{AvailableSpeeds, FanSpeed, HumiditySetting, OnOff, Speed, SpeedValues};
 use google_home::types::Type;
 use google_home::GoogleHomeDevice;
 use rumqttc::{AsyncClient, Publish};
@@ -13,7 +13,7 @@ use crate::device_manager::{ConfigExternal, DeviceConfig};
 use crate::devices::Device;
 use crate::error::DeviceConfigError;
 use crate::event::OnMqtt;
-use crate::messages::{AirFilterMessage, AirFilterState};
+use crate::messages::{AirFilterFanState, AirFilterState, SetAirFilterFanState};
 
 #[derive(Debug, Deserialize)]
 pub struct AirFilterConfig {
@@ -35,7 +35,10 @@ impl DeviceConfig for AirFilterConfig {
             info: self.info,
             mqtt: self.mqtt,
             client: ext.client.clone(),
-            last_known_state: AirFilterState::Off,
+            last_known_state: AirFilterState {
+                state: AirFilterFanState::Off,
+                humidity: 0.0,
+            },
         };
 
         Ok(Box::new(device))
@@ -53,8 +56,8 @@ pub struct AirFilter {
 }
 
 impl AirFilter {
-    async fn set_speed(&self, state: AirFilterState) {
-        let message = AirFilterMessage::new(state);
+    async fn set_speed(&self, state: AirFilterFanState) {
+        let message = SetAirFilterFanState::new(state);
 
         let topic = format!("{}/set", self.mqtt.topic);
         // TODO: Handle potential errors here
@@ -84,8 +87,8 @@ impl OnMqtt for AirFilter {
     }
 
     async fn on_mqtt(&mut self, message: Publish) {
-        let state = match AirFilterMessage::try_from(message) {
-            Ok(state) => state.state(),
+        let state = match AirFilterState::try_from(message) {
+            Ok(state) => state,
             Err(err) => {
                 error!(id = self.identifier, "Failed to parse message: {err}");
                 return;
@@ -131,16 +134,16 @@ impl GoogleHomeDevice for AirFilter {
 #[async_trait]
 impl OnOff for AirFilter {
     async fn is_on(&self) -> Result<bool, ErrorCode> {
-        Ok(self.last_known_state != AirFilterState::Off)
+        Ok(self.last_known_state.state != AirFilterFanState::Off)
     }
 
     async fn set_on(&mut self, on: bool) -> Result<(), ErrorCode> {
         debug!("Turning on air filter: {on}");
 
         if on {
-            self.set_speed(AirFilterState::High).await;
+            self.set_speed(AirFilterFanState::High).await;
         } else {
-            self.set_speed(AirFilterState::Off).await;
+            self.set_speed(AirFilterFanState::Off).await;
         }
 
         Ok(())
@@ -186,11 +189,11 @@ impl FanSpeed for AirFilter {
     }
 
     async fn current_speed(&self) -> String {
-        let speed = match self.last_known_state {
-            AirFilterState::Off => "off",
-            AirFilterState::Low => "low",
-            AirFilterState::Medium => "medium",
-            AirFilterState::High => "high",
+        let speed = match self.last_known_state.state {
+            AirFilterFanState::Off => "off",
+            AirFilterFanState::Low => "low",
+            AirFilterFanState::Medium => "medium",
+            AirFilterFanState::High => "high",
         };
 
         speed.into()
@@ -198,13 +201,13 @@ impl FanSpeed for AirFilter {
 
     async fn set_speed(&self, speed: &str) -> Result<(), ErrorCode> {
         let state = if speed == "off" {
-            AirFilterState::Off
+            AirFilterFanState::Off
         } else if speed == "low" {
-            AirFilterState::Low
+            AirFilterFanState::Low
         } else if speed == "medium" {
-            AirFilterState::Medium
+            AirFilterFanState::Medium
         } else if speed == "high" {
-            AirFilterState::High
+            AirFilterFanState::High
         } else {
             return Err(google_home::errors::DeviceError::TransientError.into());
         };
@@ -212,5 +215,16 @@ impl FanSpeed for AirFilter {
         self.set_speed(state).await;
 
         Ok(())
+    }
+}
+
+#[async_trait]
+impl HumiditySetting for AirFilter {
+    fn query_only_humidity_setting(&self) -> Option<bool> {
+        Some(true)
+    }
+
+    async fn humidity_ambient_percent(&self) -> isize {
+        self.last_known_state.humidity.round() as isize
     }
 }

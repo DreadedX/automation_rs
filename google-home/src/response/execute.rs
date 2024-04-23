@@ -98,6 +98,7 @@ mod tests {
         let state = State {
             on: Some(true),
             current_fan_speed_setting: None,
+            humidity_ambient_percent: None,
         };
         let mut command = Command::new(Status::Success);
         command.states = Some(States {
