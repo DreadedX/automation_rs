@@ -6,16 +6,11 @@ use enum_dispatch::enum_dispatch;
 use futures::future::join_all;
 use google_home::traits::OnOff;
 use rumqttc::{matches, AsyncClient, QoS};
-use serde::Deserialize;
 use tokio::sync::{RwLock, RwLockReadGuard};
 use tokio_cron_scheduler::{Job, JobScheduler};
 use tracing::{debug, error, instrument, trace};
 
-use crate::devices::{
-    AirFilterConfig, AudioSetupConfig, ContactSensorConfig, DebugBridgeConfig, Device,
-    HueBridgeConfig, HueGroupConfig, IkeaOutletConfig, KasaOutletConfig, LightSensorConfig,
-    WakeOnLANConfig, WasherConfig,
-};
+use crate::devices::Device;
 use crate::error::DeviceConfigError;
 use crate::event::{Event, EventChannel, OnDarkness, OnMqtt, OnNotification, OnPresence};
 use crate::schedule::{Action, Schedule};
@@ -30,27 +25,12 @@ pub struct ConfigExternal<'a> {
 #[enum_dispatch]
 pub trait DeviceConfig {
     async fn create(
-        self,
+        &self,
         identifier: &str,
         ext: &ConfigExternal,
     ) -> Result<Box<dyn Device>, DeviceConfigError>;
 }
-
-#[derive(Debug, Deserialize)]
-#[enum_dispatch(DeviceConfig)]
-pub enum DeviceConfigs {
-    AirFilter(AirFilterConfig),
-    AudioSetup(AudioSetupConfig),
-    ContactSensor(ContactSensorConfig),
-    DebugBridge(DebugBridgeConfig),
-    IkeaOutlet(IkeaOutletConfig),
-    KasaOutlet(KasaOutletConfig),
-    WakeOnLAN(WakeOnLANConfig),
-    Washer(WasherConfig),
-    HueBridge(HueBridgeConfig),
-    HueGroup(HueGroupConfig),
-    LightSensor(LightSensorConfig),
-}
+impl mlua::UserData for Box<dyn DeviceConfig> {}
 
 pub type WrappedDevice = Arc<RwLock<Box<dyn Device>>>;
 pub type DeviceMap = HashMap<String, WrappedDevice>;
@@ -160,24 +140,6 @@ impl DeviceManager {
         self.devices.write().await.insert(id, device);
     }
 
-    pub async fn create(
-        &self,
-        identifier: &str,
-        device_config: DeviceConfigs,
-    ) -> Result<(), DeviceConfigError> {
-        let ext = ConfigExternal {
-            client: &self.client,
-            device_manager: self,
-            event_channel: &self.event_channel,
-        };
-
-        let device = device_config.create(identifier, &ext).await?;
-
-        self.add(device).await;
-
-        Ok(())
-    }
-
     pub fn event_channel(&self) -> EventChannel {
         self.event_channel.clone()
     }
@@ -259,5 +221,34 @@ impl DeviceManager {
                 join_all(iter).await;
             }
         }
+    }
+}
+
+impl mlua::UserData for DeviceManager {
+    fn add_methods<'lua, M: mlua::UserDataMethods<'lua, Self>>(methods: &mut M) {
+        methods.add_async_method(
+            "create",
+            |_lua, this, (identifier, config): (String, mlua::Value)| async move {
+                // TODO: Handle the error here properly
+                let config: Box<dyn DeviceConfig> = config.as_userdata().unwrap().take()?;
+
+                let ext = ConfigExternal {
+                    client: &this.client,
+                    device_manager: this,
+                    event_channel: &this.event_channel,
+                };
+
+                let device = config
+                    .create(&identifier, &ext)
+                    .await
+                    .map_err(mlua::ExternalError::into_lua_err)?;
+
+                let id = device.get_id().to_owned();
+
+                this.add(device).await;
+
+                Ok(id)
+            },
+        )
     }
 }

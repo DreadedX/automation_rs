@@ -4,9 +4,11 @@ version = "0.1.0"
 edition = "2021"
 
 [workspace]
-members = ["google-home", "automation_cast"]
+members = ["google-home", "automation_macro", "automation_cast"]
+
 
 [dependencies]
+automation_macro = { path = "./automation_macro" }
 automation_cast = { path = "./automation_cast/" }
 rumqttc = "0.18"
 serde = { version = "1.0.149", features = ["derive"] }
@@ -41,6 +43,13 @@ enum_dispatch = "0.3.12"
 indexmap = { version = "2.0.0", features = ["serde"] }
 serde_yaml = "0.9.27"
 tokio-cron-scheduler = "0.9.4"
+mlua = { version = "0.9.7", features = [
+  "lua54",
+  "vendored",
+  "macros",
+  "serialize",
+  "async",
+] }
 
 [patch.crates-io]
 wakey = { git = "https://git.huizinga.dev/Dreaded_X/wakey" }

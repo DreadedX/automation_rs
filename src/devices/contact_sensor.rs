@@ -1,6 +1,7 @@
 use std::time::Duration;
 
 use async_trait::async_trait;
+use automation_macro::LuaDevice;
 use google_home::traits::OnOff;
 use rumqttc::AsyncClient;
 use serde::Deserialize;
@@ -47,7 +48,7 @@ pub struct ContactSensorConfig {
 #[async_trait]
 impl DeviceConfig for ContactSensorConfig {
     async fn create(
-        self,
+        &self,
         identifier: &str,
         ext: &ConfigExternal,
     ) -> Result<Box<dyn Device>, DeviceConfigError> {
@@ -92,8 +93,7 @@ impl DeviceConfig for ContactSensorConfig {
 
         let device = ContactSensor {
             identifier: identifier.into(),
-            mqtt: self.mqtt,
-            presence: self.presence,
+            config: self.clone(),
             client: ext.client.clone(),
             overall_presence: DEFAULT_PRESENCE,
             is_closed: true,
@@ -111,11 +111,11 @@ struct Trigger {
     timeout: Duration, // Timeout in seconds
 }
 
-#[derive(Debug)]
-struct ContactSensor {
+#[derive(Debug, LuaDevice)]
+pub struct ContactSensor {
     identifier: String,
-    mqtt: MqttDeviceConfig,
-    presence: Option<PresenceDeviceConfig>,
+    #[config]
+    config: ContactSensorConfig,
 
     client: AsyncClient,
     overall_presence: bool,
@@ -141,7 +141,7 @@ impl OnPresence for ContactSensor {
 #[async_trait]
 impl OnMqtt for ContactSensor {
     fn topics(&self) -> Vec<&str> {
-        vec![&self.mqtt.topic]
+        vec![&self.config.mqtt.topic]
     }
 
     async fn on_mqtt(&mut self, message: rumqttc::Publish) {
@@ -191,7 +191,7 @@ impl OnMqtt for ContactSensor {
 
         // Check if this contact sensor works as a presence device
         // If not we are done here
-        let presence = match &self.presence {
+        let presence = match &self.config.presence {
             Some(presence) => presence,
             None => return,
         };

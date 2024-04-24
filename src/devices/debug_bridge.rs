@@ -1,4 +1,5 @@
 use async_trait::async_trait;
+use automation_macro::LuaDevice;
 use rumqttc::AsyncClient;
 use serde::Deserialize;
 use tracing::warn;
@@ -10,7 +11,7 @@ use crate::error::DeviceConfigError;
 use crate::event::{OnDarkness, OnPresence};
 use crate::messages::{DarknessMessage, PresenceMessage};
 
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Deserialize, Clone)]
 pub struct DebugBridgeConfig {
     #[serde(flatten)]
     pub mqtt: MqttDeviceConfig,
@@ -19,13 +20,13 @@ pub struct DebugBridgeConfig {
 #[async_trait]
 impl DeviceConfig for DebugBridgeConfig {
     async fn create(
-        self,
+        &self,
         identifier: &str,
         ext: &ConfigExternal,
     ) -> Result<Box<dyn Device>, DeviceConfigError> {
         let device = DebugBridge {
             identifier: identifier.into(),
-            mqtt: self.mqtt,
+            config: self.clone(),
             client: ext.client.clone(),
         };
 
@@ -33,10 +34,11 @@ impl DeviceConfig for DebugBridgeConfig {
     }
 }
 
-#[derive(Debug)]
+#[derive(Debug, LuaDevice)]
 pub struct DebugBridge {
     identifier: String,
-    mqtt: MqttDeviceConfig,
+    #[config]
+    config: DebugBridgeConfig,
     client: AsyncClient,
 }
 
@@ -50,7 +52,7 @@ impl Device for DebugBridge {
 impl OnPresence for DebugBridge {
     async fn on_presence(&mut self, presence: bool) {
         let message = PresenceMessage::new(presence);
-        let topic = format!("{}/presence", self.mqtt.topic);
+        let topic = format!("{}/presence", self.config.mqtt.topic);
         self.client
             .publish(
                 topic,
@@ -62,7 +64,7 @@ impl OnPresence for DebugBridge {
             .map_err(|err| {
                 warn!(
                     "Failed to update presence on {}/presence: {err}",
-                    self.mqtt.topic
+                    self.config.mqtt.topic
                 )
             })
             .ok();
@@ -73,7 +75,7 @@ impl OnPresence for DebugBridge {
 impl OnDarkness for DebugBridge {
     async fn on_darkness(&mut self, dark: bool) {
         let message = DarknessMessage::new(dark);
-        let topic = format!("{}/darkness", self.mqtt.topic);
+        let topic = format!("{}/darkness", self.config.mqtt.topic);
         self.client
             .publish(
                 topic,
@@ -85,7 +87,7 @@ impl OnDarkness for DebugBridge {
             .map_err(|err| {
                 warn!(
                     "Failed to update presence on {}/presence: {err}",
-                    self.mqtt.topic
+                    self.config.mqtt.topic
                 )
             })
             .ok();

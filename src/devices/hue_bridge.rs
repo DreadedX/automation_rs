@@ -1,6 +1,7 @@
-use std::net::{Ipv4Addr, SocketAddr};
+use std::net::Ipv4Addr;
 
 use async_trait::async_trait;
+use automation_macro::LuaDevice;
 use serde::{Deserialize, Serialize};
 use tracing::{error, trace, warn};
 
@@ -21,7 +22,7 @@ pub struct FlagIDs {
     pub darkness: isize,
 }
 
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Deserialize, Clone)]
 pub struct HueBridgeConfig {
     pub ip: Ipv4Addr,
     pub login: String,
@@ -31,27 +32,24 @@ pub struct HueBridgeConfig {
 #[async_trait]
 impl DeviceConfig for HueBridgeConfig {
     async fn create(
-        self,
+        &self,
         identifier: &str,
         _ext: &ConfigExternal,
     ) -> Result<Box<dyn Device>, DeviceConfigError> {
         let device = HueBridge {
             identifier: identifier.into(),
-            addr: (self.ip, 80).into(),
-            login: self.login,
-            flag_ids: self.flags,
+            config: self.clone(),
         };
 
         Ok(Box::new(device))
     }
 }
 
-#[derive(Debug)]
-struct HueBridge {
+#[derive(Debug, LuaDevice)]
+pub struct HueBridge {
     identifier: String,
-    addr: SocketAddr,
-    login: String,
-    flag_ids: FlagIDs,
+    #[config]
+    config: HueBridgeConfig,
 }
 
 #[derive(Debug, Serialize)]
@@ -62,13 +60,13 @@ struct FlagMessage {
 impl HueBridge {
     pub async fn set_flag(&self, flag: Flag, value: bool) {
         let flag_id = match flag {
-            Flag::Presence => self.flag_ids.presence,
-            Flag::Darkness => self.flag_ids.darkness,
+            Flag::Presence => self.config.flags.presence,
+            Flag::Darkness => self.config.flags.darkness,
         };
 
         let url = format!(
-            "http://{}/api/{}/sensors/{flag_id}/state",
-            self.addr, self.login
+            "http://{}:80/api/{}/sensors/{flag_id}/state",
+            self.config.ip, self.config.login
         );
 
         trace!(?flag, flag_id, value, "Sending request to change flag");

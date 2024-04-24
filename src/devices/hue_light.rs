@@ -1,8 +1,9 @@
-use std::net::{Ipv4Addr, SocketAddr};
+use std::net::Ipv4Addr;
 use std::time::Duration;
 
 use anyhow::{anyhow, Context, Result};
 use async_trait::async_trait;
+use automation_macro::LuaDevice;
 use google_home::errors::ErrorCode;
 use google_home::traits::OnOff;
 use rumqttc::Publish;
@@ -31,51 +32,42 @@ pub struct HueGroupConfig {
 #[async_trait]
 impl DeviceConfig for HueGroupConfig {
     async fn create(
-        self,
+        &self,
         identifier: &str,
         _ext: &ConfigExternal,
     ) -> Result<Box<dyn Device>, DeviceConfigError> {
         let device = HueGroup {
             identifier: identifier.into(),
-            addr: (self.ip, 80).into(),
-            login: self.login,
-            group_id: self.group_id,
-            scene_id: self.scene_id,
-            timer_id: self.timer_id,
-            remotes: self.remotes,
+            config: self.clone(),
         };
 
         Ok(Box::new(device))
     }
 }
 
-#[derive(Debug)]
-struct HueGroup {
+#[derive(Debug, LuaDevice)]
+pub struct HueGroup {
     identifier: String,
-    addr: SocketAddr,
-    login: String,
-    group_id: isize,
-    timer_id: isize,
-    scene_id: String,
-    remotes: Vec<MqttDeviceConfig>,
+    #[config]
+    config: HueGroupConfig,
 }
 
 // Couple of helper function to get the correct urls
 impl HueGroup {
     fn url_base(&self) -> String {
-        format!("http://{}/api/{}", self.addr, self.login)
+        format!("http://{}:80/api/{}", self.config.ip, self.config.login)
     }
 
     fn url_set_schedule(&self) -> String {
-        format!("{}/schedules/{}", self.url_base(), self.timer_id)
+        format!("{}/schedules/{}", self.url_base(), self.config.timer_id)
     }
 
     fn url_set_action(&self) -> String {
-        format!("{}/groups/{}/action", self.url_base(), self.group_id)
+        format!("{}/groups/{}/action", self.url_base(), self.config.group_id)
     }
 
     fn url_get_state(&self) -> String {
-        format!("{}/groups/{}", self.url_base(), self.group_id)
+        format!("{}/groups/{}", self.url_base(), self.config.group_id)
     }
 }
 
@@ -88,7 +80,8 @@ impl Device for HueGroup {
 #[async_trait]
 impl OnMqtt for HueGroup {
     fn topics(&self) -> Vec<&str> {
-        self.remotes
+        self.config
+            .remotes
             .iter()
             .map(|mqtt| mqtt.topic.as_str())
             .collect()
@@ -122,7 +115,7 @@ impl OnOff for HueGroup {
         self.stop_timeout().await.unwrap();
 
         let message = if on {
-            message::Action::scene(self.scene_id.clone())
+            message::Action::scene(self.config.scene_id.clone())
         } else {
             message::Action::on(false)
         };

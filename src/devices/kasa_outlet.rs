@@ -2,6 +2,7 @@ use std::net::{Ipv4Addr, SocketAddr};
 use std::str::Utf8Error;
 
 use async_trait::async_trait;
+use automation_macro::LuaDevice;
 use bytes::{Buf, BufMut};
 use google_home::errors::{self, DeviceError};
 use google_home::traits;
@@ -23,7 +24,7 @@ pub struct KasaOutletConfig {
 #[async_trait]
 impl DeviceConfig for KasaOutletConfig {
     async fn create(
-        self,
+        &self,
         identifier: &str,
         _ext: &ConfigExternal,
     ) -> Result<Box<dyn Device>, DeviceConfigError> {
@@ -31,17 +32,18 @@ impl DeviceConfig for KasaOutletConfig {
 
         let device = KasaOutlet {
             identifier: identifier.into(),
-            addr: (self.ip, 9999).into(),
+            config: self.clone(),
         };
 
         Ok(Box::new(device))
     }
 }
 
-#[derive(Debug)]
-struct KasaOutlet {
+#[derive(Debug, LuaDevice)]
+pub struct KasaOutlet {
     identifier: String,
-    addr: SocketAddr,
+    #[config]
+    config: KasaOutletConfig,
 }
 
 impl Device for KasaOutlet {
@@ -214,7 +216,7 @@ impl Response {
 #[async_trait]
 impl traits::OnOff for KasaOutlet {
     async fn is_on(&self) -> Result<bool, errors::ErrorCode> {
-        let mut stream = TcpStream::connect(self.addr)
+        let mut stream = TcpStream::connect::<SocketAddr>((self.config.ip, 9999).into())
             .await
             .or::<DeviceError>(Err(DeviceError::DeviceOffline))?;
 
@@ -248,7 +250,7 @@ impl traits::OnOff for KasaOutlet {
     }
 
     async fn set_on(&mut self, on: bool) -> Result<(), errors::ErrorCode> {
-        let mut stream = TcpStream::connect(self.addr)
+        let mut stream = TcpStream::connect::<SocketAddr>((self.config.ip, 9999).into())
             .await
             .or::<DeviceError>(Err(DeviceError::DeviceOffline))?;
 

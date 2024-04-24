@@ -1,4 +1,5 @@
 use async_trait::async_trait;
+use automation_macro::LuaDevice;
 use google_home::traits::OnOff;
 use serde::Deserialize;
 use tracing::{debug, error, trace, warn};
@@ -21,7 +22,7 @@ pub struct AudioSetupConfig {
 #[async_trait]
 impl DeviceConfig for AudioSetupConfig {
     async fn create(
-        self,
+        &self,
         identifier: &str,
         ext: &ConfigExternal,
     ) -> Result<Box<dyn Device>, DeviceConfigError> {
@@ -41,7 +42,10 @@ impl DeviceConfig for AudioSetupConfig {
         {
             let mixer = mixer.read().await;
             if (mixer.as_ref().cast() as Option<&dyn OnOff>).is_none() {
-                return Err(DeviceConfigError::MissingTrait(self.mixer, "OnOff".into()));
+                return Err(DeviceConfigError::MissingTrait(
+                    self.mixer.clone(),
+                    "OnOff".into(),
+                ));
             }
         }
 
@@ -57,13 +61,16 @@ impl DeviceConfig for AudioSetupConfig {
         {
             let speakers = speakers.read().await;
             if (speakers.as_ref().cast() as Option<&dyn OnOff>).is_none() {
-                return Err(DeviceConfigError::MissingTrait(self.mixer, "OnOff".into()));
+                return Err(DeviceConfigError::MissingTrait(
+                    self.mixer.clone(),
+                    "OnOff".into(),
+                ));
             }
         }
 
         let device = AudioSetup {
             identifier: identifier.into(),
-            mqtt: self.mqtt,
+            config: self.clone(),
             mixer,
             speakers,
         };
@@ -73,10 +80,11 @@ impl DeviceConfig for AudioSetupConfig {
 }
 
 // TODO: We need a better way to store the children devices
-#[derive(Debug)]
-struct AudioSetup {
+#[derive(Debug, LuaDevice)]
+pub struct AudioSetup {
     identifier: String,
-    mqtt: MqttDeviceConfig,
+    #[config]
+    config: AudioSetupConfig,
     mixer: WrappedDevice,
     speakers: WrappedDevice,
 }
@@ -90,7 +98,7 @@ impl Device for AudioSetup {
 #[async_trait]
 impl OnMqtt for AudioSetup {
     fn topics(&self) -> Vec<&str> {
-        vec![&self.mqtt.topic]
+        vec![&self.config.mqtt.topic]
     }
 
     async fn on_mqtt(&mut self, message: rumqttc::Publish) {

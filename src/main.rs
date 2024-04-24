@@ -1,10 +1,13 @@
 #![feature(async_closure)]
-use std::process;
+use std::{fs, process};
 
 use automation::auth::{OpenIDConfig, User};
 use automation::config::Config;
 use automation::device_manager::DeviceManager;
-use automation::devices::{Ntfy, Presence};
+use automation::devices::{
+    AirFilter, AudioSetup, ContactSensor, DebugBridge, HueBridge, HueGroup, IkeaOutlet, KasaOutlet,
+    LightSensor, Ntfy, Presence, WakeOnLAN, Washer,
+};
 use automation::error::ApiError;
 use automation::mqtt;
 use axum::extract::FromRef;
@@ -60,10 +63,6 @@ async fn app() -> anyhow::Result<()> {
     // Setup the device handler
     let device_manager = DeviceManager::new(client.clone());
 
-    for (id, device_config) in config.devices {
-        device_manager.create(&id, device_config).await?;
-    }
-
     device_manager.add_schedule(config.schedule).await;
 
     let event_channel = device_manager.event_channel();
@@ -78,6 +77,47 @@ async fn app() -> anyhow::Result<()> {
     if let Some(config) = config.ntfy {
         let ntfy = Ntfy::new(config, &event_channel);
         device_manager.add(Box::new(ntfy)).await;
+    }
+
+    // Lua testing
+    {
+        let lua = mlua::Lua::new();
+        let automation = lua.create_table()?;
+
+        automation.set("device_manager", device_manager.clone())?;
+
+        let util = lua.create_table()?;
+        let get_env = lua.create_function(|_lua, name: String| {
+            std::env::var(name).map_err(mlua::ExternalError::into_lua_err)
+        })?;
+        util.set("get_env", get_env)?;
+        automation.set("util", util)?;
+
+        lua.globals().set("automation", automation)?;
+
+        // Register all the device types
+        AirFilter::register_with_lua(&lua)?;
+        AudioSetup::register_with_lua(&lua)?;
+        ContactSensor::register_with_lua(&lua)?;
+        DebugBridge::register_with_lua(&lua)?;
+        HueBridge::register_with_lua(&lua)?;
+        HueGroup::register_with_lua(&lua)?;
+        IkeaOutlet::register_with_lua(&lua)?;
+        KasaOutlet::register_with_lua(&lua)?;
+        LightSensor::register_with_lua(&lua)?;
+        WakeOnLAN::register_with_lua(&lua)?;
+        Washer::register_with_lua(&lua)?;
+
+        // TODO: Make this not hardcoded
+        let filename = "config.lua";
+        let file = fs::read_to_string(filename)?;
+        match lua.load(file).set_name(filename).exec_async().await {
+            Err(error) => {
+                println!("{error}");
+                Err(error)
+            }
+            result => result,
+        }?;
     }
 
     // Wrap the mqtt eventloop and start listening for message

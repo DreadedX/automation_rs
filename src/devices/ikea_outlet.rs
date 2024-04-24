@@ -2,6 +2,7 @@ use std::time::Duration;
 
 use anyhow::Result;
 use async_trait::async_trait;
+use automation_macro::LuaDevice;
 use google_home::errors::ErrorCode;
 use google_home::traits::{self, OnOff};
 use google_home::types::Type;
@@ -50,7 +51,7 @@ fn default_outlet_type() -> OutletType {
 #[async_trait]
 impl DeviceConfig for IkeaOutletConfig {
     async fn create(
-        self,
+        &self,
         identifier: &str,
         ext: &ConfigExternal,
     ) -> Result<Box<dyn Device>, DeviceConfigError> {
@@ -63,11 +64,7 @@ impl DeviceConfig for IkeaOutletConfig {
 
         let device = IkeaOutlet {
             identifier: identifier.into(),
-            info: self.info,
-            mqtt: self.mqtt,
-            outlet_type: self.outlet_type,
-            timeout: self.timeout,
-            remotes: self.remotes,
+            config: self.clone(),
             client: ext.client.clone(),
             last_known_state: false,
             handle: None,
@@ -77,14 +74,11 @@ impl DeviceConfig for IkeaOutletConfig {
     }
 }
 
-#[derive(Debug)]
-struct IkeaOutlet {
+#[derive(Debug, LuaDevice)]
+pub struct IkeaOutlet {
     identifier: String,
-    info: InfoConfig,
-    mqtt: MqttDeviceConfig,
-    outlet_type: OutletType,
-    timeout: Option<Duration>,
-    remotes: Vec<MqttDeviceConfig>,
+    #[config]
+    config: IkeaOutletConfig,
 
     client: AsyncClient,
     last_known_state: bool,
@@ -118,19 +112,20 @@ impl Device for IkeaOutlet {
 impl OnMqtt for IkeaOutlet {
     fn topics(&self) -> Vec<&str> {
         let mut topics: Vec<_> = self
+            .config
             .remotes
             .iter()
             .map(|mqtt| mqtt.topic.as_str())
             .collect();
 
-        topics.push(&self.mqtt.topic);
+        topics.push(&self.config.mqtt.topic);
 
         topics
     }
 
     async fn on_mqtt(&mut self, message: Publish) {
         // Check if the message is from the deviec itself or from a remote
-        if matches(&message.topic, &self.mqtt.topic) {
+        if matches(&message.topic, &self.config.mqtt.topic) {
             // Update the internal state based on what the device has reported
             let state = match OnOffMessage::try_from(message) {
                 Ok(state) => state.state(),
@@ -152,7 +147,7 @@ impl OnMqtt for IkeaOutlet {
             self.last_known_state = state;
 
             // If this is a kettle start a timeout for turning it of again
-            if state && let Some(timeout) = self.timeout {
+            if state && let Some(timeout) = self.config.timeout {
                 self.start_timeout(timeout).await.unwrap();
             }
         } else {
@@ -178,7 +173,7 @@ impl OnMqtt for IkeaOutlet {
 impl OnPresence for IkeaOutlet {
     async fn on_presence(&mut self, presence: bool) {
         // Turn off the outlet when we leave the house (Not if it is a battery charger)
-        if !presence && self.outlet_type != OutletType::Charger {
+        if !presence && self.config.outlet_type != OutletType::Charger {
             debug!(id = self.identifier, "Turning device off");
             self.set_on(false).await.ok();
         }
@@ -187,7 +182,7 @@ impl OnPresence for IkeaOutlet {
 
 impl GoogleHomeDevice for IkeaOutlet {
     fn get_device_type(&self) -> Type {
-        match self.outlet_type {
+        match self.config.outlet_type {
             OutletType::Outlet => Type::Outlet,
             OutletType::Kettle => Type::Kettle,
             OutletType::Light => Type::Light, // Find a better device type for this, ideally would like to use charger, but that needs more work
@@ -196,7 +191,7 @@ impl GoogleHomeDevice for IkeaOutlet {
     }
 
     fn get_device_name(&self) -> device::Name {
-        device::Name::new(&self.info.name)
+        device::Name::new(&self.config.info.name)
     }
 
     fn get_id(&self) -> &str {
@@ -208,7 +203,7 @@ impl GoogleHomeDevice for IkeaOutlet {
     }
 
     fn get_room_hint(&self) -> Option<&str> {
-        self.info.room.as_deref()
+        self.config.info.room.as_deref()
     }
 
     fn will_report_state(&self) -> bool {
@@ -224,7 +219,7 @@ impl traits::OnOff for IkeaOutlet {
     }
 
     async fn set_on(&mut self, on: bool) -> Result<(), ErrorCode> {
-        set_on(self.client.clone(), &self.mqtt.topic, on).await;
+        set_on(self.client.clone(), &self.config.mqtt.topic, on).await;
 
         Ok(())
     }
@@ -240,7 +235,7 @@ impl crate::traits::Timeout for IkeaOutlet {
         // TODO: Impl Drop for IkeaOutlet that will abort the handle if the IkeaOutlet
         // get dropped
         let client = self.client.clone();
-        let topic = self.mqtt.topic.clone();
+        let topic = self.config.mqtt.topic.clone();
         let id = self.identifier.clone();
         self.handle = Some(tokio::spawn(async move {
             debug!(id, "Starting timeout ({timeout:?})...");

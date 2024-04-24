@@ -1,4 +1,5 @@
 use async_trait::async_trait;
+use automation_macro::LuaDevice;
 use rumqttc::Publish;
 use serde::Deserialize;
 use tracing::{debug, error, warn};
@@ -21,15 +22,14 @@ pub struct WasherConfig {
 #[async_trait]
 impl DeviceConfig for WasherConfig {
     async fn create(
-        self,
+        &self,
         identifier: &str,
         ext: &ConfigExternal,
     ) -> Result<Box<dyn Device>, DeviceConfigError> {
         let device = Washer {
             identifier: identifier.into(),
-            mqtt: self.mqtt,
+            config: self.clone(),
             event_channel: ext.event_channel.clone(),
-            threshold: self.threshold,
             running: 0,
         };
 
@@ -39,13 +39,13 @@ impl DeviceConfig for WasherConfig {
 
 // TODO: Add google home integration
 
-#[derive(Debug)]
-struct Washer {
+#[derive(Debug, LuaDevice)]
+pub struct Washer {
     identifier: String,
-    mqtt: MqttDeviceConfig,
+    #[config]
+    config: WasherConfig,
 
     event_channel: EventChannel,
-    threshold: f32,
     running: isize,
 }
 
@@ -63,7 +63,7 @@ const HYSTERESIS: isize = 10;
 #[async_trait]
 impl OnMqtt for Washer {
     fn topics(&self) -> Vec<&str> {
-        vec![&self.mqtt.topic]
+        vec![&self.config.mqtt.topic]
     }
 
     async fn on_mqtt(&mut self, message: Publish) {
@@ -77,12 +77,12 @@ impl OnMqtt for Washer {
 
         // debug!(id = self.identifier, power, "Washer state update");
 
-        if power < self.threshold && self.running >= HYSTERESIS {
+        if power < self.config.threshold && self.running >= HYSTERESIS {
             // The washer is done running
             debug!(
                 id = self.identifier,
                 power,
-                threshold = self.threshold,
+                threshold = self.config.threshold,
                 "Washer is done"
             );
 
@@ -102,15 +102,15 @@ impl OnMqtt for Washer {
             {
                 warn!("There are no receivers on the event channel");
             }
-        } else if power < self.threshold {
+        } else if power < self.config.threshold {
             // Prevent false positives
             self.running = 0;
-        } else if power >= self.threshold && self.running < HYSTERESIS {
+        } else if power >= self.config.threshold && self.running < HYSTERESIS {
             // Washer could be starting
             debug!(
                 id = self.identifier,
                 power,
-                threshold = self.threshold,
+                threshold = self.config.threshold,
                 "Washer is starting"
             );
 

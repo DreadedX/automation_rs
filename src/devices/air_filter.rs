@@ -1,4 +1,5 @@
 use async_trait::async_trait;
+use automation_macro::LuaDevice;
 use google_home::device::Name;
 use google_home::errors::ErrorCode;
 use google_home::traits::{AvailableSpeeds, FanSpeed, HumiditySetting, OnOff, Speed, SpeedValues};
@@ -15,7 +16,7 @@ use crate::error::DeviceConfigError;
 use crate::event::OnMqtt;
 use crate::messages::{AirFilterFanState, AirFilterState, SetAirFilterFanState};
 
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Deserialize, Clone)]
 pub struct AirFilterConfig {
     #[serde(flatten)]
     info: InfoConfig,
@@ -26,14 +27,13 @@ pub struct AirFilterConfig {
 #[async_trait]
 impl DeviceConfig for AirFilterConfig {
     async fn create(
-        self,
+        &self,
         identifier: &str,
         ext: &ConfigExternal,
     ) -> Result<Box<dyn Device>, DeviceConfigError> {
         let device = AirFilter {
             identifier: identifier.into(),
-            info: self.info,
-            mqtt: self.mqtt,
+            config: self.clone(),
             client: ext.client.clone(),
             last_known_state: AirFilterState {
                 state: AirFilterFanState::Off,
@@ -45,11 +45,11 @@ impl DeviceConfig for AirFilterConfig {
     }
 }
 
-#[derive(Debug)]
+#[derive(Debug, LuaDevice)]
 pub struct AirFilter {
     identifier: String,
-    info: InfoConfig,
-    mqtt: MqttDeviceConfig,
+    #[config]
+    config: AirFilterConfig,
 
     client: AsyncClient,
     last_known_state: AirFilterState,
@@ -59,7 +59,7 @@ impl AirFilter {
     async fn set_speed(&self, state: AirFilterFanState) {
         let message = SetAirFilterFanState::new(state);
 
-        let topic = format!("{}/set", self.mqtt.topic);
+        let topic = format!("{}/set", self.config.mqtt.topic);
         // TODO: Handle potential errors here
         self.client
             .publish(
@@ -83,7 +83,7 @@ impl Device for AirFilter {
 #[async_trait]
 impl OnMqtt for AirFilter {
     fn topics(&self) -> Vec<&str> {
-        vec![&self.mqtt.topic]
+        vec![&self.config.mqtt.topic]
     }
 
     async fn on_mqtt(&mut self, message: Publish) {
@@ -111,7 +111,7 @@ impl GoogleHomeDevice for AirFilter {
     }
 
     fn get_device_name(&self) -> Name {
-        Name::new(&self.info.name)
+        Name::new(&self.config.info.name)
     }
 
     fn get_id(&self) -> &str {
@@ -123,7 +123,7 @@ impl GoogleHomeDevice for AirFilter {
     }
 
     fn get_room_hint(&self) -> Option<&str> {
-        self.info.room.as_deref()
+        self.config.info.room.as_deref()
     }
 
     fn will_report_state(&self) -> bool {

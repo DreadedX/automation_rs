@@ -1,4 +1,5 @@
 use async_trait::async_trait;
+use automation_macro::LuaDevice;
 use rumqttc::Publish;
 use serde::Deserialize;
 use tracing::{debug, trace, warn};
@@ -25,16 +26,14 @@ pub const DEFAULT: bool = false;
 #[async_trait]
 impl DeviceConfig for LightSensorConfig {
     async fn create(
-        self,
+        &self,
         identifier: &str,
         ext: &ConfigExternal,
     ) -> Result<Box<dyn Device>, DeviceConfigError> {
         let device = LightSensor {
             identifier: identifier.into(),
             tx: ext.event_channel.get_tx(),
-            mqtt: self.mqtt,
-            min: self.min,
-            max: self.max,
+            config: self.clone(),
             is_dark: DEFAULT,
         };
 
@@ -42,13 +41,13 @@ impl DeviceConfig for LightSensorConfig {
     }
 }
 
-#[derive(Debug)]
+#[derive(Debug, LuaDevice)]
 pub struct LightSensor {
     identifier: String,
+    #[config]
+    config: LightSensorConfig,
+
     tx: event::Sender,
-    mqtt: MqttDeviceConfig,
-    min: isize,
-    max: isize,
     is_dark: bool,
 }
 
@@ -61,7 +60,7 @@ impl Device for LightSensor {
 #[async_trait]
 impl OnMqtt for LightSensor {
     fn topics(&self) -> Vec<&str> {
-        vec![&self.mqtt.topic]
+        vec![&self.config.mqtt.topic]
     }
 
     async fn on_mqtt(&mut self, message: Publish) {
@@ -74,17 +73,17 @@ impl OnMqtt for LightSensor {
         };
 
         debug!("Illuminance: {illuminance}");
-        let is_dark = if illuminance <= self.min {
+        let is_dark = if illuminance <= self.config.min {
             trace!("It is dark");
             true
-        } else if illuminance >= self.max {
+        } else if illuminance >= self.config.max {
             trace!("It is light");
             false
         } else {
             trace!(
                 "In between min ({}) and max ({}) value, keeping current state: {}",
-                self.min,
-                self.max,
+                self.config.min,
+                self.config.max,
                 self.is_dark
             );
             self.is_dark

@@ -2,14 +2,12 @@ use std::fs;
 use std::net::{Ipv4Addr, SocketAddr};
 use std::time::Duration;
 
-use indexmap::IndexMap;
 use regex::{Captures, Regex};
 use rumqttc::{MqttOptions, Transport};
 use serde::{Deserialize, Deserializer};
 use tracing::debug;
 
 use crate::auth::OpenIDConfig;
-use crate::device_manager::DeviceConfigs;
 use crate::devices::PresenceConfig;
 use crate::error::{ConfigParseError, MissingEnv};
 use crate::schedule::Schedule;
@@ -23,7 +21,6 @@ pub struct Config {
     pub fullfillment: FullfillmentConfig,
     pub ntfy: Option<NtfyConfig>,
     pub presence: PresenceConfig,
-    pub devices: IndexMap<String, DeviceConfigs>,
     pub schedule: Schedule,
 }
 
