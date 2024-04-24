@@ -1,4 +1,5 @@
 use async_trait::async_trait;
+use mlua::FromLua;
 use rumqttc::Publish;
 use tokio::sync::mpsc;
 
@@ -15,7 +16,7 @@ pub enum Event {
 pub type Sender = mpsc::Sender<Event>;
 pub type Receiver = mpsc::Receiver<Event>;
 
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, FromLua)]
 pub struct EventChannel(Sender);
 
 impl EventChannel {
@@ -29,6 +30,8 @@ impl EventChannel {
         self.0.clone()
     }
 }
+
+impl mlua::UserData for EventChannel {}
 
 #[async_trait]
 pub trait OnMqtt: Sync + Send {

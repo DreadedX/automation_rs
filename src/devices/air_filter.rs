@@ -1,40 +1,37 @@
 use async_trait::async_trait;
-use automation_macro::LuaDevice;
+use automation_macro::{LuaDevice, LuaDeviceConfig};
 use google_home::device::Name;
 use google_home::errors::ErrorCode;
 use google_home::traits::{AvailableSpeeds, FanSpeed, HumiditySetting, OnOff, Speed, SpeedValues};
 use google_home::types::Type;
 use google_home::GoogleHomeDevice;
-use rumqttc::{AsyncClient, Publish};
-use serde::Deserialize;
+use rumqttc::Publish;
 use tracing::{debug, error, warn};
 
 use crate::config::{InfoConfig, MqttDeviceConfig};
-use crate::device_manager::{ConfigExternal, DeviceConfig};
+use crate::device_manager::DeviceConfig;
 use crate::devices::Device;
 use crate::error::DeviceConfigError;
 use crate::event::OnMqtt;
 use crate::messages::{AirFilterFanState, AirFilterState, SetAirFilterFanState};
+use crate::mqtt::WrappedAsyncClient;
 
-#[derive(Debug, Deserialize, Clone)]
+#[derive(Debug, Clone, LuaDeviceConfig)]
 pub struct AirFilterConfig {
-    #[serde(flatten)]
+    #[device_config(flatten)]
     info: InfoConfig,
-    #[serde(flatten)]
+    #[device_config(flatten)]
     mqtt: MqttDeviceConfig,
+    #[device_config(user_data)]
+    client: WrappedAsyncClient,
 }
 
 #[async_trait]
 impl DeviceConfig for AirFilterConfig {
-    async fn create(
-        &self,
-        identifier: &str,
-        ext: &ConfigExternal,
-    ) -> Result<Box<dyn Device>, DeviceConfigError> {
+    async fn create(&self, identifier: &str) -> Result<Box<dyn Device>, DeviceConfigError> {
         let device = AirFilter {
             identifier: identifier.into(),
             config: self.clone(),
-            client: ext.client.clone(),
             last_known_state: AirFilterState {
                 state: AirFilterFanState::Off,
                 humidity: 0.0,
@@ -51,7 +48,6 @@ pub struct AirFilter {
     #[config]
     config: AirFilterConfig,
 
-    client: AsyncClient,
     last_known_state: AirFilterState,
 }
 
@@ -61,7 +57,8 @@ impl AirFilter {
 
         let topic = format!("{}/set", self.config.mqtt.topic);
         // TODO: Handle potential errors here
-        self.client
+        self.config
+            .client
             .publish(
                 topic.clone(),
                 rumqttc::QoS::AtLeastOnce,

@@ -1,22 +1,23 @@
 use async_trait::async_trait;
-use automation_macro::LuaDevice;
+use automation_macro::{LuaDevice, LuaDeviceConfig};
 use rumqttc::Publish;
-use serde::Deserialize;
 use tracing::{debug, trace, warn};
 
 use crate::config::MqttDeviceConfig;
-use crate::device_manager::{ConfigExternal, DeviceConfig};
+use crate::device_manager::DeviceConfig;
 use crate::devices::Device;
 use crate::error::DeviceConfigError;
-use crate::event::{self, Event, OnMqtt};
+use crate::event::{self, Event, EventChannel, OnMqtt};
 use crate::messages::BrightnessMessage;
 
-#[derive(Debug, Clone, Deserialize)]
+#[derive(Debug, Clone, LuaDeviceConfig)]
 pub struct LightSensorConfig {
-    #[serde(flatten)]
+    #[device_config(flatten)]
     pub mqtt: MqttDeviceConfig,
     pub min: isize,
     pub max: isize,
+    #[device_config(user_data)]
+    pub event_channel: EventChannel,
 }
 
 pub const DEFAULT: bool = false;
@@ -25,14 +26,11 @@ pub const DEFAULT: bool = false;
 
 #[async_trait]
 impl DeviceConfig for LightSensorConfig {
-    async fn create(
-        &self,
-        identifier: &str,
-        ext: &ConfigExternal,
-    ) -> Result<Box<dyn Device>, DeviceConfigError> {
+    async fn create(&self, identifier: &str) -> Result<Box<dyn Device>, DeviceConfigError> {
         let device = LightSensor {
             identifier: identifier.into(),
-            tx: ext.event_channel.get_tx(),
+            // Add helper type that does this conversion for us
+            tx: self.event_channel.get_tx(),
             config: self.clone(),
             is_dark: DEFAULT,
         };

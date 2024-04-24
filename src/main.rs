@@ -9,7 +9,7 @@ use automation::devices::{
     LightSensor, Ntfy, Presence, WakeOnLAN, Washer,
 };
 use automation::error::ApiError;
-use automation::mqtt;
+use automation::mqtt::{self, WrappedAsyncClient};
 use axum::extract::FromRef;
 use axum::http::StatusCode;
 use axum::response::IntoResponse;
@@ -85,6 +85,8 @@ async fn app() -> anyhow::Result<()> {
         let automation = lua.create_table()?;
 
         automation.set("device_manager", device_manager.clone())?;
+        automation.set("mqtt_client", WrappedAsyncClient(client.clone()))?;
+        automation.set("event_channel", device_manager.event_channel())?;
 
         let util = lua.create_table()?;
         let get_env = lua.create_function(|_lua, name: String| {

@@ -1,78 +1,45 @@
 use async_trait::async_trait;
-use automation_macro::LuaDevice;
+use automation_macro::{LuaDevice, LuaDeviceConfig};
 use google_home::traits::OnOff;
-use serde::Deserialize;
 use tracing::{debug, error, trace, warn};
 
 use super::Device;
 use crate::config::MqttDeviceConfig;
-use crate::device_manager::{ConfigExternal, DeviceConfig, WrappedDevice};
+use crate::device_manager::{DeviceConfig, WrappedDevice};
 use crate::error::DeviceConfigError;
 use crate::event::{OnMqtt, OnPresence};
 use crate::messages::{RemoteAction, RemoteMessage};
 
-#[derive(Debug, Clone, Deserialize)]
+#[derive(Debug, Clone, LuaDeviceConfig)]
 pub struct AudioSetupConfig {
-    #[serde(flatten)]
+    #[device_config(flatten)]
     mqtt: MqttDeviceConfig,
-    mixer: String,
-    speakers: String,
+    #[device_config(user_data)]
+    mixer: WrappedDevice,
+    #[device_config(user_data)]
+    speakers: WrappedDevice,
 }
 
 #[async_trait]
 impl DeviceConfig for AudioSetupConfig {
-    async fn create(
-        &self,
-        identifier: &str,
-        ext: &ConfigExternal,
-    ) -> Result<Box<dyn Device>, DeviceConfigError> {
+    async fn create(&self, identifier: &str) -> Result<Box<dyn Device>, DeviceConfigError> {
         trace!(id = identifier, "Setting up AudioSetup");
 
-        // TODO: Make sure they implement OnOff?
-        let mixer = ext
-            .device_manager
-            .get(&self.mixer)
-            .await
-            // NOTE: We need to clone to make the compiler happy, how ever if this clone happens the next one can never happen...
-            .ok_or(DeviceConfigError::MissingChild(
-                identifier.into(),
-                self.mixer.clone(),
-            ))?;
-
-        {
-            let mixer = mixer.read().await;
-            if (mixer.as_ref().cast() as Option<&dyn OnOff>).is_none() {
-                return Err(DeviceConfigError::MissingTrait(
-                    self.mixer.clone(),
-                    "OnOff".into(),
-                ));
-            }
+        let mixer = self.mixer.read().await;
+        let mixer_id = mixer.get_id().to_owned();
+        if (mixer.as_ref().cast() as Option<&dyn OnOff>).is_none() {
+            return Err(DeviceConfigError::MissingTrait(mixer_id, "OnOff".into()));
         }
 
-        let speakers =
-            ext.device_manager
-                .get(&self.speakers)
-                .await
-                .ok_or(DeviceConfigError::MissingChild(
-                    identifier.into(),
-                    self.speakers.clone(),
-                ))?;
-
-        {
-            let speakers = speakers.read().await;
-            if (speakers.as_ref().cast() as Option<&dyn OnOff>).is_none() {
-                return Err(DeviceConfigError::MissingTrait(
-                    self.mixer.clone(),
-                    "OnOff".into(),
-                ));
-            }
+        let speakers = self.speakers.read().await;
+        let speakers_id = speakers.get_id().to_owned();
+        if (speakers.as_ref().cast() as Option<&dyn OnOff>).is_none() {
+            return Err(DeviceConfigError::MissingTrait(speakers_id, "OnOff".into()));
         }
 
         let device = AudioSetup {
             identifier: identifier.into(),
             config: self.clone(),
-            mixer,
-            speakers,
         };
 
         Ok(Box::new(device))
@@ -85,8 +52,6 @@ pub struct AudioSetup {
     identifier: String,
     #[config]
     config: AudioSetupConfig,
-    mixer: WrappedDevice,
-    speakers: WrappedDevice,
 }
 
 impl Device for AudioSetup {
@@ -110,8 +75,8 @@ impl OnMqtt for AudioSetup {
             }
         };
 
-        let mut mixer = self.mixer.write().await;
-        let mut speakers = self.speakers.write().await;
+        let mut mixer = self.config.mixer.write().await;
+        let mut speakers = self.config.speakers.write().await;
         if let (Some(mixer), Some(speakers)) = (
             mixer.as_mut().cast_mut() as Option<&mut dyn OnOff>,
             speakers.as_mut().cast_mut() as Option<&mut dyn OnOff>,
@@ -145,8 +110,9 @@ impl OnMqtt for AudioSetup {
 #[async_trait]
 impl OnPresence for AudioSetup {
     async fn on_presence(&mut self, presence: bool) {
-        let mut mixer = self.mixer.write().await;
-        let mut speakers = self.speakers.write().await;
+        let mut mixer = self.config.mixer.write().await;
+        let mut speakers = self.config.speakers.write().await;
+
         if let (Some(mixer), Some(speakers)) = (
             mixer.as_mut().cast_mut() as Option<&mut dyn OnOff>,
             speakers.as_mut().cast_mut() as Option<&mut dyn OnOff>,

@@ -1,10 +1,12 @@
 use std::collections::HashMap;
+use std::ops::{Deref, DerefMut};
 use std::sync::Arc;
 
 use async_trait::async_trait;
 use enum_dispatch::enum_dispatch;
 use futures::future::join_all;
 use google_home::traits::OnOff;
+use mlua::FromLua;
 use rumqttc::{matches, AsyncClient, QoS};
 use tokio::sync::{RwLock, RwLockReadGuard};
 use tokio_cron_scheduler::{Job, JobScheduler};
@@ -15,25 +17,38 @@ use crate::error::DeviceConfigError;
 use crate::event::{Event, EventChannel, OnDarkness, OnMqtt, OnNotification, OnPresence};
 use crate::schedule::{Action, Schedule};
 
-pub struct ConfigExternal<'a> {
-    pub client: &'a AsyncClient,
-    pub device_manager: &'a DeviceManager,
-    pub event_channel: &'a EventChannel,
-}
-
 #[async_trait]
 #[enum_dispatch]
 pub trait DeviceConfig {
-    async fn create(
-        &self,
-        identifier: &str,
-        ext: &ConfigExternal,
-    ) -> Result<Box<dyn Device>, DeviceConfigError>;
+    async fn create(&self, identifier: &str) -> Result<Box<dyn Device>, DeviceConfigError>;
 }
 impl mlua::UserData for Box<dyn DeviceConfig> {}
 
-pub type WrappedDevice = Arc<RwLock<Box<dyn Device>>>;
-pub type DeviceMap = HashMap<String, WrappedDevice>;
+#[derive(Debug, FromLua, Clone)]
+pub struct WrappedDevice(Arc<RwLock<Box<dyn Device>>>);
+
+impl WrappedDevice {
+    fn new(device: Box<dyn Device>) -> Self {
+        Self(Arc::new(RwLock::new(device)))
+    }
+}
+
+impl Deref for WrappedDevice {
+    type Target = Arc<RwLock<Box<dyn Device>>>;
+
+    fn deref(&self) -> &Self::Target {
+        &self.0
+    }
+}
+
+impl DerefMut for WrappedDevice {
+    fn deref_mut(&mut self) -> &mut Self::Target {
+        &mut self.0
+    }
+}
+impl mlua::UserData for WrappedDevice {}
+
+pub type DeviceMap = HashMap<String, Arc<RwLock<Box<dyn Device>>>>;
 
 #[derive(Debug, Clone)]
 pub struct DeviceManager {
@@ -117,7 +132,7 @@ impl DeviceManager {
         sched.start().await.unwrap();
     }
 
-    pub async fn add(&self, device: Box<dyn Device>) {
+    pub async fn add(&self, device: Box<dyn Device>) -> WrappedDevice {
         let id = device.get_id().into();
 
         debug!(id, "Adding device");
@@ -135,9 +150,11 @@ impl DeviceManager {
         }
 
         // Wrap the device
-        let device = Arc::new(RwLock::new(device));
+        let device = WrappedDevice::new(device);
 
-        self.devices.write().await.insert(id, device);
+        self.devices.write().await.insert(id, device.0.clone());
+
+        device
     }
 
     pub fn event_channel(&self) -> EventChannel {
@@ -145,7 +162,12 @@ impl DeviceManager {
     }
 
     pub async fn get(&self, name: &str) -> Option<WrappedDevice> {
-        self.devices.read().await.get(name).cloned()
+        self.devices
+            .read()
+            .await
+            .get(name)
+            .cloned()
+            .map(WrappedDevice)
     }
 
     pub async fn devices(&self) -> RwLockReadGuard<DeviceMap> {
@@ -232,22 +254,12 @@ impl mlua::UserData for DeviceManager {
                 // TODO: Handle the error here properly
                 let config: Box<dyn DeviceConfig> = config.as_userdata().unwrap().take()?;
 
-                let ext = ConfigExternal {
-                    client: &this.client,
-                    device_manager: this,
-                    event_channel: &this.event_channel,
-                };
-
                 let device = config
-                    .create(&identifier, &ext)
+                    .create(&identifier)
                     .await
                     .map_err(mlua::ExternalError::into_lua_err)?;
 
-                let id = device.get_id().to_owned();
-
-                this.add(device).await;
-
-                Ok(id)
+                Ok(this.add(device).await)
             },
         )
     }

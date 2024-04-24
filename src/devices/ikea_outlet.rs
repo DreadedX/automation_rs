@@ -2,23 +2,24 @@ use std::time::Duration;
 
 use anyhow::Result;
 use async_trait::async_trait;
-use automation_macro::LuaDevice;
+use automation_macro::{LuaDevice, LuaDeviceConfig};
 use google_home::errors::ErrorCode;
 use google_home::traits::{self, OnOff};
 use google_home::types::Type;
 use google_home::{device, GoogleHomeDevice};
-use rumqttc::{matches, AsyncClient, Publish};
+use rumqttc::{matches, Publish};
 use serde::Deserialize;
-use serde_with::{serde_as, DurationSeconds};
 use tokio::task::JoinHandle;
 use tracing::{debug, error, trace, warn};
 
 use crate::config::{InfoConfig, MqttDeviceConfig};
-use crate::device_manager::{ConfigExternal, DeviceConfig};
+use crate::device_manager::DeviceConfig;
 use crate::devices::Device;
 use crate::error::DeviceConfigError;
 use crate::event::{OnMqtt, OnPresence};
+use crate::helper::DurationSeconds;
 use crate::messages::{OnOffMessage, RemoteAction, RemoteMessage};
+use crate::mqtt::WrappedAsyncClient;
 use crate::traits::Timeout;
 
 #[derive(Debug, Clone, Deserialize, PartialEq, Eq, Copy)]
@@ -29,19 +30,21 @@ pub enum OutletType {
     Light,
 }
 
-#[serde_as]
-#[derive(Debug, Clone, Deserialize)]
+#[derive(Debug, Clone, LuaDeviceConfig)]
 pub struct IkeaOutletConfig {
-    #[serde(flatten)]
+    #[device_config(flatten)]
     info: InfoConfig,
-    #[serde(flatten)]
+    #[device_config(flatten)]
     mqtt: MqttDeviceConfig,
-    #[serde(default = "default_outlet_type")]
+    #[device_config(default = default_outlet_type)]
     outlet_type: OutletType,
-    #[serde_as(as = "Option<DurationSeconds>")]
-    timeout: Option<Duration>, // Timeout in seconds
-    #[serde(default)]
+    #[device_config(with = "Option<DurationSeconds>")]
+    timeout: Option<Duration>,
+    #[device_config(default)]
     pub remotes: Vec<MqttDeviceConfig>,
+
+    #[device_config(user_data)]
+    client: WrappedAsyncClient,
 }
 
 fn default_outlet_type() -> OutletType {
@@ -50,11 +53,7 @@ fn default_outlet_type() -> OutletType {
 
 #[async_trait]
 impl DeviceConfig for IkeaOutletConfig {
-    async fn create(
-        &self,
-        identifier: &str,
-        ext: &ConfigExternal,
-    ) -> Result<Box<dyn Device>, DeviceConfigError> {
+    async fn create(&self, identifier: &str) -> Result<Box<dyn Device>, DeviceConfigError> {
         trace!(
             id = identifier,
             name = self.info.name,
@@ -65,7 +64,6 @@ impl DeviceConfig for IkeaOutletConfig {
         let device = IkeaOutlet {
             identifier: identifier.into(),
             config: self.clone(),
-            client: ext.client.clone(),
             last_known_state: false,
             handle: None,
         };
@@ -80,12 +78,11 @@ pub struct IkeaOutlet {
     #[config]
     config: IkeaOutletConfig,
 
-    client: AsyncClient,
     last_known_state: bool,
     handle: Option<JoinHandle<()>>,
 }
 
-async fn set_on(client: AsyncClient, topic: &str, on: bool) {
+async fn set_on(client: WrappedAsyncClient, topic: &str, on: bool) {
     let message = OnOffMessage::new(on);
 
     let topic = format!("{}/set", topic);
@@ -219,7 +216,7 @@ impl traits::OnOff for IkeaOutlet {
     }
 
     async fn set_on(&mut self, on: bool) -> Result<(), ErrorCode> {
-        set_on(self.client.clone(), &self.config.mqtt.topic, on).await;
+        set_on(self.config.client.clone(), &self.config.mqtt.topic, on).await;
 
         Ok(())
     }
@@ -234,7 +231,7 @@ impl crate::traits::Timeout for IkeaOutlet {
         // Turn the kettle of after the specified timeout
         // TODO: Impl Drop for IkeaOutlet that will abort the handle if the IkeaOutlet
         // get dropped
-        let client = self.client.clone();
+        let client = self.config.client.clone();
         let topic = self.config.mqtt.topic.clone();
         let id = self.identifier.clone();
         self.handle = Some(tokio::spawn(async move {

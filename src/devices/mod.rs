@@ -26,7 +26,7 @@ pub use self::hue_bridge::*;
 pub use self::hue_light::*;
 pub use self::ikea_outlet::*;
 pub use self::kasa_outlet::*;
-pub use self::light_sensor::{LightSensor, LightSensorConfig};
+pub use self::light_sensor::*;
 pub use self::ntfy::{Notification, Ntfy};
 pub use self::presence::{Presence, PresenceConfig, DEFAULT_PRESENCE};
 pub use self::wake_on_lan::*;

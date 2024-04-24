@@ -2,7 +2,7 @@ use std::net::{Ipv4Addr, SocketAddr};
 use std::str::Utf8Error;
 
 use async_trait::async_trait;
-use automation_macro::LuaDevice;
+use automation_macro::{LuaDevice, LuaDeviceConfig};
 use bytes::{Buf, BufMut};
 use google_home::errors::{self, DeviceError};
 use google_home::traits;
@@ -13,21 +13,18 @@ use tokio::net::TcpStream;
 use tracing::trace;
 
 use super::Device;
-use crate::device_manager::{ConfigExternal, DeviceConfig};
+use crate::device_manager::DeviceConfig;
 use crate::error::DeviceConfigError;
 
-#[derive(Debug, Clone, Deserialize)]
+#[derive(Debug, Clone, LuaDeviceConfig)]
 pub struct KasaOutletConfig {
+    // TODO: Add helper type that converts this to a socketaddr automatically
     ip: Ipv4Addr,
 }
 
 #[async_trait]
 impl DeviceConfig for KasaOutletConfig {
-    async fn create(
-        &self,
-        identifier: &str,
-        _ext: &ConfigExternal,
-    ) -> Result<Box<dyn Device>, DeviceConfigError> {
+    async fn create(&self, identifier: &str) -> Result<Box<dyn Device>, DeviceConfigError> {
         trace!(id = identifier, "Setting up KasaOutlet");
 
         let device = KasaOutlet {

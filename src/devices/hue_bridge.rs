@@ -1,11 +1,11 @@
 use std::net::Ipv4Addr;
 
 use async_trait::async_trait;
-use automation_macro::LuaDevice;
+use automation_macro::{LuaDevice, LuaDeviceConfig};
 use serde::{Deserialize, Serialize};
 use tracing::{error, trace, warn};
 
-use crate::device_manager::{ConfigExternal, DeviceConfig};
+use crate::device_manager::DeviceConfig;
 use crate::devices::Device;
 use crate::error::DeviceConfigError;
 use crate::event::{OnDarkness, OnPresence};
@@ -22,8 +22,9 @@ pub struct FlagIDs {
     pub darkness: isize,
 }
 
-#[derive(Debug, Deserialize, Clone)]
+#[derive(Debug, LuaDeviceConfig, Clone)]
 pub struct HueBridgeConfig {
+    // TODO: Add helper type that converts this to a socketaddr automatically
     pub ip: Ipv4Addr,
     pub login: String,
     pub flags: FlagIDs,
@@ -31,11 +32,7 @@ pub struct HueBridgeConfig {
 
 #[async_trait]
 impl DeviceConfig for HueBridgeConfig {
-    async fn create(
-        &self,
-        identifier: &str,
-        _ext: &ConfigExternal,
-    ) -> Result<Box<dyn Device>, DeviceConfigError> {
+    async fn create(&self, identifier: &str) -> Result<Box<dyn Device>, DeviceConfigError> {
         let device = HueBridge {
             identifier: identifier.into(),
             config: self.clone(),

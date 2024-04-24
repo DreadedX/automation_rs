@@ -1,31 +1,30 @@
 use std::net::Ipv4Addr;
 
 use async_trait::async_trait;
-use automation_macro::LuaDevice;
+use automation_macro::{LuaDevice, LuaDeviceConfig};
 use eui48::MacAddress;
 use google_home::errors::ErrorCode;
 use google_home::traits::{self, Scene};
 use google_home::types::Type;
 use google_home::{device, GoogleHomeDevice};
 use rumqttc::Publish;
-use serde::Deserialize;
 use tracing::{debug, error, trace};
 
 use super::Device;
 use crate::config::{InfoConfig, MqttDeviceConfig};
-use crate::device_manager::{ConfigExternal, DeviceConfig};
+use crate::device_manager::DeviceConfig;
 use crate::error::DeviceConfigError;
 use crate::event::OnMqtt;
 use crate::messages::ActivateMessage;
 
-#[derive(Debug, Clone, Deserialize)]
+#[derive(Debug, Clone, LuaDeviceConfig)]
 pub struct WakeOnLANConfig {
-    #[serde(flatten)]
+    #[device_config(flatten)]
     info: InfoConfig,
-    #[serde(flatten)]
+    #[device_config(flatten)]
     mqtt: MqttDeviceConfig,
     mac_address: MacAddress,
-    #[serde(default = "default_broadcast_ip")]
+    #[device_config(default = default_broadcast_ip)]
     broadcast_ip: Ipv4Addr,
 }
 
@@ -35,17 +34,15 @@ fn default_broadcast_ip() -> Ipv4Addr {
 
 #[async_trait]
 impl DeviceConfig for WakeOnLANConfig {
-    async fn create(
-        &self,
-        identifier: &str,
-        _ext: &ConfigExternal,
-    ) -> Result<Box<dyn Device>, DeviceConfigError> {
+    async fn create(&self, identifier: &str) -> Result<Box<dyn Device>, DeviceConfigError> {
         trace!(
             id = identifier,
             name = self.info.name,
             room = self.info.room,
             "Setting up WakeOnLAN"
         );
+
+        debug!("broadcast_ip = {}", self.broadcast_ip);
 
         let device = WakeOnLAN {
             identifier: identifier.into(),

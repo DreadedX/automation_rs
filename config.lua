@@ -17,6 +17,7 @@ automation.device_manager:create(
 	"debug_bridge",
 	DebugBridge.new({
 		topic = mqtt_automation("debug"),
+		client = automation.mqtt_client,
 	})
 )
 
@@ -41,6 +42,7 @@ automation.device_manager:create(
 		topic = mqtt_z2m("living/light"),
 		min = 22000,
 		max = 23500,
+		event_channel = automation.event_channel,
 	})
 )
 
@@ -74,6 +76,7 @@ automation.device_manager:create(
 		name = "Kettle",
 		room = "Kitchen",
 		topic = mqtt_z2m("kitchen/kettle"),
+		client = automation.mqtt_client,
 		timeout = debug and 5 or 300,
 		remotes = {
 			{ topic = mqtt_z2m("bedroom/remote") },
@@ -89,6 +92,7 @@ automation.device_manager:create(
 		name = "Light",
 		room = "Bathroom",
 		topic = mqtt_z2m("batchroom/light"),
+		client = automation.mqtt_client,
 		timeout = debug and 60 or 45 * 60,
 	})
 )
@@ -98,6 +102,7 @@ automation.device_manager:create(
 	Washer.new({
 		topic = mqtt_z2m("batchroom/washer"),
 		threshold = 1,
+		event_channel = automation.event_channel,
 	})
 )
 
@@ -108,6 +113,7 @@ automation.device_manager:create(
 		name = "Charger",
 		room = "Workbench",
 		topic = mqtt_z2m("workbench/charger"),
+		client = automation.mqtt_client,
 		timeout = debug and 5 or 20 * 3600,
 	})
 )
@@ -118,6 +124,7 @@ automation.device_manager:create(
 		name = "Outlet",
 		room = "Workbench",
 		topic = mqtt_z2m("workbench/outlet"),
+		client = automation.mqtt_client,
 	})
 )
 
@@ -139,6 +146,7 @@ automation.device_manager:create(
 	"hallway_frontdoor",
 	ContactSensor.new({
 		topic = mqtt_z2m("hallway/frontdoor"),
+		client = automation.mqtt_client,
 		presence = {
 			topic = mqtt_automation("presence/contact/frontdoor"),
 			timeout = debug and 10 or 15 * 60,
@@ -156,5 +164,6 @@ automation.device_manager:create(
 		name = "Air Filter",
 		room = "Bedroom",
 		topic = "pico/filter/bedroom",
+		client = automation.mqtt_client,
 	})
 )

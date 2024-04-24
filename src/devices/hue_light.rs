@@ -3,39 +3,35 @@ use std::time::Duration;
 
 use anyhow::{anyhow, Context, Result};
 use async_trait::async_trait;
-use automation_macro::LuaDevice;
+use automation_macro::{LuaDevice, LuaDeviceConfig};
 use google_home::errors::ErrorCode;
 use google_home::traits::OnOff;
 use rumqttc::Publish;
-use serde::Deserialize;
 use tracing::{debug, error, warn};
 
 use super::Device;
 use crate::config::MqttDeviceConfig;
-use crate::device_manager::{ConfigExternal, DeviceConfig};
+use crate::device_manager::DeviceConfig;
 use crate::error::DeviceConfigError;
 use crate::event::OnMqtt;
 use crate::messages::{RemoteAction, RemoteMessage};
 use crate::traits::Timeout;
 
-#[derive(Debug, Clone, Deserialize)]
+#[derive(Debug, Clone, LuaDeviceConfig)]
 pub struct HueGroupConfig {
+    // TODO: Add helper type that converts this to a socketaddr automatically
     pub ip: Ipv4Addr,
     pub login: String,
     pub group_id: isize,
     pub timer_id: isize,
     pub scene_id: String,
-    #[serde(default)]
+    #[device_config(default)]
     pub remotes: Vec<MqttDeviceConfig>,
 }
 
 #[async_trait]
 impl DeviceConfig for HueGroupConfig {
-    async fn create(
-        &self,
-        identifier: &str,
-        _ext: &ConfigExternal,
-    ) -> Result<Box<dyn Device>, DeviceConfigError> {
+    async fn create(&self, identifier: &str) -> Result<Box<dyn Device>, DeviceConfigError> {
         let device = HueGroup {
             identifier: identifier.into(),
             config: self.clone(),

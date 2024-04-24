@@ -1,35 +1,32 @@
 use async_trait::async_trait;
-use automation_macro::LuaDevice;
+use automation_macro::{LuaDevice, LuaDeviceConfig};
 use rumqttc::Publish;
-use serde::Deserialize;
 use tracing::{debug, error, warn};
 
 use super::ntfy::Priority;
 use super::{Device, Notification};
 use crate::config::MqttDeviceConfig;
-use crate::device_manager::{ConfigExternal, DeviceConfig};
+use crate::device_manager::DeviceConfig;
 use crate::error::DeviceConfigError;
 use crate::event::{Event, EventChannel, OnMqtt};
 use crate::messages::PowerMessage;
 
-#[derive(Debug, Clone, Deserialize)]
+#[derive(Debug, Clone, LuaDeviceConfig)]
 pub struct WasherConfig {
-    #[serde(flatten)]
+    #[device_config(flatten)]
     mqtt: MqttDeviceConfig,
-    threshold: f32, // Power in Watt
+    // Power in Watt
+    threshold: f32,
+    #[device_config(user_data)]
+    event_channel: EventChannel,
 }
 
 #[async_trait]
 impl DeviceConfig for WasherConfig {
-    async fn create(
-        &self,
-        identifier: &str,
-        ext: &ConfigExternal,
-    ) -> Result<Box<dyn Device>, DeviceConfigError> {
+    async fn create(&self, identifier: &str) -> Result<Box<dyn Device>, DeviceConfigError> {
         let device = Washer {
             identifier: identifier.into(),
             config: self.clone(),
-            event_channel: ext.event_channel.clone(),
             running: 0,
         };
 
@@ -45,7 +42,6 @@ pub struct Washer {
     #[config]
     config: WasherConfig,
 
-    event_channel: EventChannel,
     running: isize,
 }
 
@@ -94,6 +90,7 @@ impl OnMqtt for Washer {
                 .set_priority(Priority::High);
 
             if self
+                .config
                 .event_channel
                 .get_tx()
                 .send(Event::Ntfy(notification))

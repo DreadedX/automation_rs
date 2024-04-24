@@ -1,33 +1,29 @@
 use async_trait::async_trait;
-use automation_macro::LuaDevice;
-use rumqttc::AsyncClient;
-use serde::Deserialize;
+use automation_macro::{LuaDevice, LuaDeviceConfig};
 use tracing::warn;
 
 use crate::config::MqttDeviceConfig;
-use crate::device_manager::{ConfigExternal, DeviceConfig};
+use crate::device_manager::DeviceConfig;
 use crate::devices::Device;
 use crate::error::DeviceConfigError;
 use crate::event::{OnDarkness, OnPresence};
 use crate::messages::{DarknessMessage, PresenceMessage};
+use crate::mqtt::WrappedAsyncClient;
 
-#[derive(Debug, Deserialize, Clone)]
+#[derive(Debug, LuaDeviceConfig, Clone)]
 pub struct DebugBridgeConfig {
-    #[serde(flatten)]
+    #[device_config(flatten)]
     pub mqtt: MqttDeviceConfig,
+    #[device_config(user_data)]
+    client: WrappedAsyncClient,
 }
 
 #[async_trait]
 impl DeviceConfig for DebugBridgeConfig {
-    async fn create(
-        &self,
-        identifier: &str,
-        ext: &ConfigExternal,
-    ) -> Result<Box<dyn Device>, DeviceConfigError> {
+    async fn create(&self, identifier: &str) -> Result<Box<dyn Device>, DeviceConfigError> {
         let device = DebugBridge {
             identifier: identifier.into(),
             config: self.clone(),
-            client: ext.client.clone(),
         };
 
         Ok(Box::new(device))
@@ -39,7 +35,6 @@ pub struct DebugBridge {
     identifier: String,
     #[config]
     config: DebugBridgeConfig,
-    client: AsyncClient,
 }
 
 impl Device for DebugBridge {
@@ -53,7 +48,8 @@ impl OnPresence for DebugBridge {
     async fn on_presence(&mut self, presence: bool) {
         let message = PresenceMessage::new(presence);
         let topic = format!("{}/presence", self.config.mqtt.topic);
-        self.client
+        self.config
+            .client
             .publish(
                 topic,
                 rumqttc::QoS::AtLeastOnce,
@@ -76,7 +72,8 @@ impl OnDarkness for DebugBridge {
     async fn on_darkness(&mut self, dark: bool) {
         let message = DarknessMessage::new(dark);
         let topic = format!("{}/darkness", self.config.mqtt.topic);
-        self.client
+        self.config
+            .client
             .publish(
                 topic,
                 rumqttc::QoS::AtLeastOnce,

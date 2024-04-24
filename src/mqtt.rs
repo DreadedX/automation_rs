@@ -1,7 +1,29 @@
-use rumqttc::{Event, EventLoop, Incoming};
+use std::ops::{Deref, DerefMut};
+
+use mlua::FromLua;
+use rumqttc::{AsyncClient, Event, EventLoop, Incoming};
 use tracing::{debug, warn};
 
 use crate::event::{self, EventChannel};
+
+#[derive(Debug, Clone, FromLua)]
+pub struct WrappedAsyncClient(pub AsyncClient);
+
+impl Deref for WrappedAsyncClient {
+    type Target = AsyncClient;
+
+    fn deref(&self) -> &Self::Target {
+        &self.0
+    }
+}
+
+impl DerefMut for WrappedAsyncClient {
+    fn deref_mut(&mut self) -> &mut Self::Target {
+        &mut self.0
+    }
+}
+
+impl mlua::UserData for WrappedAsyncClient {}
 
 pub fn start(mut eventloop: EventLoop, event_channel: &EventChannel) {
     let tx = event_channel.get_tx();

@@ -1,86 +1,74 @@
 use std::time::Duration;
 
 use async_trait::async_trait;
-use automation_macro::LuaDevice;
+use automation_macro::{LuaDevice, LuaDeviceConfig};
 use google_home::traits::OnOff;
-use rumqttc::AsyncClient;
-use serde::Deserialize;
-use serde_with::{serde_as, DurationSeconds};
 use tokio::task::JoinHandle;
 use tracing::{debug, error, trace, warn};
 
 use super::Device;
 use crate::config::MqttDeviceConfig;
-use crate::device_manager::{ConfigExternal, DeviceConfig, WrappedDevice};
+use crate::device_manager::{DeviceConfig, WrappedDevice};
 use crate::devices::DEFAULT_PRESENCE;
 use crate::error::DeviceConfigError;
 use crate::event::{OnMqtt, OnPresence};
+use crate::helper::DurationSeconds;
 use crate::messages::{ContactMessage, PresenceMessage};
+use crate::mqtt::WrappedAsyncClient;
 use crate::traits::Timeout;
 
 // NOTE: If we add more presence devices we might need to move this out of here
-#[serde_as]
-#[derive(Debug, Clone, Deserialize)]
+#[derive(Debug, Clone, LuaDeviceConfig)]
 pub struct PresenceDeviceConfig {
-    #[serde(flatten)]
+    #[device_config(flatten)]
     pub mqtt: MqttDeviceConfig,
-    #[serde_as(as = "DurationSeconds")]
+    #[device_config(with = "DurationSeconds")]
     pub timeout: Duration,
 }
 
-#[serde_as]
-#[derive(Debug, Clone, Deserialize)]
+#[derive(Debug, Clone, LuaDeviceConfig)]
 pub struct TriggerConfig {
-    devices: Vec<String>,
-    #[serde(default)]
-    #[serde_as(as = "DurationSeconds")]
-    pub timeout: Duration,
+    #[device_config(user_data)]
+    devices: Vec<WrappedDevice>,
+    #[device_config(with = "Option<DurationSeconds>")]
+    pub timeout: Option<Duration>,
 }
 
-#[derive(Debug, Clone, Deserialize)]
+#[derive(Debug, Clone, LuaDeviceConfig)]
 pub struct ContactSensorConfig {
-    #[serde(flatten)]
+    #[device_config(flatten)]
     mqtt: MqttDeviceConfig,
+    #[device_config(user_data)]
     presence: Option<PresenceDeviceConfig>,
+    #[device_config(user_data)]
     trigger: Option<TriggerConfig>,
+    #[device_config(user_data)]
+    client: WrappedAsyncClient,
 }
 
 #[async_trait]
 impl DeviceConfig for ContactSensorConfig {
-    async fn create(
-        &self,
-        identifier: &str,
-        ext: &ConfigExternal,
-    ) -> Result<Box<dyn Device>, DeviceConfigError> {
+    async fn create(&self, identifier: &str) -> Result<Box<dyn Device>, DeviceConfigError> {
         trace!(id = identifier, "Setting up ContactSensor");
 
         let trigger = if let Some(trigger_config) = &self.trigger {
             let mut devices = Vec::new();
-            for device_name in &trigger_config.devices {
-                let device = ext.device_manager.get(device_name).await.ok_or(
-                    DeviceConfigError::MissingChild(device_name.into(), "OnOff".into()),
-                )?;
-
+            for device in &trigger_config.devices {
                 {
                     let device = device.read().await;
+                    let id = device.get_id().to_owned();
                     if (device.as_ref().cast() as Option<&dyn OnOff>).is_none() {
-                        return Err(DeviceConfigError::MissingTrait(
-                            device_name.into(),
-                            "OnOff".into(),
-                        ));
+                        return Err(DeviceConfigError::MissingTrait(id, "OnOff".into()));
                     }
 
-                    if trigger_config.timeout.is_zero()
+                    if trigger_config.timeout.is_none()
                         && (device.as_ref().cast() as Option<&dyn Timeout>).is_none()
                     {
-                        return Err(DeviceConfigError::MissingTrait(
-                            device_name.into(),
-                            "Timeout".into(),
-                        ));
+                        return Err(DeviceConfigError::MissingTrait(id, "Timeout".into()));
                     }
                 }
 
-                devices.push((device, false));
+                devices.push((device.clone(), false));
             }
 
             Some(Trigger {
@@ -94,7 +82,6 @@ impl DeviceConfig for ContactSensorConfig {
         let device = ContactSensor {
             identifier: identifier.into(),
             config: self.clone(),
-            client: ext.client.clone(),
             overall_presence: DEFAULT_PRESENCE,
             is_closed: true,
             handle: None,
@@ -108,7 +95,7 @@ impl DeviceConfig for ContactSensorConfig {
 #[derive(Debug)]
 struct Trigger {
     devices: Vec<(WrappedDevice, bool)>,
-    timeout: Duration, // Timeout in seconds
+    timeout: Option<Duration>,
 }
 
 #[derive(Debug, LuaDevice)]
@@ -117,7 +104,6 @@ pub struct ContactSensor {
     #[config]
     config: ContactSensorConfig,
 
-    client: AsyncClient,
     overall_presence: bool,
     is_closed: bool,
     handle: Option<JoinHandle<()>>,
@@ -174,14 +160,15 @@ impl OnMqtt for ContactSensor {
                     let mut light = light.write().await;
                     if !previous {
                         // If the timeout is zero just turn the light off directly
-                        if trigger.timeout.is_zero()
+                        if trigger.timeout.is_none()
                             && let Some(light) = light.as_mut().cast_mut() as Option<&mut dyn OnOff>
                         {
                             light.set_on(false).await.ok();
-                        } else if let Some(light) =
-                            light.as_mut().cast_mut() as Option<&mut dyn Timeout>
+                        } else if let Some(timeout) = trigger.timeout
+                            && let Some(light) =
+                                light.as_mut().cast_mut() as Option<&mut dyn Timeout>
                         {
-                            light.start_timeout(trigger.timeout).await.unwrap();
+                            light.start_timeout(timeout).await.unwrap();
                         }
                         // TODO: Put a warning/error on creation if either of this has to option to fail
                     }
@@ -206,7 +193,8 @@ impl OnMqtt for ContactSensor {
             // This is to prevent the house from being marked as present for however long the
             // timeout is set when leaving the house
             if !self.overall_presence {
-                self.client
+                self.config
+                    .client
                     .publish(
                         presence.mqtt.topic.clone(),
                         rumqttc::QoS::AtLeastOnce,
@@ -224,7 +212,7 @@ impl OnMqtt for ContactSensor {
             }
         } else {
             // Once the door is closed again we start a timeout for removing the presence
-            let client = self.client.clone();
+            let client = self.config.client.clone();
             let id = self.identifier.clone();
             let timeout = presence.timeout;
             let topic = presence.mqtt.topic.clone();
