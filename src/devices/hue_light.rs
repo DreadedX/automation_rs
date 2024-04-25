@@ -1,4 +1,4 @@
-use std::net::Ipv4Addr;
+use std::net::SocketAddr;
 use std::time::Duration;
 
 use anyhow::{anyhow, Context, Result};
@@ -14,13 +14,14 @@ use crate::config::MqttDeviceConfig;
 use crate::device_manager::DeviceConfig;
 use crate::error::DeviceConfigError;
 use crate::event::OnMqtt;
+use crate::helper::Ipv4SocketAddr;
 use crate::messages::{RemoteAction, RemoteMessage};
 use crate::traits::Timeout;
 
 #[derive(Debug, Clone, LuaDeviceConfig)]
 pub struct HueGroupConfig {
-    // TODO: Add helper type that converts this to a socketaddr automatically
-    pub ip: Ipv4Addr,
+    #[device_config(rename = "ip", with = "Ipv4SocketAddr<80>")]
+    pub addr: SocketAddr,
     pub login: String,
     pub group_id: isize,
     pub timer_id: isize,
@@ -51,7 +52,7 @@ pub struct HueGroup {
 // Couple of helper function to get the correct urls
 impl HueGroup {
     fn url_base(&self) -> String {
-        format!("http://{}:80/api/{}", self.config.ip, self.config.login)
+        format!("http://{}/api/{}", self.config.addr, self.config.login)
     }
 
     fn url_set_schedule(&self) -> String {

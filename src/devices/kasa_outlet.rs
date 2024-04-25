@@ -1,4 +1,4 @@
-use std::net::{Ipv4Addr, SocketAddr};
+use std::net::SocketAddr;
 use std::str::Utf8Error;
 
 use async_trait::async_trait;
@@ -15,11 +15,12 @@ use tracing::trace;
 use super::Device;
 use crate::device_manager::DeviceConfig;
 use crate::error::DeviceConfigError;
+use crate::helper::Ipv4SocketAddr;
 
 #[derive(Debug, Clone, LuaDeviceConfig)]
 pub struct KasaOutletConfig {
-    // TODO: Add helper type that converts this to a socketaddr automatically
-    ip: Ipv4Addr,
+    #[device_config(rename = "ip", with = "Ipv4SocketAddr<9999>")]
+    addr: SocketAddr,
 }
 
 #[async_trait]
@@ -213,7 +214,7 @@ impl Response {
 #[async_trait]
 impl traits::OnOff for KasaOutlet {
     async fn is_on(&self) -> Result<bool, errors::ErrorCode> {
-        let mut stream = TcpStream::connect::<SocketAddr>((self.config.ip, 9999).into())
+        let mut stream = TcpStream::connect(self.config.addr)
             .await
             .or::<DeviceError>(Err(DeviceError::DeviceOffline))?;
 
@@ -247,7 +248,7 @@ impl traits::OnOff for KasaOutlet {
     }
 
     async fn set_on(&mut self, on: bool) -> Result<(), errors::ErrorCode> {
-        let mut stream = TcpStream::connect::<SocketAddr>((self.config.ip, 9999).into())
+        let mut stream = TcpStream::connect(self.config.addr)
             .await
             .or::<DeviceError>(Err(DeviceError::DeviceOffline))?;
 

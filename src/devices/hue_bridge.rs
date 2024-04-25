@@ -1,4 +1,4 @@
-use std::net::Ipv4Addr;
+use std::net::SocketAddr;
 
 use async_trait::async_trait;
 use automation_macro::{LuaDevice, LuaDeviceConfig};
@@ -9,6 +9,7 @@ use crate::device_manager::DeviceConfig;
 use crate::devices::Device;
 use crate::error::DeviceConfigError;
 use crate::event::{OnDarkness, OnPresence};
+use crate::helper::Ipv4SocketAddr;
 
 #[derive(Debug)]
 pub enum Flag {
@@ -24,8 +25,8 @@ pub struct FlagIDs {
 
 #[derive(Debug, LuaDeviceConfig, Clone)]
 pub struct HueBridgeConfig {
-    // TODO: Add helper type that converts this to a socketaddr automatically
-    pub ip: Ipv4Addr,
+    #[device_config(rename = "ip", with = "Ipv4SocketAddr<80>")]
+    pub addr: SocketAddr,
     pub login: String,
     pub flags: FlagIDs,
 }
@@ -62,8 +63,8 @@ impl HueBridge {
         };
 
         let url = format!(
-            "http://{}:80/api/{}/sensors/{flag_id}/state",
-            self.config.ip, self.config.login
+            "http://{}/api/{}/sensors/{flag_id}/state",
+            self.config.addr, self.config.login
         );
 
         trace!(?flag, flag_id, value, "Sending request to change flag");
