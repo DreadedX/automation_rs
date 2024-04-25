@@ -57,6 +57,7 @@ fn impl_lua_device_macro(ast: &syn::DeriveInput) -> TokenStream {
 enum Arg {
     Flatten,
     UserData,
+    Rename(String),
     With(TokenStream),
     Default(Option<syn::Ident>),
 }
@@ -66,6 +67,15 @@ impl syn::parse::Parse for Arg {
         let arg = match input.parse::<syn::Ident>()?.to_string().as_str() {
             "flatten" => Arg::Flatten,
             "user_data" => Arg::UserData,
+            "rename" => {
+                input.parse::<Token![=]>()?;
+                let lit = input.parse::<syn::Lit>()?;
+                if let syn::Lit::Str(lit_str) = lit {
+                    Arg::Rename(lit_str.value())
+                } else {
+                    panic!("Expected literal string");
+                }
+            }
             "with" => {
                 input.parse::<Token![=]>()?;
                 let lit = input.parse::<syn::Lit>()?;
@@ -108,6 +118,7 @@ impl syn::parse::Parse for ArgsParser {
 struct Args {
     flatten: bool,
     user_data: bool,
+    rename: Option<String>,
     with: Option<TokenStream>,
     default: Option<Option<syn::Ident>>,
 }
@@ -117,6 +128,7 @@ impl Args {
         let mut result = Args {
             flatten: false,
             user_data: false,
+            rename: None,
             with: None,
             default: None,
         };
@@ -133,6 +145,12 @@ impl Args {
                         panic!("Option 'user_data' is already set")
                     }
                     result.user_data = true
+                }
+                Arg::Rename(name) => {
+                    if result.rename.is_some() {
+                        panic!("Option 'rename' is already set")
+                    }
+                    result.rename = Some(name)
                 }
                 Arg::With(ty) => {
                     if result.with.is_some() {
@@ -204,6 +222,12 @@ fn impl_lua_device_config_macro(ast: &syn::DeriveInput) -> TokenStream {
 
             let args = Args::new(args);
 
+            let table_name = if let Some(name) = args.rename {
+                name
+            } else {
+                field_name.to_string()
+            };
+
 			// TODO: Improve how optional fields are detected
 			let optional = if let syn::Type::Path(path) = field.ty.clone() {
 				path.path.segments.first().unwrap().ident == "Option"
@@ -220,7 +244,7 @@ fn impl_lua_device_config_macro(ast: &syn::DeriveInput) -> TokenStream {
 					quote! { Default::default() }
 				}
             } else {
-				let missing = format!("Missing field '{field_name}'");
+				let missing = format!("Missing field '{table_name}'");
                 quote! { panic!(#missing) }
             };
 
@@ -232,8 +256,8 @@ fn impl_lua_device_config_macro(ast: &syn::DeriveInput) -> TokenStream {
 			} else if args.user_data {
             	// println!("UserData: {}", field_name);
             	quote! {
-            		if table.contains_key(stringify!(#field_name))? {
-						table.get(stringify!(#field_name))?
+            		if table.contains_key(#table_name)? {
+						table.get(#table_name)?
             		} else {
 						#default
 					}
@@ -242,7 +266,7 @@ fn impl_lua_device_config_macro(ast: &syn::DeriveInput) -> TokenStream {
             	// println!("Value: {}", field_name);
                 quote! {
 					{
-						let #field_name: mlua::Value = table.get(stringify!(#field_name))?;
+						let #field_name: mlua::Value = table.get(#table_name)?;
 						if !#field_name.is_nil() {
 							mlua::LuaSerdeExt::from_value(lua, #field_name)?
 						} else {
