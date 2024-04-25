@@ -8,7 +8,8 @@ use super::{Device, Notification};
 use crate::config::MqttDeviceConfig;
 use crate::device_manager::DeviceConfig;
 use crate::error::DeviceConfigError;
-use crate::event::{Event, EventChannel, OnMqtt};
+use crate::event::{self, Event, OnMqtt};
+use crate::helper::TxHelper;
 use crate::messages::PowerMessage;
 
 #[derive(Debug, Clone, LuaDeviceConfig)]
@@ -17,8 +18,8 @@ pub struct WasherConfig {
     mqtt: MqttDeviceConfig,
     // Power in Watt
     threshold: f32,
-    #[device_config(user_data)]
-    event_channel: EventChannel,
+    #[device_config(rename = "event_channel", user_data, with = "TxHelper")]
+    pub tx: event::Sender,
 }
 
 #[async_trait]
@@ -91,8 +92,7 @@ impl OnMqtt for Washer {
 
             if self
                 .config
-                .event_channel
-                .get_tx()
+                .tx
                 .send(Event::Ntfy(notification))
                 .await
                 .is_err()

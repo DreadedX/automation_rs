@@ -7,7 +7,8 @@ use crate::config::MqttDeviceConfig;
 use crate::device_manager::DeviceConfig;
 use crate::devices::Device;
 use crate::error::DeviceConfigError;
-use crate::event::{self, Event, EventChannel, OnMqtt};
+use crate::event::{self, Event, OnMqtt};
+use crate::helper::TxHelper;
 use crate::messages::BrightnessMessage;
 
 #[derive(Debug, Clone, LuaDeviceConfig)]
@@ -16,8 +17,8 @@ pub struct LightSensorConfig {
     pub mqtt: MqttDeviceConfig,
     pub min: isize,
     pub max: isize,
-    #[device_config(user_data)]
-    pub event_channel: EventChannel,
+    #[device_config(rename = "event_channel", user_data, with = "TxHelper")]
+    pub tx: event::Sender,
 }
 
 pub const DEFAULT: bool = false;
@@ -30,7 +31,6 @@ impl DeviceConfig for LightSensorConfig {
         let device = LightSensor {
             identifier: identifier.into(),
             // Add helper type that does this conversion for us
-            tx: self.event_channel.get_tx(),
             config: self.clone(),
             is_dark: DEFAULT,
         };
@@ -45,7 +45,6 @@ pub struct LightSensor {
     #[config]
     config: LightSensorConfig,
 
-    tx: event::Sender,
     is_dark: bool,
 }
 
@@ -91,7 +90,7 @@ impl OnMqtt for LightSensor {
             debug!("Dark state has changed: {is_dark}");
             self.is_dark = is_dark;
 
-            if self.tx.send(Event::Darkness(is_dark)).await.is_err() {
+            if self.config.tx.send(Event::Darkness(is_dark)).await.is_err() {
                 warn!("There are no receivers on the event channel");
             }
         }

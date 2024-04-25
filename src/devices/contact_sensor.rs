@@ -3,6 +3,7 @@ use std::time::Duration;
 use async_trait::async_trait;
 use automation_macro::{LuaDevice, LuaDeviceConfig};
 use google_home::traits::OnOff;
+use mlua::FromLua;
 use tokio::task::JoinHandle;
 use tracing::{debug, error, trace, warn};
 
@@ -26,10 +27,25 @@ pub struct PresenceDeviceConfig {
     pub timeout: Duration,
 }
 
+#[derive(Debug, Clone)]
+struct TriggerDevicesHelper(Vec<WrappedDevice>);
+
+impl<'lua> FromLua<'lua> for TriggerDevicesHelper {
+    fn from_lua(value: mlua::Value<'lua>, lua: &'lua mlua::Lua) -> mlua::Result<Self> {
+        Ok(TriggerDevicesHelper(mlua::FromLua::from_lua(value, lua)?))
+    }
+}
+
+impl From<TriggerDevicesHelper> for Vec<(WrappedDevice, bool)> {
+    fn from(value: TriggerDevicesHelper) -> Self {
+        value.0.into_iter().map(|device| (device, false)).collect()
+    }
+}
+
 #[derive(Debug, Clone, LuaDeviceConfig)]
 pub struct TriggerConfig {
-    #[device_config(user_data)]
-    devices: Vec<WrappedDevice>,
+    #[device_config(user_data, with = "TriggerDevicesHelper")]
+    devices: Vec<(WrappedDevice, bool)>,
     #[device_config(with = "Option<DurationSeconds>")]
     pub timeout: Option<Duration>,
 }
@@ -51,9 +67,9 @@ impl DeviceConfig for ContactSensorConfig {
     async fn create(&self, identifier: &str) -> Result<Box<dyn Device>, DeviceConfigError> {
         trace!(id = identifier, "Setting up ContactSensor");
 
-        let trigger = if let Some(trigger_config) = &self.trigger {
-            let mut devices = Vec::new();
-            for device in &trigger_config.devices {
+        // Make sure the devices implement the required traits
+        if let Some(trigger) = &self.trigger {
+            for (device, _) in &trigger.devices {
                 {
                     let device = device.read().await;
                     let id = device.get_id().to_owned();
@@ -61,23 +77,14 @@ impl DeviceConfig for ContactSensorConfig {
                         return Err(DeviceConfigError::MissingTrait(id, "OnOff".into()));
                     }
 
-                    if trigger_config.timeout.is_none()
+                    if trigger.timeout.is_none()
                         && (device.as_ref().cast() as Option<&dyn Timeout>).is_none()
                     {
                         return Err(DeviceConfigError::MissingTrait(id, "Timeout".into()));
                     }
                 }
-
-                devices.push((device.clone(), false));
             }
-
-            Some(Trigger {
-                devices,
-                timeout: trigger_config.timeout,
-            })
-        } else {
-            None
-        };
+        }
 
         let device = ContactSensor {
             identifier: identifier.into(),
@@ -85,17 +92,10 @@ impl DeviceConfig for ContactSensorConfig {
             overall_presence: DEFAULT_PRESENCE,
             is_closed: true,
             handle: None,
-            trigger,
         };
 
         Ok(Box::new(device))
     }
-}
-
-#[derive(Debug)]
-struct Trigger {
-    devices: Vec<(WrappedDevice, bool)>,
-    timeout: Option<Duration>,
 }
 
 #[derive(Debug, LuaDevice)]
@@ -107,8 +107,6 @@ pub struct ContactSensor {
     overall_presence: bool,
     is_closed: bool,
     handle: Option<JoinHandle<()>>,
-
-    trigger: Option<Trigger>,
 }
 
 impl Device for ContactSensor {
@@ -146,7 +144,7 @@ impl OnMqtt for ContactSensor {
         debug!(id = self.identifier, "Updating state to {is_closed}");
         self.is_closed = is_closed;
 
-        if let Some(trigger) = &mut self.trigger {
+        if let Some(trigger) = &mut self.config.trigger {
             if !self.is_closed {
                 for (light, previous) in &mut trigger.devices {
                     let mut light = light.write().await;
