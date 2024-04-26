@@ -1,3 +1,6 @@
+use std::fs::File;
+use std::io::Write;
+
 use itertools::Itertools;
 use proc_macro2::TokenStream;
 use quote::{quote, quote_spanned};
@@ -275,6 +278,16 @@ pub fn impl_lua_device_config_macro(ast: &DeriveInput) -> TokenStream {
             }
         }
     };
+
+    let mut def = format!("--- @meta\n--- @class {name}\n");
+    for field in fields {
+        def += &format!("--- @field {} any\n", field.ident.clone().unwrap())
+    }
+
+    File::create(format!("./definitions/generated/{name}.lua"))
+        .unwrap()
+        .write_all(def.as_bytes())
+        .unwrap();
 
     impl_from_lua
 }

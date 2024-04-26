@@ -1,3 +1,6 @@
+use std::fs::File;
+use std::io::Write;
+
 use proc_macro2::TokenStream;
 use quote::quote;
 use syn::DeriveInput;
@@ -23,6 +26,20 @@ pub fn impl_lua_device_macro(ast: &DeriveInput) -> TokenStream {
             }
         }
     };
+
+    let def = format!(
+        r#"--- @meta
+--- @class {name}
+{name} = {{}}
+--- @param config {name}Config
+--- @return Config
+function {name}.new(config) end"#
+    );
+
+    File::create(format!("./definitions/generated/{name}.lua"))
+        .unwrap()
+        .write_all(def.as_bytes())
+        .unwrap();
 
     gen
 }
