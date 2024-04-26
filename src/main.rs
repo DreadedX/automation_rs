@@ -18,7 +18,7 @@ use axum::{Json, Router};
 use dotenvy::dotenv;
 use google_home::{GoogleHome, Request};
 use rumqttc::AsyncClient;
-use tracing::{debug, error, info};
+use tracing::{debug, error, info, warn};
 
 #[derive(Clone)]
 struct AppState {
@@ -82,6 +82,12 @@ async fn app() -> anyhow::Result<()> {
     // Lua testing
     {
         let lua = mlua::Lua::new();
+
+        lua.set_warning_function(|_lua, text, _cont| {
+            warn!("{text}");
+            Ok(())
+        });
+
         let automation = lua.create_table()?;
 
         automation.set("device_manager", device_manager.clone())?;
