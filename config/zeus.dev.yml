@@ -14,12 +14,3 @@ ntfy:
 
 presence:
     topic: "automation_dev/presence/+/#"
-
-schedule:
-    # 0/30 * * * * *:
-    #     on:
-    #         - *outlet
-    #
-    # 15/30 * * * * *:
-    #     off:
-    #         - *outlet

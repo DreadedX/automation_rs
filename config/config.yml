@@ -13,13 +13,3 @@ ntfy:
 
 presence:
     topic: "automation/presence/+/#"
-
-# Run the air filter everyday for 19:00 to 20:00
-schedule:
-    0 0 19 * * *:
-        on:
-            - "bedroom_air_filter"
-
-    0 0 20 * * *:
-        off:
-            - "bedroom_air_filter"

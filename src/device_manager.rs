@@ -6,7 +6,7 @@ use async_trait::async_trait;
 use enum_dispatch::enum_dispatch;
 use futures::future::join_all;
 use google_home::traits::OnOff;
-use mlua::FromLua;
+use mlua::{FromLua, LuaSerdeExt};
 use rumqttc::{matches, AsyncClient, QoS};
 use tokio::sync::{RwLock, RwLockReadGuard};
 use tokio_cron_scheduler::{Job, JobScheduler};
@@ -261,6 +261,12 @@ impl mlua::UserData for DeviceManager {
 
                 Ok(this.add(device).await)
             },
-        )
+        );
+
+        methods.add_async_method("add_schedule", |lua, this, schedule| async {
+            let schedule = lua.from_value(schedule)?;
+            this.add_schedule(schedule).await;
+            Ok(())
+        })
     }
 }

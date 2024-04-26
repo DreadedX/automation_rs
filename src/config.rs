@@ -10,7 +10,6 @@ use tracing::debug;
 use crate::auth::OpenIDConfig;
 use crate::devices::PresenceConfig;
 use crate::error::{ConfigParseError, MissingEnv};
-use crate::schedule::Schedule;
 
 #[derive(Debug, Deserialize)]
 pub struct Config {
@@ -21,7 +20,6 @@ pub struct Config {
     pub fullfillment: FullfillmentConfig,
     pub ntfy: Option<NtfyConfig>,
     pub presence: PresenceConfig,
-    pub schedule: Schedule,
 }
 
 #[derive(Debug, Clone, Deserialize)]

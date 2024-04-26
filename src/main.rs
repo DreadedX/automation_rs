@@ -63,8 +63,6 @@ async fn app() -> anyhow::Result<()> {
     // Setup the device handler
     let device_manager = DeviceManager::new(client.clone());
 
-    device_manager.add_schedule(config.schedule).await;
-
     let event_channel = device_manager.event_channel();
 
     // Create and add the presence system

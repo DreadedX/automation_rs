@@ -158,7 +158,7 @@ automation.device_manager:create(
 	})
 )
 
-automation.device_manager:create(
+local bedroom_air_filter = automation.device_manager:create(
 	"bedroom_air_filter",
 	AirFilter.new({
 		name = "Air Filter",
@@ -167,3 +167,17 @@ automation.device_manager:create(
 		client = automation.mqtt_client,
 	})
 )
+
+-- TODO: Use the wrapped device bedroom_air_filter instead of the string
+automation.device_manager:add_schedule({
+	["0 0 19 * * *"] = {
+		on = {
+			"bedroom_air_filter",
+		},
+	},
+	["0 0 20 * * *"] = {
+		off = {
+			"bedroom_air_filter",
+		},
+	},
+})
