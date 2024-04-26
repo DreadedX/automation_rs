@@ -159,9 +159,10 @@ impl OnMqtt for ContactSensor {
 
         if let Some(trigger) = &mut self.trigger {
             if !self.is_closed {
-                for (light, _) in &mut trigger.devices {
+                for (light, previous) in &mut trigger.devices {
                     let mut light = light.write().await;
                     if let Some(light) = As::<dyn OnOff>::cast_mut(light.as_mut()) {
+                        *previous = light.is_on().await.unwrap();
                         light.set_on(true).await.ok();
                     }
                 }
