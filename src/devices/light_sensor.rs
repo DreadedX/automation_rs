@@ -7,8 +7,7 @@ use crate::config::MqttDeviceConfig;
 use crate::device_manager::DeviceConfig;
 use crate::devices::Device;
 use crate::error::DeviceConfigError;
-use crate::event::{self, Event, OnMqtt};
-use crate::helper::TxHelper;
+use crate::event::{self, Event, EventChannel, OnMqtt};
 use crate::messages::BrightnessMessage;
 
 #[derive(Debug, Clone, LuaDeviceConfig)]
@@ -17,7 +16,7 @@ pub struct LightSensorConfig {
     pub mqtt: MqttDeviceConfig,
     pub min: isize,
     pub max: isize,
-    #[device_config(rename = "event_channel", user_data, with = "TxHelper")]
+    #[device_config(rename("event_channel"), from_lua, with(|ec: EventChannel| ec.get_tx()))]
     pub tx: event::Sender,
 }
 

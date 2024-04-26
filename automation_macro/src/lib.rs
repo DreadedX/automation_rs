@@ -1,7 +1,11 @@
+use itertools::Itertools;
 use proc_macro2::TokenStream;
-use quote::quote;
+use quote::{quote, quote_spanned};
+use syn::parse::{Parse, ParseStream};
 use syn::punctuated::Punctuated;
-use syn::{parse_macro_input, DeriveInput, Token};
+use syn::spanned::Spanned;
+use syn::token::Paren;
+use syn::{parenthesized, parse_macro_input, DeriveInput, Expr, LitStr, Result, Token};
 
 #[proc_macro_derive(LuaDevice, attributes(config))]
 pub fn lua_device_derive(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
@@ -53,129 +57,110 @@ fn impl_lua_device_macro(ast: &syn::DeriveInput) -> TokenStream {
     gen
 }
 
-#[derive(Debug)]
-enum Arg {
-    Flatten,
-    UserData,
-    Rename(String),
-    With(TokenStream),
-    Default(Option<syn::Ident>),
-}
-
-impl syn::parse::Parse for Arg {
-    fn parse(input: syn::parse::ParseStream) -> syn::Result<Self> {
-        let arg = match input.parse::<syn::Ident>()?.to_string().as_str() {
-            "flatten" => Arg::Flatten,
-            "user_data" => Arg::UserData,
-            "rename" => {
-                input.parse::<Token![=]>()?;
-                let lit = input.parse::<syn::Lit>()?;
-                if let syn::Lit::Str(lit_str) = lit {
-                    Arg::Rename(lit_str.value())
-                } else {
-                    panic!("Expected literal string");
-                }
-            }
-            "with" => {
-                input.parse::<Token![=]>()?;
-                let lit = input.parse::<syn::Lit>()?;
-                if let syn::Lit::Str(lit_str) = lit {
-                    let token_stream: TokenStream = lit_str.parse()?;
-                    Arg::With(token_stream)
-                } else {
-                    panic!("Expected literal string");
-                }
-            }
-            "default" => {
-                if input.parse::<Token![=]>().is_ok() {
-                    let func = input.parse::<syn::Ident>()?;
-                    Arg::Default(Some(func))
-                } else {
-                    Arg::Default(None)
-                }
-            }
-            name => todo!("Handle unknown arg: {name}"),
-        };
-
-        Ok(arg)
-    }
+mod kw {
+    syn::custom_keyword!(device_config);
+    syn::custom_keyword!(flatten);
+    syn::custom_keyword!(from_lua);
+    syn::custom_keyword!(rename);
+    syn::custom_keyword!(with);
+    syn::custom_keyword!(from);
+    syn::custom_keyword!(default);
 }
 
 #[derive(Debug)]
-struct ArgsParser {
-    args: Punctuated<Arg, Token![,]>,
+enum Argument {
+    Flatten {
+        _keyword: kw::flatten,
+    },
+    FromLua {
+        _keyword: kw::from_lua,
+    },
+    Rename {
+        _keyword: kw::rename,
+        _paren: Paren,
+        ident: LitStr,
+    },
+    With {
+        _keyword: kw::with,
+        _paren: Paren,
+        // TODO: Ideally we capture this better
+        expr: Expr,
+    },
+    From {
+        _keyword: kw::from,
+        _paren: Paren,
+        ty: syn::Type,
+    },
+    Default {
+        _keyword: kw::default,
+    },
+    DefaultExpr {
+        _keyword: kw::default,
+        _paren: Paren,
+        expr: Expr,
+    },
 }
 
-impl syn::parse::Parse for ArgsParser {
-    fn parse(input: syn::parse::ParseStream) -> syn::Result<Self> {
-        let args = input.parse_terminated(Arg::parse, Token![,])?;
-
-        Ok(Self { args })
+impl Parse for Argument {
+    fn parse(input: ParseStream) -> Result<Self> {
+        let lookahead = input.lookahead1();
+        if lookahead.peek(kw::flatten) {
+            Ok(Self::Flatten {
+                _keyword: input.parse()?,
+            })
+        } else if lookahead.peek(kw::from_lua) {
+            Ok(Self::FromLua {
+                _keyword: input.parse()?,
+            })
+        } else if lookahead.peek(kw::rename) {
+            let content;
+            Ok(Self::Rename {
+                _keyword: input.parse()?,
+                _paren: parenthesized!(content in input),
+                ident: content.parse()?,
+            })
+        } else if lookahead.peek(kw::with) {
+            let content;
+            Ok(Self::With {
+                _keyword: input.parse()?,
+                _paren: parenthesized!(content in input),
+                expr: content.parse()?,
+            })
+        } else if lookahead.peek(kw::from) {
+            let content;
+            Ok(Self::From {
+                _keyword: input.parse()?,
+                _paren: parenthesized!(content in input),
+                ty: content.parse()?,
+            })
+        } else if lookahead.peek(kw::default) {
+            let keyword = input.parse()?;
+            if input.peek(Paren) {
+                let content;
+                Ok(Self::DefaultExpr {
+                    _keyword: keyword,
+                    _paren: parenthesized!(content in input),
+                    expr: content.parse()?,
+                })
+            } else {
+                Ok(Self::Default { _keyword: keyword })
+            }
+        } else {
+            Err(lookahead.error())
+        }
     }
 }
 
 #[derive(Debug)]
 struct Args {
-    flatten: bool,
-    user_data: bool,
-    rename: Option<String>,
-    with: Option<TokenStream>,
-    default: Option<Option<syn::Ident>>,
+    args: Punctuated<Argument, Token![,]>,
 }
 
-impl Args {
-    fn new(args: Vec<Arg>) -> Self {
-        let mut result = Args {
-            flatten: false,
-            user_data: false,
-            rename: None,
-            with: None,
-            default: None,
-        };
-        for arg in args {
-            match arg {
-                Arg::Flatten => {
-                    if result.flatten {
-                        panic!("Option 'flatten' is already set")
-                    }
-                    result.flatten = true
-                }
-                Arg::UserData => {
-                    if result.flatten {
-                        panic!("Option 'user_data' is already set")
-                    }
-                    result.user_data = true
-                }
-                Arg::Rename(name) => {
-                    if result.rename.is_some() {
-                        panic!("Option 'rename' is already set")
-                    }
-                    result.rename = Some(name)
-                }
-                Arg::With(ty) => {
-                    if result.with.is_some() {
-                        panic!("Option 'with' is already set")
-                    }
-                    result.with = Some(ty)
-                }
-                Arg::Default(func) => {
-                    if result.default.is_some() {
-                        panic!("Option 'default' is already set")
-                    }
-                    result.default = Some(func)
-                }
-            }
-        }
-
-        if result.flatten && result.user_data {
-            panic!("The options 'flatten' and 'user_data' conflict with each other")
-        }
-
-        if result.flatten && result.default.is_some() {
-            panic!("The options 'flatten' and 'default' conflict with each other")
-        }
-
-        result
+impl Parse for Args {
+    fn parse(input: ParseStream) -> Result<Self> {
+        Ok(Self {
+            args: input.parse_terminated(Argument::parse, Token![,])?,
+        })
     }
 }
 
@@ -186,12 +171,8 @@ pub fn lua_device_config_derive(input: proc_macro::TokenStream) -> proc_macro::T
     impl_lua_device_config_macro(&ast).into()
 }
 
-// struct Args
-
 fn impl_lua_device_config_macro(ast: &syn::DeriveInput) -> TokenStream {
     let name = &ast.ident;
-    // TODO: Handle errors properly
-    // This includes making sure one, and only one config is specified
     let fields = if let syn::Data::Struct(syn::DataStruct {
         fields: syn::Fields::Named(syn::FieldsNamed { ref named, .. }),
         ..
@@ -199,72 +180,91 @@ fn impl_lua_device_config_macro(ast: &syn::DeriveInput) -> TokenStream {
     {
         named
     } else {
-        unimplemented!("Macro can only handle named structs");
+        return quote_spanned! {ast.span() => compile_error!("This macro only works on named structs")};
     };
 
-    let fields: Vec<_> = fields
+    let field_names: Vec<_> = fields
         .iter()
-        .map(|field| {
-            let field_name = field.ident.clone().unwrap();
-            let args: Vec<_> = field
-                .attrs
-                .iter()
-                .filter_map(|attr| {
-                    if attr.path().is_ident("device_config") {
-                        let args: ArgsParser = attr.parse_args().unwrap();
-                        Some(args.args)
-                    } else {
-                        None
-                    }
-                })
-                .flatten()
-                .collect();
+        .map(|field| field.ident.clone().unwrap())
+        .collect();
 
-            let args = Args::new(args);
+    let fields: Vec<_> = fields
+		.iter()
+		.map(|field| {
+			let field_name = field.ident.clone().unwrap();
+			let (args, errors): (Vec<_>, Vec<_>) = field
+				.attrs
+				.iter()
+				.filter_map(|attr| {
+					if attr.path().is_ident("device_config") {
+						Some(attr.parse_args::<Args>().map(|args| args.args))
+					} else {
+						None
+					}
+				})
+				.partition_result();
 
-            let table_name = if let Some(name) = args.rename {
-                name
-            } else {
-                field_name.to_string()
-            };
+			let errors: Vec<_> = errors
+				.iter()
+				.map(|error| error.to_compile_error())
+				.collect();
 
-			// TODO: Improve how optional fields are detected
-			let optional = if let syn::Type::Path(path) = field.ty.clone() {
-				path.path.segments.first().unwrap().ident == "Option"
-			} else {
-				false
+			if !errors.is_empty() {
+				return quote! { #(#errors)* };
+			}
+
+			let args: Vec<_> = args.into_iter().flatten().collect();
+
+			let table_name = match args
+				.iter()
+				.filter_map(|arg| match arg {
+					Argument::Rename { ident, .. } => Some(ident.value()),
+					_ => None,
+				})
+				.collect::<Vec<_>>()
+			.as_slice()
+			{
+				[] => field_name.to_string(),
+				[rename] => rename.to_owned(),
+				_ => return quote_spanned! {field.span() => compile_error!("Field contains duplicate 'rename'")},
 			};
 
-            let default = if optional {
-				quote! { None }
-			} else if let Some(func) = args.default {
-				if func.is_some() {
-					quote! { #func() }
-				} else {
-					quote! { Default::default() }
-				}
-            } else {
-				let missing = format!("Missing field '{table_name}'");
-                quote! { panic!(#missing) }
-            };
+			// TODO: Detect Option<_> properly and use Default::default() as fallback automatically
+			let missing = format!("Missing field '{table_name}'");
+			let default = match args
+				.iter()
+				.filter_map(|arg| match arg {
+					Argument::Default { .. } => Some(quote! { Default::default() }),
+					Argument::DefaultExpr { expr, .. } => Some(quote! { (#expr) }),
+					_ => None,
+				})
+				.collect::<Vec<_>>()
+			.as_slice()
+			{
+				[] => quote! {panic!(#missing)},
+				[default] => default.to_owned(),
+				_ => return quote_spanned! {field.span() => compile_error!("Field contains duplicate 'default'")},
+			};
 
-			let value = if args.flatten {
-            	// println!("ValueFlatten: {}", field_name);
-            	quote! {
-            		mlua::LuaSerdeExt::from_value_with(lua, value.clone(), mlua::DeserializeOptions::new().deny_unsupported_types(false))?
-            	}
-			} else if args.user_data {
-            	// println!("UserData: {}", field_name);
-            	quote! {
-            		if table.contains_key(#table_name)? {
-						table.get(#table_name)?
-            		} else {
-						#default
-					}
-            	}
-			} else {
-            	// println!("Value: {}", field_name);
-                quote! {
+
+			let value = match args
+				.iter()
+				.filter_map(|arg| match arg {
+					Argument::Flatten { .. } => Some(quote! {
+						mlua::LuaSerdeExt::from_value_with(lua, value.clone(), mlua::DeserializeOptions::new().deny_unsupported_types(false))?
+					}),
+					Argument::FromLua { .. } => Some(quote! {
+						if table.contains_key(#table_name)? {
+							table.get(#table_name)?
+						} else {
+							#default
+						}
+					}),
+					_ => None,
+				})
+				.collect::<Vec<_>>()
+			.as_slice() {
+				[] => quote! {
 					{
 						let #field_name: mlua::Value = table.get(#table_name)?;
 						if !#field_name.is_nil() {
@@ -273,34 +273,40 @@ fn impl_lua_device_config_macro(ast: &syn::DeriveInput) -> TokenStream {
 							#default
 						}
 					}
-                }
+				},
+				[value] => value.to_owned(),
+				_ => return quote_spanned! {field.span() => compile_error!("Only one of either 'flatten' or 'from_lua' is allowed")},
 			};
 
-			let value = if let Some(temp_type) = args.with {
-				if optional {
-					quote! {
+			let value = match args
+				.iter()
+				.filter_map(|arg| match arg {
+					Argument::From { ty, .. } => Some(quote! {
 						{
-							let temp: #temp_type = #value;
-							temp.map(|v| v.into())
-						}
-					}
-				} else {
-					quote! {
-						{
-							let temp: #temp_type = #value;
+							let temp: #ty = #value;
 							temp.into()
 						}
-					}
-				}
-			} else {
-				value
+					}),
+					Argument::With { expr, .. } => Some(quote! {
+						{
+							let temp = #value;
+							(#expr)(temp)
+						}
+					}),
+					_ => None,
+				})
+				.collect::<Vec<_>>()
+			.as_slice() {
+				[] => value,
+				[value] => value.to_owned(),
+				_ => return quote_spanned! {field.span() => compile_error!("Field contains duplicate 'as'")},
 			};
 
-			quote! {
-				#field_name: #value
-			}
-        })
-        .collect();
+			quote! { #value }
+		})
+		.zip(field_names)
+		.map(|(value, name)| quote! { #name: #value })
+		.collect();
 
     let gen = quote! {
         impl<'lua> mlua::FromLua<'lua> for #name {
@@ -312,7 +318,7 @@ fn impl_lua_device_config_macro(ast: &syn::DeriveInput) -> TokenStream {
 
                 Ok(#name {
                     #(#fields,)*
-                })
+            })
 
             }
         }

@@ -9,7 +9,6 @@ use crate::device_manager::DeviceConfig;
 use crate::devices::Device;
 use crate::error::DeviceConfigError;
 use crate::event::{OnDarkness, OnPresence};
-use crate::helper::Ipv4SocketAddr;
 
 #[derive(Debug)]
 pub enum Flag {
@@ -25,7 +24,7 @@ pub struct FlagIDs {
 
 #[derive(Debug, LuaDeviceConfig, Clone)]
 pub struct HueBridgeConfig {
-    #[device_config(rename = "ip", with = "Ipv4SocketAddr<80>")]
+    #[device_config(rename("ip"), with(|ip| SocketAddr::new(ip, 80)))]
     pub addr: SocketAddr,
     pub login: String,
     pub flags: FlagIDs,

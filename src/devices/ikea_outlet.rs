@@ -17,7 +17,6 @@ use crate::device_manager::DeviceConfig;
 use crate::devices::Device;
 use crate::error::DeviceConfigError;
 use crate::event::{OnMqtt, OnPresence};
-use crate::helper::DurationSeconds;
 use crate::messages::{OnOffMessage, RemoteAction, RemoteMessage};
 use crate::mqtt::WrappedAsyncClient;
 use crate::traits::Timeout;
@@ -36,19 +35,15 @@ pub struct IkeaOutletConfig {
     info: InfoConfig,
     #[device_config(flatten)]
     mqtt: MqttDeviceConfig,
-    #[device_config(default = default_outlet_type)]
+    #[device_config(default(OutletType::Outlet))]
     outlet_type: OutletType,
-    #[device_config(with = "Option<DurationSeconds>")]
+    #[device_config(default, with(|t: Option<_>| t.map(Duration::from_secs)))]
     timeout: Option<Duration>,
     #[device_config(default)]
     pub remotes: Vec<MqttDeviceConfig>,
 
-    #[device_config(user_data)]
+    #[device_config(from_lua)]
     client: WrappedAsyncClient,
-}
-
-fn default_outlet_type() -> OutletType {
-    OutletType::Outlet
 }
 
 #[async_trait]

@@ -24,12 +24,8 @@ pub struct WakeOnLANConfig {
     #[device_config(flatten)]
     mqtt: MqttDeviceConfig,
     mac_address: MacAddress,
-    #[device_config(default = default_broadcast_ip)]
+    #[device_config(default(Ipv4Addr::new(255, 255, 255, 255)))]
     broadcast_ip: Ipv4Addr,
-}
-
-fn default_broadcast_ip() -> Ipv4Addr {
-    Ipv4Addr::new(255, 255, 255, 255)
 }
 
 #[async_trait]

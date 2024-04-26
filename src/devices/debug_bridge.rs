@@ -14,7 +14,7 @@ use crate::mqtt::WrappedAsyncClient;
 pub struct DebugBridgeConfig {
     #[device_config(flatten)]
     pub mqtt: MqttDeviceConfig,
-    #[device_config(user_data)]
+    #[device_config(from_lua)]
     client: WrappedAsyncClient,
 }
 

@@ -15,11 +15,10 @@ use tracing::trace;
 use super::Device;
 use crate::device_manager::DeviceConfig;
 use crate::error::DeviceConfigError;
-use crate::helper::Ipv4SocketAddr;
 
 #[derive(Debug, Clone, LuaDeviceConfig)]
 pub struct KasaOutletConfig {
-    #[device_config(rename = "ip", with = "Ipv4SocketAddr<9999>")]
+    #[device_config(rename("ip"), with(|ip| SocketAddr::new(ip, 9999)))]
     addr: SocketAddr,
 }
 

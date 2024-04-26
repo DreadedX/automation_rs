@@ -14,9 +14,9 @@ use crate::messages::{RemoteAction, RemoteMessage};
 pub struct AudioSetupConfig {
     #[device_config(flatten)]
     mqtt: MqttDeviceConfig,
-    #[device_config(user_data)]
+    #[device_config(from_lua)]
     mixer: WrappedDevice,
-    #[device_config(user_data)]
+    #[device_config(from_lua)]
     speakers: WrappedDevice,
 }
 

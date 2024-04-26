@@ -14,13 +14,12 @@ use crate::config::MqttDeviceConfig;
 use crate::device_manager::DeviceConfig;
 use crate::error::DeviceConfigError;
 use crate::event::OnMqtt;
-use crate::helper::Ipv4SocketAddr;
 use crate::messages::{RemoteAction, RemoteMessage};
 use crate::traits::Timeout;
 
 #[derive(Debug, Clone, LuaDeviceConfig)]
 pub struct HueGroupConfig {
-    #[device_config(rename = "ip", with = "Ipv4SocketAddr<80>")]
+    #[device_config(rename("ip"), with(|ip| SocketAddr::new(ip, 80)))]
     pub addr: SocketAddr,
     pub login: String,
     pub group_id: isize,

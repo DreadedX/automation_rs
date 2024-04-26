@@ -13,7 +13,6 @@ use crate::device_manager::{DeviceConfig, WrappedDevice};
 use crate::devices::DEFAULT_PRESENCE;
 use crate::error::DeviceConfigError;
 use crate::event::{OnMqtt, OnPresence};
-use crate::helper::DurationSeconds;
 use crate::messages::{ContactMessage, PresenceMessage};
 use crate::mqtt::WrappedAsyncClient;
 use crate::traits::Timeout;
@@ -23,7 +22,7 @@ use crate::traits::Timeout;
 pub struct PresenceDeviceConfig {
     #[device_config(flatten)]
     pub mqtt: MqttDeviceConfig,
-    #[device_config(with = "DurationSeconds")]
+    #[device_config(with(Duration::from_secs))]
     pub timeout: Duration,
 }
 
@@ -44,9 +43,9 @@ impl From<TriggerDevicesHelper> for Vec<(WrappedDevice, bool)> {
 
 #[derive(Debug, Clone, LuaDeviceConfig)]
 pub struct TriggerConfig {
-    #[device_config(user_data, with = "TriggerDevicesHelper")]
+    #[device_config(from_lua, from(TriggerDevicesHelper))]
     devices: Vec<(WrappedDevice, bool)>,
-    #[device_config(with = "Option<DurationSeconds>")]
+    #[device_config(default, with(|t: Option<_>| t.map(Duration::from_secs)))]
     pub timeout: Option<Duration>,
 }
 
@@ -54,11 +53,11 @@ pub struct TriggerConfig {
 pub struct ContactSensorConfig {
     #[device_config(flatten)]
     mqtt: MqttDeviceConfig,
-    #[device_config(user_data)]
+    #[device_config(from_lua)]
     presence: Option<PresenceDeviceConfig>,
-    #[device_config(user_data)]
+    #[device_config(from_lua)]
     trigger: Option<TriggerConfig>,
-    #[device_config(user_data)]
+    #[device_config(from_lua)]
     client: WrappedAsyncClient,
 }
 
