@@ -65,18 +65,6 @@ async fn app() -> anyhow::Result<()> {
 
     let event_channel = device_manager.event_channel();
 
-    // Create and add the presence system
-    {
-        let presence = Presence::new(config.presence, &event_channel);
-        device_manager.add(Box::new(presence)).await;
-    }
-
-    // Start the ntfy service if it is configured
-    if let Some(config) = config.ntfy {
-        let ntfy = Ntfy::new(config, &event_channel);
-        device_manager.add(Box::new(ntfy)).await;
-    }
-
     // Lua testing
     {
         let lua = mlua::Lua::new();
@@ -102,6 +90,8 @@ async fn app() -> anyhow::Result<()> {
         lua.globals().set("automation", automation)?;
 
         // Register all the device types
+        Ntfy::register_with_lua(&lua)?;
+        Presence::register_with_lua(&lua)?;
         AirFilter::register_with_lua(&lua)?;
         AudioSetup::register_with_lua(&lua)?;
         ContactSensor::register_with_lua(&lua)?;

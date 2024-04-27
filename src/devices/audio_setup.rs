@@ -5,13 +5,14 @@ use tracing::{debug, error, trace, warn};
 
 use super::Device;
 use crate::config::MqttDeviceConfig;
-use crate::device_manager::{DeviceConfig, WrappedDevice};
+use crate::device_manager::WrappedDevice;
 use crate::error::DeviceConfigError;
 use crate::event::{OnMqtt, OnPresence};
 use crate::messages::{RemoteAction, RemoteMessage};
 
 #[derive(Debug, Clone, LuaDeviceConfig)]
 pub struct AudioSetupConfig {
+    identifier: String,
     #[device_config(flatten)]
     mqtt: MqttDeviceConfig,
     #[device_config(from_lua)]
@@ -20,43 +21,37 @@ pub struct AudioSetupConfig {
     speakers: WrappedDevice,
 }
 
-#[async_trait]
-impl DeviceConfig for AudioSetupConfig {
-    async fn create(&self, identifier: &str) -> Result<Box<dyn Device>, DeviceConfigError> {
-        trace!(id = identifier, "Setting up AudioSetup");
-
-        let mixer = self.mixer.read().await;
-        let mixer_id = mixer.get_id().to_owned();
-        if (mixer.as_ref().cast() as Option<&dyn OnOff>).is_none() {
-            return Err(DeviceConfigError::MissingTrait(mixer_id, "OnOff".into()));
-        }
-
-        let speakers = self.speakers.read().await;
-        let speakers_id = speakers.get_id().to_owned();
-        if (speakers.as_ref().cast() as Option<&dyn OnOff>).is_none() {
-            return Err(DeviceConfigError::MissingTrait(speakers_id, "OnOff".into()));
-        }
-
-        let device = AudioSetup {
-            identifier: identifier.into(),
-            config: self.clone(),
-        };
-
-        Ok(Box::new(device))
-    }
-}
-
-// TODO: We need a better way to store the children devices
 #[derive(Debug, LuaDevice)]
 pub struct AudioSetup {
-    identifier: String,
     #[config]
     config: AudioSetupConfig,
 }
 
+impl AudioSetup {
+    async fn create(config: AudioSetupConfig) -> Result<Self, DeviceConfigError> {
+        trace!(id = config.identifier, "Setting up AudioSetup");
+
+        {
+            let mixer = config.mixer.read().await;
+            let mixer_id = mixer.get_id().to_owned();
+            if (mixer.as_ref().cast() as Option<&dyn OnOff>).is_none() {
+                return Err(DeviceConfigError::MissingTrait(mixer_id, "OnOff".into()));
+            }
+
+            let speakers = config.speakers.read().await;
+            let speakers_id = speakers.get_id().to_owned();
+            if (speakers.as_ref().cast() as Option<&dyn OnOff>).is_none() {
+                return Err(DeviceConfigError::MissingTrait(speakers_id, "OnOff".into()));
+            }
+        }
+
+        Ok(AudioSetup { config })
+    }
+}
+
 impl Device for AudioSetup {
-    fn get_id(&self) -> &str {
-        &self.identifier
+    fn get_id(&self) -> String {
+        self.config.identifier.clone()
     }
 }
 
@@ -70,7 +65,10 @@ impl OnMqtt for AudioSetup {
         let action = match RemoteMessage::try_from(message) {
             Ok(message) => message.action(),
             Err(err) => {
-                error!(id = self.identifier, "Failed to parse message: {err}");
+                error!(
+                    id = self.config.identifier,
+                    "Failed to parse message: {err}"
+                );
                 return;
             }
         };
@@ -119,7 +117,7 @@ impl OnPresence for AudioSetup {
         ) {
             // Turn off the audio setup when we leave the house
             if !presence {
-                debug!(id = self.identifier, "Turning devices off");
+                debug!(id = self.config.identifier, "Turning devices off");
                 speakers.set_on(false).await.unwrap();
                 mixer.set_on(false).await.unwrap();
             }

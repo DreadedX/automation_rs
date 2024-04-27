@@ -14,7 +14,7 @@ pub trait GoogleHomeDevice:
 {
     fn get_device_type(&self) -> Type;
     fn get_device_name(&self) -> Name;
-    fn get_id(&self) -> &str;
+    fn get_id(&self) -> String;
     fn is_online(&self) -> bool;
 
     // Default values that can optionally be overriden
@@ -31,7 +31,7 @@ pub trait GoogleHomeDevice:
     async fn sync(&self) -> response::sync::Device {
         let name = self.get_device_name();
         let mut device =
-            response::sync::Device::new(self.get_id(), &name.name, self.get_device_type());
+            response::sync::Device::new(&self.get_id(), &name.name, self.get_device_type());
 
         device.name = name;
         device.will_report_state = self.will_report_state();

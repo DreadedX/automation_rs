@@ -7,11 +7,10 @@ use automation_macro::{LuaDevice, LuaDeviceConfig};
 use google_home::errors::ErrorCode;
 use google_home::traits::OnOff;
 use rumqttc::Publish;
-use tracing::{debug, error, warn};
+use tracing::{debug, error, trace, warn};
 
 use super::Device;
 use crate::config::MqttDeviceConfig;
-use crate::device_manager::DeviceConfig;
 use crate::error::DeviceConfigError;
 use crate::event::OnMqtt;
 use crate::messages::{RemoteAction, RemoteMessage};
@@ -19,6 +18,7 @@ use crate::traits::Timeout;
 
 #[derive(Debug, Clone, LuaDeviceConfig)]
 pub struct HueGroupConfig {
+    identifier: String,
     #[device_config(rename("ip"), with(|ip| SocketAddr::new(ip, 80)))]
     pub addr: SocketAddr,
     pub login: String,
@@ -29,27 +29,19 @@ pub struct HueGroupConfig {
     pub remotes: Vec<MqttDeviceConfig>,
 }
 
-#[async_trait]
-impl DeviceConfig for HueGroupConfig {
-    async fn create(&self, identifier: &str) -> Result<Box<dyn Device>, DeviceConfigError> {
-        let device = HueGroup {
-            identifier: identifier.into(),
-            config: self.clone(),
-        };
-
-        Ok(Box::new(device))
-    }
-}
-
 #[derive(Debug, LuaDevice)]
 pub struct HueGroup {
-    identifier: String,
     #[config]
     config: HueGroupConfig,
 }
 
 // Couple of helper function to get the correct urls
 impl HueGroup {
+    async fn create(config: HueGroupConfig) -> Result<Self, DeviceConfigError> {
+        trace!(id = config.identifier, "Setting up AudioSetup");
+        Ok(Self { config })
+    }
+
     fn url_base(&self) -> String {
         format!("http://{}/api/{}", self.config.addr, self.config.login)
     }
@@ -68,8 +60,8 @@ impl HueGroup {
 }
 
 impl Device for HueGroup {
-    fn get_id(&self) -> &str {
-        &self.identifier
+    fn get_id(&self) -> String {
+        self.config.identifier.clone()
     }
 }
 
@@ -87,7 +79,10 @@ impl OnMqtt for HueGroup {
         let action = match RemoteMessage::try_from(message) {
             Ok(message) => message.action(),
             Err(err) => {
-                error!(id = self.identifier, "Failed to parse message: {err}");
+                error!(
+                    id = self.config.identifier,
+                    "Failed to parse message: {err}"
+                );
                 return;
             }
         };
@@ -126,10 +121,13 @@ impl OnOff for HueGroup {
             Ok(res) => {
                 let status = res.status();
                 if !status.is_success() {
-                    warn!(id = self.identifier, "Status code is not success: {status}");
+                    warn!(
+                        id = self.config.identifier,
+                        "Status code is not success: {status}"
+                    );
                 }
             }
-            Err(err) => error!(id = self.identifier, "Error: {err}"),
+            Err(err) => error!(id = self.config.identifier, "Error: {err}"),
         }
 
         Ok(())
@@ -145,13 +143,19 @@ impl OnOff for HueGroup {
             Ok(res) => {
                 let status = res.status();
                 if !status.is_success() {
-                    warn!(id = self.identifier, "Status code is not success: {status}");
+                    warn!(
+                        id = self.config.identifier,
+                        "Status code is not success: {status}"
+                    );
                 }
 
                 let on = match res.json::<message::Info>().await {
                     Ok(info) => info.any_on(),
                     Err(err) => {
-                        error!(id = self.identifier, "Failed to parse message: {err}");
+                        error!(
+                            id = self.config.identifier,
+                            "Failed to parse message: {err}"
+                        );
                         // TODO: Error code
                         return Ok(false);
                     }
@@ -159,7 +163,7 @@ impl OnOff for HueGroup {
 
                 return Ok(on);
             }
-            Err(err) => error!(id = self.identifier, "Error: {err}"),
+            Err(err) => error!(id = self.config.identifier, "Error: {err}"),
         }
 
         Ok(false)

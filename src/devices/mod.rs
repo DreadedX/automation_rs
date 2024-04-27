@@ -47,5 +47,5 @@ pub trait Device:
     + Cast<dyn OnOff>
     + Cast<dyn Timeout>
 {
-    fn get_id(&self) -> &str;
+    fn get_id(&self) -> String;
 }

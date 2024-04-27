@@ -13,7 +13,6 @@ use tokio::task::JoinHandle;
 use tracing::{debug, error, trace, warn};
 
 use crate::config::{InfoConfig, MqttDeviceConfig};
-use crate::device_manager::DeviceConfig;
 use crate::devices::Device;
 use crate::error::DeviceConfigError;
 use crate::event::{OnMqtt, OnPresence};
@@ -46,30 +45,8 @@ pub struct IkeaOutletConfig {
     client: WrappedAsyncClient,
 }
 
-#[async_trait]
-impl DeviceConfig for IkeaOutletConfig {
-    async fn create(&self, identifier: &str) -> Result<Box<dyn Device>, DeviceConfigError> {
-        trace!(
-            id = identifier,
-            name = self.info.name,
-            room = self.info.room,
-            "Setting up IkeaOutlet"
-        );
-
-        let device = IkeaOutlet {
-            identifier: identifier.into(),
-            config: self.clone(),
-            last_known_state: false,
-            handle: None,
-        };
-
-        Ok(Box::new(device))
-    }
-}
-
 #[derive(Debug, LuaDevice)]
 pub struct IkeaOutlet {
-    identifier: String,
     #[config]
     config: IkeaOutletConfig,
 
@@ -94,9 +71,21 @@ async fn set_on(client: WrappedAsyncClient, topic: &str, on: bool) {
         .ok();
 }
 
+impl IkeaOutlet {
+    async fn create(config: IkeaOutletConfig) -> Result<Self, DeviceConfigError> {
+        trace!(id = config.info.identifier(), "Setting up IkeaOutlet");
+
+        Ok(Self {
+            config,
+            last_known_state: false,
+            handle: None,
+        })
+    }
+}
+
 impl Device for IkeaOutlet {
-    fn get_id(&self) -> &str {
-        &self.identifier
+    fn get_id(&self) -> String {
+        self.config.info.identifier()
     }
 }
 
@@ -122,7 +111,7 @@ impl OnMqtt for IkeaOutlet {
             let state = match OnOffMessage::try_from(message) {
                 Ok(state) => state.state(),
                 Err(err) => {
-                    error!(id = self.identifier, "Failed to parse message: {err}");
+                    error!(id = Device::get_id(self), "Failed to parse message: {err}");
                     return;
                 }
             };
@@ -135,7 +124,7 @@ impl OnMqtt for IkeaOutlet {
             // Abort any timer that is currently running
             self.stop_timeout().await.unwrap();
 
-            debug!(id = self.identifier, "Updating state to {state}");
+            debug!(id = Device::get_id(self), "Updating state to {state}");
             self.last_known_state = state;
 
             // If this is a kettle start a timeout for turning it of again
@@ -146,7 +135,7 @@ impl OnMqtt for IkeaOutlet {
             let action = match RemoteMessage::try_from(message) {
                 Ok(message) => message.action(),
                 Err(err) => {
-                    error!(id = self.identifier, "Failed to parse message: {err}");
+                    error!(id = Device::get_id(self), "Failed to parse message: {err}");
                     return;
                 }
             };
@@ -166,7 +155,7 @@ impl OnPresence for IkeaOutlet {
     async fn on_presence(&mut self, presence: bool) {
         // Turn off the outlet when we leave the house (Not if it is a battery charger)
         if !presence && self.config.outlet_type != OutletType::Charger {
-            debug!(id = self.identifier, "Turning device off");
+            debug!(id = Device::get_id(self), "Turning device off");
             self.set_on(false).await.ok();
         }
     }
@@ -186,7 +175,7 @@ impl GoogleHomeDevice for IkeaOutlet {
         device::Name::new(&self.config.info.name)
     }
 
-    fn get_id(&self) -> &str {
+    fn get_id(&self) -> String {
         Device::get_id(self)
     }
 
@@ -228,7 +217,7 @@ impl crate::traits::Timeout for IkeaOutlet {
         // get dropped
         let client = self.config.client.clone();
         let topic = self.config.mqtt.topic.clone();
-        let id = self.identifier.clone();
+        let id = Device::get_id(self).clone();
         self.handle = Some(tokio::spawn(async move {
             debug!(id, "Starting timeout ({timeout:?})...");
             tokio::time::sleep(timeout).await;

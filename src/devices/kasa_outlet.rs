@@ -13,39 +13,31 @@ use tokio::net::TcpStream;
 use tracing::trace;
 
 use super::Device;
-use crate::device_manager::DeviceConfig;
 use crate::error::DeviceConfigError;
 
 #[derive(Debug, Clone, LuaDeviceConfig)]
 pub struct KasaOutletConfig {
+    identifier: String,
     #[device_config(rename("ip"), with(|ip| SocketAddr::new(ip, 9999)))]
     addr: SocketAddr,
 }
 
-#[async_trait]
-impl DeviceConfig for KasaOutletConfig {
-    async fn create(&self, identifier: &str) -> Result<Box<dyn Device>, DeviceConfigError> {
-        trace!(id = identifier, "Setting up KasaOutlet");
-
-        let device = KasaOutlet {
-            identifier: identifier.into(),
-            config: self.clone(),
-        };
-
-        Ok(Box::new(device))
-    }
-}
-
 #[derive(Debug, LuaDevice)]
 pub struct KasaOutlet {
-    identifier: String,
     #[config]
     config: KasaOutletConfig,
 }
 
+impl KasaOutlet {
+    async fn create(config: KasaOutletConfig) -> Result<Self, DeviceConfigError> {
+        trace!(id = config.identifier, "Setting up KasaOutlet");
+        Ok(Self { config })
+    }
+}
+
 impl Device for KasaOutlet {
-    fn get_id(&self) -> &str {
-        &self.identifier
+    fn get_id(&self) -> String {
+        self.config.identifier.clone()
     }
 }
 

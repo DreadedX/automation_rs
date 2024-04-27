@@ -1,18 +1,18 @@
 use async_trait::async_trait;
 use automation_macro::{LuaDevice, LuaDeviceConfig};
 use rumqttc::Publish;
-use tracing::{debug, error, warn};
+use tracing::{debug, error, trace, warn};
 
 use super::ntfy::Priority;
 use super::{Device, Notification};
 use crate::config::MqttDeviceConfig;
-use crate::device_manager::DeviceConfig;
 use crate::error::DeviceConfigError;
 use crate::event::{self, Event, EventChannel, OnMqtt};
 use crate::messages::PowerMessage;
 
 #[derive(Debug, Clone, LuaDeviceConfig)]
 pub struct WasherConfig {
+    identifier: String,
     #[device_config(flatten)]
     mqtt: MqttDeviceConfig,
     // Power in Watt
@@ -21,33 +21,25 @@ pub struct WasherConfig {
     pub tx: event::Sender,
 }
 
-#[async_trait]
-impl DeviceConfig for WasherConfig {
-    async fn create(&self, identifier: &str) -> Result<Box<dyn Device>, DeviceConfigError> {
-        let device = Washer {
-            identifier: identifier.into(),
-            config: self.clone(),
-            running: 0,
-        };
-
-        Ok(Box::new(device))
-    }
-}
-
 // TODO: Add google home integration
-
 #[derive(Debug, LuaDevice)]
 pub struct Washer {
-    identifier: String,
     #[config]
     config: WasherConfig,
 
     running: isize,
 }
 
+impl Washer {
+    async fn create(config: WasherConfig) -> Result<Self, DeviceConfigError> {
+        trace!(id = config.identifier, "Setting up Washer");
+        Ok(Self { config, running: 0 })
+    }
+}
+
 impl Device for Washer {
-    fn get_id(&self) -> &str {
-        &self.identifier
+    fn get_id(&self) -> String {
+        self.config.identifier.clone()
     }
 }
 
@@ -66,7 +58,10 @@ impl OnMqtt for Washer {
         let power = match PowerMessage::try_from(message) {
             Ok(state) => state.power(),
             Err(err) => {
-                error!(id = self.identifier, "Failed to parse message: {err}");
+                error!(
+                    id = self.config.identifier,
+                    "Failed to parse message: {err}"
+                );
                 return;
             }
         };
@@ -76,7 +71,7 @@ impl OnMqtt for Washer {
         if power < self.config.threshold && self.running >= HYSTERESIS {
             // The washer is done running
             debug!(
-                id = self.identifier,
+                id = self.config.identifier,
                 power,
                 threshold = self.config.threshold,
                 "Washer is done"
@@ -104,7 +99,7 @@ impl OnMqtt for Washer {
         } else if power >= self.config.threshold && self.running < HYSTERESIS {
             // Washer could be starting
             debug!(
-                id = self.identifier,
+                id = self.config.identifier,
                 power,
                 threshold = self.config.threshold,
                 "Washer is starting"

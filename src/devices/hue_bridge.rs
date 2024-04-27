@@ -5,7 +5,6 @@ use automation_macro::{LuaDevice, LuaDeviceConfig};
 use serde::{Deserialize, Serialize};
 use tracing::{error, trace, warn};
 
-use crate::device_manager::DeviceConfig;
 use crate::devices::Device;
 use crate::error::DeviceConfigError;
 use crate::event::{OnDarkness, OnPresence};
@@ -24,27 +23,15 @@ pub struct FlagIDs {
 
 #[derive(Debug, LuaDeviceConfig, Clone)]
 pub struct HueBridgeConfig {
+    pub identifier: String,
     #[device_config(rename("ip"), with(|ip| SocketAddr::new(ip, 80)))]
     pub addr: SocketAddr,
     pub login: String,
     pub flags: FlagIDs,
 }
 
-#[async_trait]
-impl DeviceConfig for HueBridgeConfig {
-    async fn create(&self, identifier: &str) -> Result<Box<dyn Device>, DeviceConfigError> {
-        let device = HueBridge {
-            identifier: identifier.into(),
-            config: self.clone(),
-        };
-
-        Ok(Box::new(device))
-    }
-}
-
 #[derive(Debug, LuaDevice)]
 pub struct HueBridge {
-    identifier: String,
     #[config]
     config: HueBridgeConfig,
 }
@@ -55,6 +42,11 @@ struct FlagMessage {
 }
 
 impl HueBridge {
+    async fn create(config: HueBridgeConfig) -> Result<Self, DeviceConfigError> {
+        trace!(id = config.identifier, "Setting up HueBridge");
+        Ok(Self { config })
+    }
+
     pub async fn set_flag(&self, flag: Flag, value: bool) {
         let flag_id = match flag {
             Flag::Presence => self.config.flags.presence,
@@ -88,8 +80,8 @@ impl HueBridge {
 }
 
 impl Device for HueBridge {
-    fn get_id(&self) -> &str {
-        &self.identifier
+    fn get_id(&self) -> String {
+        self.config.identifier.clone()
     }
 }
 

@@ -8,9 +8,3 @@ mqtt:
     username: "mqtt"
     password: "${MQTT_PASSWORD}"
     tls: true
-
-ntfy:
-    topic: "${NTFY_TOPIC}"
-
-presence:
-    topic: "automation_dev/presence/+/#"

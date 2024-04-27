@@ -6,10 +6,9 @@ use google_home::traits::{AvailableSpeeds, FanSpeed, HumiditySetting, OnOff, Spe
 use google_home::types::Type;
 use google_home::GoogleHomeDevice;
 use rumqttc::Publish;
-use tracing::{debug, error, warn};
+use tracing::{debug, error, trace, warn};
 
 use crate::config::{InfoConfig, MqttDeviceConfig};
-use crate::device_manager::DeviceConfig;
 use crate::devices::Device;
 use crate::error::DeviceConfigError;
 use crate::event::OnMqtt;
@@ -26,25 +25,8 @@ pub struct AirFilterConfig {
     client: WrappedAsyncClient,
 }
 
-#[async_trait]
-impl DeviceConfig for AirFilterConfig {
-    async fn create(&self, identifier: &str) -> Result<Box<dyn Device>, DeviceConfigError> {
-        let device = AirFilter {
-            identifier: identifier.into(),
-            config: self.clone(),
-            last_known_state: AirFilterState {
-                state: AirFilterFanState::Off,
-                humidity: 0.0,
-            },
-        };
-
-        Ok(Box::new(device))
-    }
-}
-
 #[derive(Debug, LuaDevice)]
 pub struct AirFilter {
-    identifier: String,
     #[config]
     config: AirFilterConfig,
 
@@ -71,9 +53,22 @@ impl AirFilter {
     }
 }
 
+impl AirFilter {
+    async fn create(config: AirFilterConfig) -> Result<Self, DeviceConfigError> {
+        trace!(id = config.info.identifier(), "Setting up AirFilter");
+        Ok(Self {
+            config,
+            last_known_state: AirFilterState {
+                state: AirFilterFanState::Off,
+                humidity: 0.0,
+            },
+        })
+    }
+}
+
 impl Device for AirFilter {
-    fn get_id(&self) -> &str {
-        &self.identifier
+    fn get_id(&self) -> String {
+        self.config.info.identifier()
     }
 }
 
@@ -87,7 +82,7 @@ impl OnMqtt for AirFilter {
         let state = match AirFilterState::try_from(message) {
             Ok(state) => state,
             Err(err) => {
-                error!(id = self.identifier, "Failed to parse message: {err}");
+                error!(id = Device::get_id(self), "Failed to parse message: {err}");
                 return;
             }
         };
@@ -96,7 +91,7 @@ impl OnMqtt for AirFilter {
             return;
         }
 
-        debug!(id = self.identifier, "Updating state to {state:?}");
+        debug!(id = Device::get_id(self), "Updating state to {state:?}");
 
         self.last_known_state = state;
     }
@@ -111,7 +106,7 @@ impl GoogleHomeDevice for AirFilter {
         Name::new(&self.config.info.name)
     }
 
-    fn get_id(&self) -> &str {
+    fn get_id(&self) -> String {
         Device::get_id(self)
     }
 

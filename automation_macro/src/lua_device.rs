@@ -33,10 +33,11 @@ pub fn impl_lua_device_macro(ast: &DeriveInput) -> TokenStream {
         }
         impl mlua::UserData for #name {
             fn add_methods<'lua, M: mlua::UserDataMethods<'lua, Self>>(methods: &mut M) {
-                methods.add_function("new", |lua, config: mlua::Value| {
+                methods.add_async_function("new", |lua, config: mlua::Value| async {
                     let config: #config = mlua::FromLua::from_lua(config, lua)?;
-                    let config: Box<dyn crate::device_manager::DeviceConfig> = Box::new(config);
-                    Ok(config)
+                    let device = #name::create(config).await.map_err(mlua::ExternalError::into_lua_err)?;
+
+                    Ok(crate::device_manager::WrappedDevice::new(Box::new(device)))
                 });
             }
         }

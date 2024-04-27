@@ -1,60 +1,64 @@
 use std::collections::HashMap;
 
 use async_trait::async_trait;
+use automation_macro::{LuaDevice, LuaDeviceConfig};
 use rumqttc::Publish;
-use serde::Deserialize;
-use tracing::{debug, warn};
+use tracing::{debug, trace, warn};
 
 use crate::config::MqttDeviceConfig;
 use crate::devices::Device;
+use crate::error::DeviceConfigError;
 use crate::event::{self, Event, EventChannel, OnMqtt};
 use crate::messages::PresenceMessage;
 
-#[derive(Debug, Deserialize)]
+#[derive(Debug, LuaDeviceConfig)]
 pub struct PresenceConfig {
-    #[serde(flatten)]
+    #[device_config(flatten)]
     pub mqtt: MqttDeviceConfig,
+    #[device_config(from_lua, rename("event_channel"), with(|ec: EventChannel| ec.get_tx()))]
+    tx: event::Sender,
 }
 
 pub const DEFAULT_PRESENCE: bool = false;
 
-#[derive(Debug)]
+#[derive(Debug, LuaDevice)]
 pub struct Presence {
-    tx: event::Sender,
-    mqtt: MqttDeviceConfig,
+    #[config]
+    config: PresenceConfig,
     devices: HashMap<String, bool>,
     current_overall_presence: bool,
 }
 
 impl Presence {
-    pub fn new(config: PresenceConfig, event_channel: &EventChannel) -> Self {
-        Self {
-            tx: event_channel.get_tx(),
-            mqtt: config.mqtt,
+    async fn create(config: PresenceConfig) -> Result<Self, DeviceConfigError> {
+        trace!(id = "ntfy", "Setting up Presence");
+        Ok(Self {
+            config,
             devices: HashMap::new(),
             current_overall_presence: DEFAULT_PRESENCE,
-        }
+        })
     }
 }
 
 impl Device for Presence {
-    fn get_id(&self) -> &str {
-        "presence"
+    fn get_id(&self) -> String {
+        "presence".to_string()
     }
 }
 
 #[async_trait]
 impl OnMqtt for Presence {
     fn topics(&self) -> Vec<&str> {
-        vec![&self.mqtt.topic]
+        vec![&self.config.mqtt.topic]
     }
 
     async fn on_mqtt(&mut self, message: Publish) {
         let offset = self
+            .config
             .mqtt
             .topic
             .find('+')
-            .or(self.mqtt.topic.find('#'))
+            .or(self.config.mqtt.topic.find('#'))
             .expect("Presence::create fails if it does not contain wildcards");
         let device_name = message.topic[offset..].into();
 
@@ -81,6 +85,7 @@ impl OnMqtt for Presence {
             self.current_overall_presence = overall_presence;
 
             if self
+                .config
                 .tx
                 .send(Event::Presence(overall_presence))
                 .await

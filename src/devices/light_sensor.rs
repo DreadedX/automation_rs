@@ -4,7 +4,6 @@ use rumqttc::Publish;
 use tracing::{debug, trace, warn};
 
 use crate::config::MqttDeviceConfig;
-use crate::device_manager::DeviceConfig;
 use crate::devices::Device;
 use crate::error::DeviceConfigError;
 use crate::event::{self, Event, EventChannel, OnMqtt};
@@ -12,6 +11,7 @@ use crate::messages::BrightnessMessage;
 
 #[derive(Debug, Clone, LuaDeviceConfig)]
 pub struct LightSensorConfig {
+    identifier: String,
     #[device_config(flatten)]
     pub mqtt: MqttDeviceConfig,
     pub min: isize,
@@ -22,34 +22,27 @@ pub struct LightSensorConfig {
 
 pub const DEFAULT: bool = false;
 
-// TODO: The light sensor should get a list of devices that it should inform
-
-#[async_trait]
-impl DeviceConfig for LightSensorConfig {
-    async fn create(&self, identifier: &str) -> Result<Box<dyn Device>, DeviceConfigError> {
-        let device = LightSensor {
-            identifier: identifier.into(),
-            // Add helper type that does this conversion for us
-            config: self.clone(),
-            is_dark: DEFAULT,
-        };
-
-        Ok(Box::new(device))
-    }
-}
-
 #[derive(Debug, LuaDevice)]
 pub struct LightSensor {
-    identifier: String,
     #[config]
     config: LightSensorConfig,
 
     is_dark: bool,
 }
 
+impl LightSensor {
+    async fn create(config: LightSensorConfig) -> Result<Self, DeviceConfigError> {
+        trace!(id = config.identifier, "Setting up LightSensor");
+        Ok(Self {
+            config,
+            is_dark: DEFAULT,
+        })
+    }
+}
+
 impl Device for LightSensor {
-    fn get_id(&self) -> &str {
-        &self.identifier
+    fn get_id(&self) -> String {
+        self.config.identifier.clone()
     }
 }
 

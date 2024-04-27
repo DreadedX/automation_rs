@@ -7,9 +7,3 @@ mqtt:
     client_name: "automation_rs"
     username: "mqtt"
     password: "${MQTT_PASSWORD}"
-
-ntfy:
-    topic: "${NTFY_TOPIC}"
-
-presence:
-    topic: "automation/presence/+/#"

@@ -12,7 +12,6 @@ use tracing::{debug, error, trace};
 
 use super::Device;
 use crate::config::{InfoConfig, MqttDeviceConfig};
-use crate::device_manager::DeviceConfig;
 use crate::error::DeviceConfigError;
 use crate::event::OnMqtt;
 use crate::messages::ActivateMessage;
@@ -28,37 +27,23 @@ pub struct WakeOnLANConfig {
     broadcast_ip: Ipv4Addr,
 }
 
-#[async_trait]
-impl DeviceConfig for WakeOnLANConfig {
-    async fn create(&self, identifier: &str) -> Result<Box<dyn Device>, DeviceConfigError> {
-        trace!(
-            id = identifier,
-            name = self.info.name,
-            room = self.info.room,
-            "Setting up WakeOnLAN"
-        );
-
-        debug!("broadcast_ip = {}", self.broadcast_ip);
-
-        let device = WakeOnLAN {
-            identifier: identifier.into(),
-            config: self.clone(),
-        };
-
-        Ok(Box::new(device))
-    }
-}
-
 #[derive(Debug, LuaDevice)]
 pub struct WakeOnLAN {
-    identifier: String,
     #[config]
     config: WakeOnLANConfig,
 }
 
+impl WakeOnLAN {
+    async fn create(config: WakeOnLANConfig) -> Result<Self, DeviceConfigError> {
+        trace!(id = config.info.identifier(), "Setting up WakeOnLAN");
+
+        Ok(Self { config })
+    }
+}
+
 impl Device for WakeOnLAN {
-    fn get_id(&self) -> &str {
-        &self.identifier
+    fn get_id(&self) -> String {
+        self.config.info.identifier()
     }
 }
 
@@ -72,7 +57,7 @@ impl OnMqtt for WakeOnLAN {
         let activate = match ActivateMessage::try_from(message) {
             Ok(message) => message.activate(),
             Err(err) => {
-                error!(id = self.identifier, "Failed to parse message: {err}");
+                error!(id = Device::get_id(self), "Failed to parse message: {err}");
                 return;
             }
         };
@@ -93,7 +78,7 @@ impl GoogleHomeDevice for WakeOnLAN {
         name
     }
 
-    fn get_id(&self) -> &str {
+    fn get_id(&self) -> String {
         Device::get_id(self)
     }
 
@@ -111,14 +96,14 @@ impl traits::Scene for WakeOnLAN {
     async fn set_active(&self, activate: bool) -> Result<(), ErrorCode> {
         if activate {
             debug!(
-                id = self.identifier,
+                id = Device::get_id(self),
                 "Activating Computer: {} (Sending to {})",
                 self.config.mac_address,
                 self.config.broadcast_ip
             );
             let wol = wakey::WolPacket::from_bytes(&self.config.mac_address.to_array()).map_err(
                 |err| {
-                    error!(id = self.identifier, "invalid mac address: {err}");
+                    error!(id = Device::get_id(self), "invalid mac address: {err}");
                     google_home::errors::DeviceError::TransientError
                 },
             )?;
@@ -129,13 +114,16 @@ impl traits::Scene for WakeOnLAN {
             )
             .await
             .map_err(|err| {
-                error!(id = self.identifier, "Failed to activate computer: {err}");
+                error!(
+                    id = Device::get_id(self),
+                    "Failed to activate computer: {err}"
+                );
                 google_home::errors::DeviceError::TransientError.into()
             })
-            .map(|_| debug!(id = self.identifier, "Success!"))
+            .map(|_| debug!(id = Device::get_id(self), "Success!"))
         } else {
             debug!(
-                id = self.identifier,
+                id = Device::get_id(self),
                 "Trying to deactivate computer, this is not currently supported"
             );
             // We do not support deactivating this scene

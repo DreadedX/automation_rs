@@ -1,20 +1,14 @@
 use std::collections::HashMap;
 
 use async_trait::async_trait;
+use automation_macro::{LuaDevice, LuaDeviceConfig};
 use serde::Serialize;
 use serde_repr::*;
-use tracing::{debug, error, warn};
+use tracing::{error, trace, warn};
 
-use crate::config::NtfyConfig;
 use crate::devices::Device;
+use crate::error::DeviceConfigError;
 use crate::event::{self, Event, EventChannel, OnNotification, OnPresence};
-
-#[derive(Debug)]
-pub struct Ntfy {
-    base_url: String,
-    topic: String,
-    tx: event::Sender,
-}
 
 #[derive(Debug, Serialize_repr, Clone, Copy)]
 #[repr(u8)]
@@ -116,22 +110,41 @@ impl Default for Notification {
     }
 }
 
-impl Ntfy {
-    pub fn new(config: NtfyConfig, event_channel: &EventChannel) -> Self {
-        Self {
-            base_url: config.url,
-            topic: config.topic,
-            tx: event_channel.get_tx(),
-        }
-    }
+#[derive(Debug, LuaDeviceConfig)]
+pub struct NtfyConfig {
+    #[device_config(default("https://ntfy.sh".into()))]
+    url: String,
+    topic: String,
+    #[device_config(rename("event_channel"), from_lua, with(|ec: EventChannel| ec.get_tx()))]
+    tx: event::Sender,
+}
 
+#[derive(Debug, LuaDevice)]
+pub struct Ntfy {
+    #[config]
+    config: NtfyConfig,
+}
+
+impl Ntfy {
+    async fn create(config: NtfyConfig) -> Result<Self, DeviceConfigError> {
+        trace!(id = "ntfy", "Setting up Ntfy");
+        Ok(Self { config })
+    }
+}
+
+impl Device for Ntfy {
+    fn get_id(&self) -> String {
+        "ntfy".to_string()
+    }
+}
+
+impl Ntfy {
     async fn send(&self, notification: Notification) {
-        let notification = notification.finalize(&self.topic);
-        debug!("Sending notfication");
+        let notification = notification.finalize(&self.config.topic);
 
         // Create the request
         let res = reqwest::Client::new()
-            .post(self.base_url.clone())
+            .post(self.config.url.clone())
             .json(&notification)
             .send()
             .await;
@@ -144,12 +157,6 @@ impl Ntfy {
                 warn!("Received status {status} when sending notification");
             }
         }
-    }
-}
-
-impl Device for Ntfy {
-    fn get_id(&self) -> &str {
-        "ntfy"
     }
 }
 
@@ -177,7 +184,13 @@ impl OnPresence for Ntfy {
             .add_action(action)
             .set_priority(Priority::Low);
 
-        if self.tx.send(Event::Ntfy(notification)).await.is_err() {
+        if self
+            .config
+            .tx
+            .send(Event::Ntfy(notification))
+            .await
+            .is_err()
+        {
             warn!("There are no receivers on the event channel");
         }
     }

@@ -1,9 +1,8 @@
 use async_trait::async_trait;
 use automation_macro::{LuaDevice, LuaDeviceConfig};
-use tracing::warn;
+use tracing::{trace, warn};
 
 use crate::config::MqttDeviceConfig;
-use crate::device_manager::DeviceConfig;
 use crate::devices::Device;
 use crate::error::DeviceConfigError;
 use crate::event::{OnDarkness, OnPresence};
@@ -12,34 +11,29 @@ use crate::mqtt::WrappedAsyncClient;
 
 #[derive(Debug, LuaDeviceConfig, Clone)]
 pub struct DebugBridgeConfig {
+    identifier: String,
     #[device_config(flatten)]
     pub mqtt: MqttDeviceConfig,
     #[device_config(from_lua)]
     client: WrappedAsyncClient,
 }
 
-#[async_trait]
-impl DeviceConfig for DebugBridgeConfig {
-    async fn create(&self, identifier: &str) -> Result<Box<dyn Device>, DeviceConfigError> {
-        let device = DebugBridge {
-            identifier: identifier.into(),
-            config: self.clone(),
-        };
-
-        Ok(Box::new(device))
-    }
-}
-
 #[derive(Debug, LuaDevice)]
 pub struct DebugBridge {
-    identifier: String,
     #[config]
     config: DebugBridgeConfig,
 }
 
+impl DebugBridge {
+    async fn create(config: DebugBridgeConfig) -> Result<Self, DeviceConfigError> {
+        trace!(id = config.identifier, "Setting up DebugBridge");
+        Ok(Self { config })
+    }
+}
+
 impl Device for DebugBridge {
-    fn get_id(&self) -> &str {
-        &self.identifier
+    fn get_id(&self) -> String {
+        self.config.identifier.clone()
     }
 }
 

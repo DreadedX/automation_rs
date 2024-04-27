@@ -9,7 +9,7 @@ use tracing::{debug, error, trace, warn};
 
 use super::Device;
 use crate::config::MqttDeviceConfig;
-use crate::device_manager::{DeviceConfig, WrappedDevice};
+use crate::device_manager::WrappedDevice;
 use crate::devices::DEFAULT_PRESENCE;
 use crate::error::DeviceConfigError;
 use crate::event::{OnMqtt, OnPresence};
@@ -51,6 +51,7 @@ pub struct TriggerConfig {
 
 #[derive(Debug, Clone, LuaDeviceConfig)]
 pub struct ContactSensorConfig {
+    identifier: String,
     #[device_config(flatten)]
     mqtt: MqttDeviceConfig,
     #[device_config(from_lua)]
@@ -61,13 +62,22 @@ pub struct ContactSensorConfig {
     client: WrappedAsyncClient,
 }
 
-#[async_trait]
-impl DeviceConfig for ContactSensorConfig {
-    async fn create(&self, identifier: &str) -> Result<Box<dyn Device>, DeviceConfigError> {
-        trace!(id = identifier, "Setting up ContactSensor");
+#[derive(Debug, LuaDevice)]
+pub struct ContactSensor {
+    #[config]
+    config: ContactSensorConfig,
+
+    overall_presence: bool,
+    is_closed: bool,
+    handle: Option<JoinHandle<()>>,
+}
+
+impl ContactSensor {
+    async fn create(config: ContactSensorConfig) -> Result<Self, DeviceConfigError> {
+        trace!(id = config.identifier, "Setting up ContactSensor");
 
         // Make sure the devices implement the required traits
-        if let Some(trigger) = &self.trigger {
+        if let Some(trigger) = &config.trigger {
             for (device, _) in &trigger.devices {
                 {
                     let device = device.read().await;
@@ -85,32 +95,18 @@ impl DeviceConfig for ContactSensorConfig {
             }
         }
 
-        let device = ContactSensor {
-            identifier: identifier.into(),
-            config: self.clone(),
+        Ok(Self {
+            config: config.clone(),
             overall_presence: DEFAULT_PRESENCE,
             is_closed: true,
             handle: None,
-        };
-
-        Ok(Box::new(device))
+        })
     }
 }
 
-#[derive(Debug, LuaDevice)]
-pub struct ContactSensor {
-    identifier: String,
-    #[config]
-    config: ContactSensorConfig,
-
-    overall_presence: bool,
-    is_closed: bool,
-    handle: Option<JoinHandle<()>>,
-}
-
 impl Device for ContactSensor {
-    fn get_id(&self) -> &str {
-        &self.identifier
+    fn get_id(&self) -> String {
+        self.config.identifier.clone()
     }
 }
 
@@ -131,7 +127,10 @@ impl OnMqtt for ContactSensor {
         let is_closed = match ContactMessage::try_from(message) {
             Ok(state) => state.is_closed(),
             Err(err) => {
-                error!(id = self.identifier, "Failed to parse message: {err}");
+                error!(
+                    id = self.config.identifier,
+                    "Failed to parse message: {err}"
+                );
                 return;
             }
         };
@@ -140,7 +139,7 @@ impl OnMqtt for ContactSensor {
             return;
         }
 
-        debug!(id = self.identifier, "Updating state to {is_closed}");
+        debug!(id = self.config.identifier, "Updating state to {is_closed}");
         self.is_closed = is_closed;
 
         if let Some(trigger) = &mut self.config.trigger {
@@ -210,7 +209,7 @@ impl OnMqtt for ContactSensor {
         } else {
             // Once the door is closed again we start a timeout for removing the presence
             let client = self.config.client.clone();
-            let id = self.identifier.clone();
+            let id = self.config.identifier.clone();
             let timeout = presence.timeout;
             let topic = presence.mqtt.topic.clone();
             self.handle = Some(tokio::spawn(async move {

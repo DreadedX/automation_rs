@@ -8,7 +8,6 @@ use serde::{Deserialize, Deserializer};
 use tracing::debug;
 
 use crate::auth::OpenIDConfig;
-use crate::devices::PresenceConfig;
 use crate::error::{ConfigParseError, MissingEnv};
 
 #[derive(Debug, Deserialize)]
@@ -18,8 +17,6 @@ pub struct Config {
     pub mqtt: MqttOptions,
     #[serde(default)]
     pub fullfillment: FullfillmentConfig,
-    pub ntfy: Option<NtfyConfig>,
-    pub presence: PresenceConfig,
 }
 
 #[derive(Debug, Clone, Deserialize)]
@@ -85,21 +82,20 @@ fn default_fullfillment_port() -> u16 {
     7878
 }
 
-#[derive(Debug, Deserialize)]
-pub struct NtfyConfig {
-    #[serde(default = "default_ntfy_url")]
-    pub url: String,
-    pub topic: String,
-}
-
-fn default_ntfy_url() -> String {
-    "https://ntfy.sh".into()
-}
-
 #[derive(Debug, Clone, Deserialize)]
 pub struct InfoConfig {
     pub name: String,
     pub room: Option<String>,
+}
+
+impl InfoConfig {
+    pub fn identifier(&self) -> String {
+        (if let Some(room) = &self.room {
+            room.to_ascii_lowercase().replace(' ', "_") + "_"
+        } else {
+            String::new()
+        }) + &self.name.to_ascii_lowercase().replace(' ', "_")
+    }
 }
 
 #[derive(Debug, Clone, Deserialize)]
