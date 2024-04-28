@@ -61,7 +61,7 @@ async fn app() -> anyhow::Result<()> {
     let (client, eventloop) = AsyncClient::new(config.mqtt.clone(), 100);
 
     // Setup the device handler
-    let device_manager = DeviceManager::new(client.clone());
+    let device_manager = DeviceManager::new();
 
     let event_channel = device_manager.event_channel();
 

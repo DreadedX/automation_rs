@@ -10,6 +10,7 @@ use crate::devices::Device;
 use crate::error::DeviceConfigError;
 use crate::event::{self, Event, EventChannel, OnMqtt};
 use crate::messages::PresenceMessage;
+use crate::mqtt::WrappedAsyncClient;
 
 #[derive(Debug, LuaDeviceConfig)]
 pub struct PresenceConfig {
@@ -17,6 +18,8 @@ pub struct PresenceConfig {
     pub mqtt: MqttDeviceConfig,
     #[device_config(from_lua, rename("event_channel"), with(|ec: EventChannel| ec.get_tx()))]
     tx: event::Sender,
+    #[device_config(from_lua)]
+    client: WrappedAsyncClient,
 }
 
 pub const DEFAULT_PRESENCE: bool = false;
@@ -32,6 +35,12 @@ pub struct Presence {
 impl Presence {
     async fn create(config: PresenceConfig) -> Result<Self, DeviceConfigError> {
         trace!(id = "ntfy", "Setting up Presence");
+
+        config
+            .client
+            .subscribe(&config.mqtt.topic, rumqttc::QoS::AtLeastOnce)
+            .await?;
+
         Ok(Self {
             config,
             devices: HashMap::new(),
@@ -48,11 +57,11 @@ impl Device for Presence {
 
 #[async_trait]
 impl OnMqtt for Presence {
-    fn topics(&self) -> Vec<&str> {
-        vec![&self.config.mqtt.topic]
-    }
-
     async fn on_mqtt(&mut self, message: Publish) {
+        if !rumqttc::matches(&message.topic, &self.config.mqtt.topic) {
+            return;
+        }
+
         let offset = self
             .config
             .mqtt

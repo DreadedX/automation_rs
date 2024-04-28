@@ -95,6 +95,11 @@ impl ContactSensor {
             }
         }
 
+        config
+            .client
+            .subscribe(&config.mqtt.topic, rumqttc::QoS::AtLeastOnce)
+            .await?;
+
         Ok(Self {
             config: config.clone(),
             overall_presence: DEFAULT_PRESENCE,
@@ -119,11 +124,11 @@ impl OnPresence for ContactSensor {
 
 #[async_trait]
 impl OnMqtt for ContactSensor {
-    fn topics(&self) -> Vec<&str> {
-        vec![&self.config.mqtt.topic]
-    }
-
     async fn on_mqtt(&mut self, message: rumqttc::Publish) {
+        if !rumqttc::matches(&message.topic, &self.config.mqtt.topic) {
+            return;
+        }
+
         let is_closed = match ContactMessage::try_from(message) {
             Ok(state) => state.is_closed(),
             Err(err) => {
@@ -192,7 +197,7 @@ impl OnMqtt for ContactSensor {
                 self.config
                     .client
                     .publish(
-                        presence.mqtt.topic.clone(),
+                        &presence.mqtt.topic,
                         rumqttc::QoS::AtLeastOnce,
                         false,
                         serde_json::to_string(&PresenceMessage::new(true)).unwrap(),
@@ -217,7 +222,7 @@ impl OnMqtt for ContactSensor {
                 tokio::time::sleep(timeout).await;
                 debug!(id, "Removing door device!");
                 client
-                    .publish(topic.clone(), rumqttc::QoS::AtLeastOnce, false, "")
+                    .publish(&topic, rumqttc::QoS::AtLeastOnce, false, "")
                     .await
                     .map_err(|err| warn!("Failed to publish presence on {topic}: {err}"))
                     .ok();

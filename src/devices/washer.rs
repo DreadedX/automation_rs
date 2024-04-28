@@ -9,6 +9,7 @@ use crate::config::MqttDeviceConfig;
 use crate::error::DeviceConfigError;
 use crate::event::{self, Event, EventChannel, OnMqtt};
 use crate::messages::PowerMessage;
+use crate::mqtt::WrappedAsyncClient;
 
 #[derive(Debug, Clone, LuaDeviceConfig)]
 pub struct WasherConfig {
@@ -19,6 +20,8 @@ pub struct WasherConfig {
     threshold: f32,
     #[device_config(rename("event_channel"), from_lua, with(|ec: EventChannel| ec.get_tx()))]
     pub tx: event::Sender,
+    #[device_config(from_lua)]
+    client: WrappedAsyncClient,
 }
 
 // TODO: Add google home integration
@@ -33,6 +36,12 @@ pub struct Washer {
 impl Washer {
     async fn create(config: WasherConfig) -> Result<Self, DeviceConfigError> {
         trace!(id = config.identifier, "Setting up Washer");
+
+        config
+            .client
+            .subscribe(&config.mqtt.topic, rumqttc::QoS::AtLeastOnce)
+            .await?;
+
         Ok(Self { config, running: 0 })
     }
 }
@@ -50,11 +59,11 @@ const HYSTERESIS: isize = 10;
 
 #[async_trait]
 impl OnMqtt for Washer {
-    fn topics(&self) -> Vec<&str> {
-        vec![&self.config.mqtt.topic]
-    }
-
     async fn on_mqtt(&mut self, message: Publish) {
+        if !rumqttc::matches(&message.topic, &self.config.mqtt.topic) {
+            return;
+        }
+
         let power = match PowerMessage::try_from(message) {
             Ok(state) => state.power(),
             Err(err) => {

@@ -8,6 +8,7 @@ use crate::devices::Device;
 use crate::error::DeviceConfigError;
 use crate::event::{self, Event, EventChannel, OnMqtt};
 use crate::messages::BrightnessMessage;
+use crate::mqtt::WrappedAsyncClient;
 
 #[derive(Debug, Clone, LuaDeviceConfig)]
 pub struct LightSensorConfig {
@@ -18,6 +19,8 @@ pub struct LightSensorConfig {
     pub max: isize,
     #[device_config(rename("event_channel"), from_lua, with(|ec: EventChannel| ec.get_tx()))]
     pub tx: event::Sender,
+    #[device_config(from_lua)]
+    client: WrappedAsyncClient,
 }
 
 pub const DEFAULT: bool = false;
@@ -33,6 +36,12 @@ pub struct LightSensor {
 impl LightSensor {
     async fn create(config: LightSensorConfig) -> Result<Self, DeviceConfigError> {
         trace!(id = config.identifier, "Setting up LightSensor");
+
+        config
+            .client
+            .subscribe(&config.mqtt.topic, rumqttc::QoS::AtLeastOnce)
+            .await?;
+
         Ok(Self {
             config,
             is_dark: DEFAULT,
@@ -48,11 +57,11 @@ impl Device for LightSensor {
 
 #[async_trait]
 impl OnMqtt for LightSensor {
-    fn topics(&self) -> Vec<&str> {
-        vec![&self.config.mqtt.topic]
-    }
-
     async fn on_mqtt(&mut self, message: Publish) {
+        if !rumqttc::matches(&message.topic, &self.config.mqtt.topic) {
+            return;
+        }
+
         let illuminance = match BrightnessMessage::try_from(message) {
             Ok(state) => state.illuminance(),
             Err(err) => {

@@ -20,6 +20,7 @@ automation.device_manager:add(Ntfy.new({
 
 automation.device_manager:add(Presence.new({
 	topic = "automation_dev/presence/+/#",
+	client = automation.mqtt_client,
 	event_channel = automation.event_channel,
 }))
 
@@ -45,6 +46,7 @@ automation.device_manager:add(HueBridge.new({
 automation.device_manager:add(LightSensor.new({
 	identifier = "living_light_sensor",
 	topic = mqtt_z2m("living/light"),
+	client = automation.mqtt_client,
 	min = 22000,
 	max = 23500,
 	event_channel = automation.event_channel,
@@ -54,6 +56,7 @@ automation.device_manager:add(WakeOnLAN.new({
 	name = "Zeus",
 	room = "Living Room",
 	topic = mqtt_automation("appliance/living_room/zeus"),
+	client = automation.mqtt_client,
 	mac_address = "30:9c:23:60:9c:13",
 	broadcast_ip = "10.0.0.255",
 }))
@@ -66,6 +69,7 @@ automation.device_manager:add(living_speakers)
 automation.device_manager:add(AudioSetup.new({
 	identifier = "living_audio",
 	topic = mqtt_z2m("living/remote"),
+	client = automation.mqtt_client,
 	mixer = living_mixer,
 	speakers = living_speakers,
 }))
@@ -95,6 +99,7 @@ automation.device_manager:add(IkeaOutlet.new({
 automation.device_manager:add(Washer.new({
 	identifier = "bathroom_washer",
 	topic = mqtt_z2m("batchroom/washer"),
+	client = automation.mqtt_client,
 	threshold = 1,
 	event_channel = automation.event_channel,
 }))
@@ -125,6 +130,7 @@ local hallway_lights = automation.device_manager:add(HueGroup.new({
 	remotes = {
 		{ topic = mqtt_z2m("hallway/remote") },
 	},
+	client = automation.mqtt_client,
 }))
 
 automation.device_manager:add(ContactSensor.new({

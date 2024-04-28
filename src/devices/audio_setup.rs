@@ -9,6 +9,7 @@ use crate::device_manager::WrappedDevice;
 use crate::error::DeviceConfigError;
 use crate::event::{OnMqtt, OnPresence};
 use crate::messages::{RemoteAction, RemoteMessage};
+use crate::mqtt::WrappedAsyncClient;
 
 #[derive(Debug, Clone, LuaDeviceConfig)]
 pub struct AudioSetupConfig {
@@ -19,6 +20,8 @@ pub struct AudioSetupConfig {
     mixer: WrappedDevice,
     #[device_config(from_lua)]
     speakers: WrappedDevice,
+    #[device_config(from_lua)]
+    client: WrappedAsyncClient,
 }
 
 #[derive(Debug, LuaDevice)]
@@ -45,6 +48,11 @@ impl AudioSetup {
             }
         }
 
+        config
+            .client
+            .subscribe(&config.mqtt.topic, rumqttc::QoS::AtLeastOnce)
+            .await?;
+
         Ok(AudioSetup { config })
     }
 }
@@ -57,11 +65,11 @@ impl Device for AudioSetup {
 
 #[async_trait]
 impl OnMqtt for AudioSetup {
-    fn topics(&self) -> Vec<&str> {
-        vec![&self.config.mqtt.topic]
-    }
-
     async fn on_mqtt(&mut self, message: rumqttc::Publish) {
+        if !rumqttc::matches(&message.topic, &self.config.mqtt.topic) {
+            return;
+        }
+
         let action = match RemoteMessage::try_from(message) {
             Ok(message) => message.action(),
             Err(err) => {

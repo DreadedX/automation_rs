@@ -6,7 +6,7 @@ use async_trait::async_trait;
 use automation_macro::{LuaDevice, LuaDeviceConfig};
 use google_home::errors::ErrorCode;
 use google_home::traits::OnOff;
-use rumqttc::Publish;
+use rumqttc::{Publish, SubscribeFilter};
 use tracing::{debug, error, trace, warn};
 
 use super::Device;
@@ -14,6 +14,7 @@ use crate::config::MqttDeviceConfig;
 use crate::error::DeviceConfigError;
 use crate::event::OnMqtt;
 use crate::messages::{RemoteAction, RemoteMessage};
+use crate::mqtt::WrappedAsyncClient;
 use crate::traits::Timeout;
 
 #[derive(Debug, Clone, LuaDeviceConfig)]
@@ -27,6 +28,8 @@ pub struct HueGroupConfig {
     pub scene_id: String,
     #[device_config(default)]
     pub remotes: Vec<MqttDeviceConfig>,
+    #[device_config(from_lua)]
+    client: WrappedAsyncClient,
 }
 
 #[derive(Debug, LuaDevice)]
@@ -39,6 +42,17 @@ pub struct HueGroup {
 impl HueGroup {
     async fn create(config: HueGroupConfig) -> Result<Self, DeviceConfigError> {
         trace!(id = config.identifier, "Setting up AudioSetup");
+
+        if !config.remotes.is_empty() {
+            config
+                .client
+                .subscribe_many(config.remotes.iter().map(|remote| SubscribeFilter {
+                    path: remote.topic.clone(),
+                    qos: rumqttc::QoS::AtLeastOnce,
+                }))
+                .await?;
+        }
+
         Ok(Self { config })
     }
 
@@ -67,15 +81,16 @@ impl Device for HueGroup {
 
 #[async_trait]
 impl OnMqtt for HueGroup {
-    fn topics(&self) -> Vec<&str> {
-        self.config
+    async fn on_mqtt(&mut self, message: Publish) {
+        if !self
+            .config
             .remotes
             .iter()
-            .map(|mqtt| mqtt.topic.as_str())
-            .collect()
-    }
+            .any(|remote| rumqttc::matches(&message.topic, &remote.topic))
+        {
+            return;
+        }
 
-    async fn on_mqtt(&mut self, message: Publish) {
         let action = match RemoteMessage::try_from(message) {
             Ok(message) => message.action(),
             Err(err) => {

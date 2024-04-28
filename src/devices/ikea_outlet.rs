@@ -7,7 +7,7 @@ use google_home::errors::ErrorCode;
 use google_home::traits::{self, OnOff};
 use google_home::types::Type;
 use google_home::{device, GoogleHomeDevice};
-use rumqttc::{matches, Publish};
+use rumqttc::{matches, Publish, SubscribeFilter};
 use serde::Deserialize;
 use tokio::task::JoinHandle;
 use tracing::{debug, error, trace, warn};
@@ -61,7 +61,7 @@ async fn set_on(client: WrappedAsyncClient, topic: &str, on: bool) {
     // TODO: Handle potential errors here
     client
         .publish(
-            topic.clone(),
+            &topic,
             rumqttc::QoS::AtLeastOnce,
             false,
             serde_json::to_string(&message).unwrap(),
@@ -74,6 +74,21 @@ async fn set_on(client: WrappedAsyncClient, topic: &str, on: bool) {
 impl IkeaOutlet {
     async fn create(config: IkeaOutletConfig) -> Result<Self, DeviceConfigError> {
         trace!(id = config.info.identifier(), "Setting up IkeaOutlet");
+
+        if !config.remotes.is_empty() {
+            config
+                .client
+                .subscribe_many(config.remotes.iter().map(|remote| SubscribeFilter {
+                    path: remote.topic.clone(),
+                    qos: rumqttc::QoS::AtLeastOnce,
+                }))
+                .await?;
+        }
+
+        config
+            .client
+            .subscribe(&config.mqtt.topic, rumqttc::QoS::AtLeastOnce)
+            .await?;
 
         Ok(Self {
             config,
@@ -91,19 +106,6 @@ impl Device for IkeaOutlet {
 
 #[async_trait]
 impl OnMqtt for IkeaOutlet {
-    fn topics(&self) -> Vec<&str> {
-        let mut topics: Vec<_> = self
-            .config
-            .remotes
-            .iter()
-            .map(|mqtt| mqtt.topic.as_str())
-            .collect();
-
-        topics.push(&self.config.mqtt.topic);
-
-        topics
-    }
-
     async fn on_mqtt(&mut self, message: Publish) {
         // Check if the message is from the deviec itself or from a remote
         if matches(&message.topic, &self.config.mqtt.topic) {
@@ -131,7 +133,12 @@ impl OnMqtt for IkeaOutlet {
             if state && let Some(timeout) = self.config.timeout {
                 self.start_timeout(timeout).await.unwrap();
             }
-        } else {
+        } else if self
+            .config
+            .remotes
+            .iter()
+            .any(|remote| rumqttc::matches(&message.topic, &remote.topic))
+        {
             let action = match RemoteMessage::try_from(message) {
                 Ok(message) => message.action(),
                 Err(err) => {

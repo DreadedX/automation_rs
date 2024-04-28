@@ -98,6 +98,8 @@ pub enum DeviceConfigError {
     MissingTrait(String, String),
     #[error(transparent)]
     MissingWildcard(#[from] MissingWildcard),
+    #[error(transparent)]
+    MqttClientError(#[from] rumqttc::ClientError),
 }
 
 #[derive(Debug, Error)]

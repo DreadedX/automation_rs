@@ -42,7 +42,7 @@ impl AirFilter {
         self.config
             .client
             .publish(
-                topic.clone(),
+                &topic,
                 rumqttc::QoS::AtLeastOnce,
                 false,
                 serde_json::to_string(&message).unwrap(),
@@ -56,6 +56,12 @@ impl AirFilter {
 impl AirFilter {
     async fn create(config: AirFilterConfig) -> Result<Self, DeviceConfigError> {
         trace!(id = config.info.identifier(), "Setting up AirFilter");
+
+        config
+            .client
+            .subscribe(&config.mqtt.topic, rumqttc::QoS::AtLeastOnce)
+            .await?;
+
         Ok(Self {
             config,
             last_known_state: AirFilterState {
@@ -74,11 +80,11 @@ impl Device for AirFilter {
 
 #[async_trait]
 impl OnMqtt for AirFilter {
-    fn topics(&self) -> Vec<&str> {
-        vec![&self.config.mqtt.topic]
-    }
-
     async fn on_mqtt(&mut self, message: Publish) {
+        if !rumqttc::matches(&message.topic, &self.config.mqtt.topic) {
+            return;
+        }
+
         let state = match AirFilterState::try_from(message) {
             Ok(state) => state,
             Err(err) => {

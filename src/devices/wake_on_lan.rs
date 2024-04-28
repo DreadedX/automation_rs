@@ -15,6 +15,7 @@ use crate::config::{InfoConfig, MqttDeviceConfig};
 use crate::error::DeviceConfigError;
 use crate::event::OnMqtt;
 use crate::messages::ActivateMessage;
+use crate::mqtt::WrappedAsyncClient;
 
 #[derive(Debug, Clone, LuaDeviceConfig)]
 pub struct WakeOnLANConfig {
@@ -25,6 +26,8 @@ pub struct WakeOnLANConfig {
     mac_address: MacAddress,
     #[device_config(default(Ipv4Addr::new(255, 255, 255, 255)))]
     broadcast_ip: Ipv4Addr,
+    #[device_config(from_lua)]
+    client: WrappedAsyncClient,
 }
 
 #[derive(Debug, LuaDevice)]
@@ -36,6 +39,11 @@ pub struct WakeOnLAN {
 impl WakeOnLAN {
     async fn create(config: WakeOnLANConfig) -> Result<Self, DeviceConfigError> {
         trace!(id = config.info.identifier(), "Setting up WakeOnLAN");
+
+        config
+            .client
+            .subscribe(&config.mqtt.topic, rumqttc::QoS::AtLeastOnce)
+            .await?;
 
         Ok(Self { config })
     }
@@ -49,11 +57,11 @@ impl Device for WakeOnLAN {
 
 #[async_trait]
 impl OnMqtt for WakeOnLAN {
-    fn topics(&self) -> Vec<&str> {
-        vec![&self.config.mqtt.topic]
-    }
-
     async fn on_mqtt(&mut self, message: Publish) {
+        if !rumqttc::matches(&message.topic, &self.config.mqtt.topic) {
+            return;
+        }
+
         let activate = match ActivateMessage::try_from(message) {
             Ok(message) => message.activate(),
             Err(err) => {

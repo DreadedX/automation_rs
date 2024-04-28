@@ -35,7 +35,7 @@ impl mlua::UserData for EventChannel {}
 
 #[async_trait]
 pub trait OnMqtt: Sync + Send {
-    fn topics(&self) -> Vec<&str>;
+    // fn topics(&self) -> Vec<&str>;
     async fn on_mqtt(&mut self, message: Publish);
 }
 
