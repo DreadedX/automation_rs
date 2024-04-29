@@ -3,7 +3,7 @@ mod audio_setup;
 mod contact_sensor;
 mod debug_bridge;
 mod hue_bridge;
-mod hue_light;
+mod hue_group;
 mod ikea_outlet;
 mod kasa_outlet;
 mod light_sensor;
@@ -24,7 +24,7 @@ pub use self::audio_setup::*;
 pub use self::contact_sensor::*;
 pub use self::debug_bridge::*;
 pub use self::hue_bridge::*;
-pub use self::hue_light::*;
+pub use self::hue_group::*;
 pub use self::ikea_outlet::*;
 pub use self::kasa_outlet::*;
 pub use self::light_sensor::*;
@@ -43,6 +43,24 @@ pub trait LuaDeviceCreate {
     async fn create(config: Self::Config) -> Result<Self, Self::Error>
     where
         Self: Sized;
+}
+
+pub fn register_with_lua(lua: &mlua::Lua) -> mlua::Result<()> {
+    AirFilter::register_with_lua(lua)?;
+    AudioSetup::register_with_lua(lua)?;
+    ContactSensor::register_with_lua(lua)?;
+    DebugBridge::register_with_lua(lua)?;
+    HueBridge::register_with_lua(lua)?;
+    HueGroup::register_with_lua(lua)?;
+    IkeaOutlet::register_with_lua(lua)?;
+    KasaOutlet::register_with_lua(lua)?;
+    LightSensor::register_with_lua(lua)?;
+    Ntfy::register_with_lua(lua)?;
+    Presence::register_with_lua(lua)?;
+    WakeOnLAN::register_with_lua(lua)?;
+    Washer::register_with_lua(lua)?;
+
+    Ok(())
 }
 
 pub trait Device:

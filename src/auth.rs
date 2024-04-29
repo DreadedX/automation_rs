@@ -6,11 +6,6 @@ use serde::Deserialize;
 
 use crate::error::{ApiError, ApiErrorJson};
 
-#[derive(Debug, Clone, Deserialize)]
-pub struct OpenIDConfig {
-    pub base_url: String,
-}
-
 #[derive(Debug, Deserialize)]
 pub struct User {
     pub preferred_username: String,
@@ -19,18 +14,18 @@ pub struct User {
 #[async_trait]
 impl<S> FromRequestParts<S> for User
 where
-    OpenIDConfig: FromRef<S>,
+    String: FromRef<S>,
     S: Send + Sync,
 {
     type Rejection = ApiError;
 
     async fn from_request_parts(parts: &mut Parts, state: &S) -> Result<Self, Self::Rejection> {
         // Get the state
-        let openid = OpenIDConfig::from_ref(state);
+        let openid_url = String::from_ref(state);
 
         // Create a request to the auth server
         // TODO: Do some discovery to find the correct url for this instead of assuming
-        let mut req = reqwest::Client::new().get(format!("{}/userinfo", openid.base_url));
+        let mut req = reqwest::Client::new().get(format!("{}/userinfo", openid_url));
 
         // Add auth header to the request if it exists
         if let Some(auth) = parts.headers.get(axum::http::header::AUTHORIZATION) {

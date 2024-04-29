@@ -1,13 +1,12 @@
 #![feature(async_closure)]
-use std::{fs, process};
+use std::path::Path;
+use std::process;
 
-use automation::auth::{OpenIDConfig, User};
-use automation::config::{Config, MqttConfig};
+use anyhow::anyhow;
+use automation::auth::User;
+use automation::config::{FulfillmentConfig, MqttConfig};
 use automation::device_manager::DeviceManager;
-use automation::devices::{
-    AirFilter, AudioSetup, ContactSensor, DebugBridge, HueBridge, HueGroup, IkeaOutlet, KasaOutlet,
-    LightSensor, Ntfy, Presence, WakeOnLAN, Washer,
-};
+use automation::devices;
 use automation::error::ApiError;
 use automation::mqtt::{self, WrappedAsyncClient};
 use axum::extract::FromRef;
@@ -23,12 +22,12 @@ use tracing::{debug, error, info, warn};
 
 #[derive(Clone)]
 struct AppState {
-    pub openid: OpenIDConfig,
+    pub openid_url: String,
 }
 
-impl FromRef<AppState> for OpenIDConfig {
+impl FromRef<AppState> for String {
     fn from_ref(input: &AppState) -> Self {
-        input.openid.clone()
+        input.openid_url.clone()
     }
 }
 
@@ -53,77 +52,66 @@ async fn app() -> anyhow::Result<()> {
 
     info!("Starting automation_rs...");
 
-    let config_filename =
-        std::env::var("AUTOMATION_CONFIG").unwrap_or("./config/config.yml".into());
-    let config = Config::parse_file(&config_filename)?;
-
     // Setup the device handler
     let device_manager = DeviceManager::new();
 
-    // Lua testing
-    {
-        let lua = mlua::Lua::new();
+    let lua = mlua::Lua::new();
 
-        lua.set_warning_function(|_lua, text, _cont| {
-            warn!("{text}");
-            Ok(())
-        });
+    lua.set_warning_function(|_lua, text, _cont| {
+        warn!("{text}");
+        Ok(())
+    });
 
-        let automation = lua.create_table()?;
-        let event_channel = device_manager.event_channel();
-        let create_mqtt_client = lua.create_function(move |lua, config: mlua::Value| {
-            let config: MqttConfig = lua.from_value(config)?;
+    let automation = lua.create_table()?;
+    let event_channel = device_manager.event_channel();
+    let new_mqtt_client = lua.create_function(move |lua, config: mlua::Value| {
+        let config: MqttConfig = lua.from_value(config)?;
 
-            // Create a mqtt client
-            // TODO: When starting up, the devices are not yet created, this could lead to a device being out of sync
-            let (client, eventloop) = AsyncClient::new(config.into(), 100);
-            mqtt::start(eventloop, &event_channel);
+        // Create a mqtt client
+        // TODO: When starting up, the devices are not yet created, this could lead to a device being out of sync
+        let (client, eventloop) = AsyncClient::new(config.into(), 100);
+        mqtt::start(eventloop, &event_channel);
 
-            Ok(WrappedAsyncClient(client))
-        })?;
+        Ok(WrappedAsyncClient(client))
+    })?;
 
-        automation.set("create_mqtt_client", create_mqtt_client)?;
-        automation.set("device_manager", device_manager.clone())?;
-        automation.set("event_channel", device_manager.event_channel())?;
+    automation.set("new_mqtt_client", new_mqtt_client)?;
+    automation.set("device_manager", device_manager.clone())?;
 
-        let util = lua.create_table()?;
-        let get_env = lua.create_function(|_lua, name: String| {
-            std::env::var(name).map_err(mlua::ExternalError::into_lua_err)
-        })?;
-        util.set("get_env", get_env)?;
-        automation.set("util", util)?;
+    let util = lua.create_table()?;
+    let get_env = lua.create_function(|_lua, name: String| {
+        std::env::var(name).map_err(mlua::ExternalError::into_lua_err)
+    })?;
+    util.set("get_env", get_env)?;
+    automation.set("util", util)?;
 
-        lua.globals().set("automation", automation)?;
+    lua.globals().set("automation", automation)?;
 
-        // Register all the device types
-        Ntfy::register_with_lua(&lua)?;
-        Presence::register_with_lua(&lua)?;
-        AirFilter::register_with_lua(&lua)?;
-        AudioSetup::register_with_lua(&lua)?;
-        ContactSensor::register_with_lua(&lua)?;
-        DebugBridge::register_with_lua(&lua)?;
-        HueBridge::register_with_lua(&lua)?;
-        HueGroup::register_with_lua(&lua)?;
-        IkeaOutlet::register_with_lua(&lua)?;
-        KasaOutlet::register_with_lua(&lua)?;
-        LightSensor::register_with_lua(&lua)?;
-        WakeOnLAN::register_with_lua(&lua)?;
-        Washer::register_with_lua(&lua)?;
+    devices::register_with_lua(&lua)?;
 
-        // TODO: Make this not hardcoded
-        let filename = "config.lua";
-        let file = fs::read_to_string(filename)?;
-        match lua.load(file).set_name(filename).exec_async().await {
-            Err(error) => {
-                println!("{error}");
-                Err(error)
-            }
-            result => result,
-        }?;
-    }
+    // TODO: Make this not hardcoded
+    let config_filename = std::env::var("AUTOMATION_CONFIG").unwrap_or("./config.lua".into());
+    let config_path = Path::new(&config_filename);
+    match lua.load(config_path).exec_async().await {
+        Err(error) => {
+            println!("{error}");
+            Err(error)
+        }
+        result => result,
+    }?;
 
-    // Create google home fullfillment route
-    let fullfillment = Router::new().route(
+    let automation: mlua::Table = lua.globals().get("automation")?;
+    let fulfillment_config: Option<mlua::Value> = automation.get("fulfillment")?;
+    let fulfillment_config = if let Some(fulfillment_config) = fulfillment_config {
+        let fulfillment_config: FulfillmentConfig = lua.from_value(fulfillment_config)?;
+        debug!("automation.fulfillment = {fulfillment_config:?}");
+        fulfillment_config
+    } else {
+        return Err(anyhow!("Fulfillment is not configured"));
+    };
+
+    // Create google home fulfillment route
+    let fulfillment = Router::new().route(
         "/google_home",
         post(async move |user: User, Json(payload): Json<Request>| {
             debug!(username = user.preferred_username, "{payload:#?}");
@@ -145,13 +133,13 @@ async fn app() -> anyhow::Result<()> {
 
     // Combine together all the routes
     let app = Router::new()
-        .nest("/fullfillment", fullfillment)
+        .nest("/fulfillment", fulfillment)
         .with_state(AppState {
-            openid: config.openid,
+            openid_url: fulfillment_config.openid_url.clone(),
         });
 
     // Start the web server
-    let addr = config.fullfillment.into();
+    let addr = fulfillment_config.into();
     info!("Server started on http://{addr}");
     axum::Server::try_bind(&addr)?
         .serve(app.into_make_service())

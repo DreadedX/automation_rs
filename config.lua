@@ -1,5 +1,9 @@
 print("Hello from lua")
 
+automation.fulfillment = {
+	openid_url = "https://login.huizinga.dev/api/oidc",
+}
+
 local debug, value = pcall(automation.util.get_env, "DEBUG")
 if debug and value ~= "true" then
 	debug = false
@@ -13,7 +17,7 @@ local function mqtt_automation(topic)
 	return "automation/" .. topic
 end
 
-local mqtt_client = automation.create_mqtt_client({
+local mqtt_client = automation.new_mqtt_client({
 	host = debug and "olympus.lan.huizinga.dev" or "mosquitto",
 	port = 8883,
 	client_name = debug and "automation-debug" or "automation_rs",
@@ -24,13 +28,13 @@ local mqtt_client = automation.create_mqtt_client({
 
 automation.device_manager:add(Ntfy.new({
 	topic = automation.util.get_env("NTFY_TOPIC"),
-	event_channel = automation.event_channel,
+	event_channel = automation.device_manager:event_channel(),
 }))
 
 automation.device_manager:add(Presence.new({
 	topic = "automation_dev/presence/+/#",
 	client = mqtt_client,
-	event_channel = automation.event_channel,
+	event_channel = automation.device_manager:event_channel(),
 }))
 
 automation.device_manager:add(DebugBridge.new({
@@ -58,7 +62,7 @@ automation.device_manager:add(LightSensor.new({
 	client = mqtt_client,
 	min = 22000,
 	max = 23500,
-	event_channel = automation.event_channel,
+	event_channel = automation.device_manager:event_channel(),
 }))
 
 automation.device_manager:add(WakeOnLAN.new({
@@ -110,7 +114,7 @@ automation.device_manager:add(Washer.new({
 	topic = mqtt_z2m("batchroom/washer"),
 	client = mqtt_client,
 	threshold = 1,
-	event_channel = automation.event_channel,
+	event_channel = automation.device_manager:event_channel(),
 }))
 
 automation.device_manager:add(IkeaOutlet.new({

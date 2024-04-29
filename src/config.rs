@@ -1,21 +1,8 @@
-use std::fs;
 use std::net::{Ipv4Addr, SocketAddr};
 use std::time::Duration;
 
-use regex::{Captures, Regex};
 use rumqttc::{MqttOptions, Transport};
 use serde::Deserialize;
-use tracing::debug;
-
-use crate::auth::OpenIDConfig;
-use crate::error::{ConfigParseError, MissingEnv};
-
-#[derive(Debug, Deserialize)]
-pub struct Config {
-    pub openid: OpenIDConfig,
-    #[serde(default)]
-    pub fullfillment: FullfillmentConfig,
-}
 
 #[derive(Debug, Clone, Deserialize)]
 pub struct MqttConfig {
@@ -43,33 +30,25 @@ impl From<MqttConfig> for MqttOptions {
 }
 
 #[derive(Debug, Deserialize)]
-pub struct FullfillmentConfig {
-    #[serde(default = "default_fullfillment_ip")]
+pub struct FulfillmentConfig {
+    pub openid_url: String,
+    #[serde(default = "default_fulfillment_ip")]
     pub ip: Ipv4Addr,
-    #[serde(default = "default_fullfillment_port")]
+    #[serde(default = "default_fulfillment_port")]
     pub port: u16,
 }
 
-impl From<FullfillmentConfig> for SocketAddr {
-    fn from(fullfillment: FullfillmentConfig) -> Self {
-        (fullfillment.ip, fullfillment.port).into()
+impl From<FulfillmentConfig> for SocketAddr {
+    fn from(fulfillment: FulfillmentConfig) -> Self {
+        (fulfillment.ip, fulfillment.port).into()
     }
 }
 
-impl Default for FullfillmentConfig {
-    fn default() -> Self {
-        Self {
-            ip: default_fullfillment_ip(),
-            port: default_fullfillment_port(),
-        }
-    }
-}
-
-fn default_fullfillment_ip() -> Ipv4Addr {
+fn default_fulfillment_ip() -> Ipv4Addr {
     [0, 0, 0, 0].into()
 }
 
-fn default_fullfillment_port() -> u16 {
+fn default_fulfillment_port() -> u16 {
     7878
 }
 
@@ -92,32 +71,4 @@ impl InfoConfig {
 #[derive(Debug, Clone, Deserialize)]
 pub struct MqttDeviceConfig {
     pub topic: String,
-}
-
-impl Config {
-    pub fn parse_file(filename: &str) -> Result<Self, ConfigParseError> {
-        debug!("Loading config: {filename}");
-        let file = fs::read_to_string(filename)?;
-
-        // Substitute in environment variables
-        let re = Regex::new(r"\$\{(.*)\}").expect("Regex should be valid");
-        let mut missing = MissingEnv::new();
-        let file = re.replace_all(&file, |caps: &Captures| {
-            let key = caps.get(1).expect("Capture group should exist").as_str();
-            debug!("Substituting '{key}' in config");
-            match std::env::var(key) {
-                Ok(value) => value,
-                Err(_) => {
-                    missing.add_missing(key);
-                    "".into()
-                }
-            }
-        });
-
-        missing.has_missing()?;
-
-        let config: Config = serde_yaml::from_str(&file)?;
-
-        Ok(config)
-    }
 }

@@ -238,6 +238,8 @@ impl mlua::UserData for DeviceManager {
             let schedule = lua.from_value(schedule)?;
             this.add_schedule(schedule).await;
             Ok(())
-        })
+        });
+
+        methods.add_method("event_channel", |_lua, this, ()| Ok(this.event_channel()))
     }
 }

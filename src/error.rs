@@ -65,16 +65,6 @@ pub enum ParseError {
     InvalidPayload(Bytes),
 }
 
-#[derive(Debug, Error)]
-pub enum ConfigParseError {
-    #[error(transparent)]
-    MissingEnv(#[from] MissingEnv),
-    #[error(transparent)]
-    IoError(#[from] std::io::Error),
-    #[error(transparent)]
-    YamlError(#[from] serde_yaml::Error),
-}
-
 // TODO: Would be nice to somehow get the line number of the expected wildcard topic
 #[derive(Debug, Error)]
 #[error("Topic '{topic}' is expected to be a wildcard topic")]
