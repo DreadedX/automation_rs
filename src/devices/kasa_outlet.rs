@@ -17,9 +17,9 @@ use super::{Device, LuaDeviceCreate};
 
 #[derive(Debug, Clone, LuaDeviceConfig)]
 pub struct KasaOutletConfig {
-    identifier: String,
+    pub identifier: String,
     #[device_config(rename("ip"), with(|ip| SocketAddr::new(ip, 9999)))]
-    addr: SocketAddr,
+    pub addr: SocketAddr,
 }
 
 #[derive(Debug, LuaDevice)]

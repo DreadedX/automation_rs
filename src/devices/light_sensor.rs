@@ -12,7 +12,7 @@ use crate::mqtt::WrappedAsyncClient;
 
 #[derive(Debug, Clone, LuaDeviceConfig)]
 pub struct LightSensorConfig {
-    identifier: String,
+    pub identifier: String,
     #[device_config(flatten)]
     pub mqtt: MqttDeviceConfig,
     pub min: isize,
@@ -20,10 +20,10 @@ pub struct LightSensorConfig {
     #[device_config(rename("event_channel"), from_lua, with(|ec: EventChannel| ec.get_tx()))]
     pub tx: event::Sender,
     #[device_config(from_lua)]
-    client: WrappedAsyncClient,
+    pub client: WrappedAsyncClient,
 }
 
-pub const DEFAULT: bool = false;
+const DEFAULT: bool = false;
 
 #[derive(Debug, LuaDevice)]
 pub struct LightSensor {

@@ -12,15 +12,15 @@ use crate::mqtt::WrappedAsyncClient;
 
 #[derive(Debug, Clone, LuaDeviceConfig)]
 pub struct WasherConfig {
-    identifier: String,
+    pub identifier: String,
     #[device_config(flatten)]
-    mqtt: MqttDeviceConfig,
+    pub mqtt: MqttDeviceConfig,
     // Power in Watt
-    threshold: f32,
+    pub threshold: f32,
     #[device_config(rename("event_channel"), from_lua, with(|ec: EventChannel| ec.get_tx()))]
     pub tx: event::Sender,
     #[device_config(from_lua)]
-    client: WrappedAsyncClient,
+    pub client: WrappedAsyncClient,
 }
 
 // TODO: Add google home integration

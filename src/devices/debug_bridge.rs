@@ -13,11 +13,11 @@ use crate::mqtt::WrappedAsyncClient;
 
 #[derive(Debug, LuaDeviceConfig, Clone)]
 pub struct DebugBridgeConfig {
-    identifier: String,
+    pub identifier: String,
     #[device_config(flatten)]
     pub mqtt: MqttDeviceConfig,
     #[device_config(from_lua)]
-    client: WrappedAsyncClient,
+    pub client: WrappedAsyncClient,
 }
 
 #[derive(Debug, LuaDevice)]

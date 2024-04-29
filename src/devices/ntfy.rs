@@ -35,9 +35,9 @@ pub enum ActionType {
 #[derive(Debug, Serialize, Clone)]
 pub struct Action {
     #[serde(flatten)]
-    action: ActionType,
-    label: String,
-    clear: Option<bool>,
+    pub action: ActionType,
+    pub label: String,
+    pub clear: Option<bool>,
 }
 
 #[derive(Serialize)]
@@ -114,10 +114,10 @@ impl Default for Notification {
 #[derive(Debug, LuaDeviceConfig)]
 pub struct NtfyConfig {
     #[device_config(default("https://ntfy.sh".into()))]
-    url: String,
-    topic: String,
+    pub url: String,
+    pub topic: String,
     #[device_config(rename("event_channel"), from_lua, with(|ec: EventChannel| ec.get_tx()))]
-    tx: event::Sender,
+    pub tx: event::Sender,
 }
 
 #[derive(Debug, LuaDevice)]

@@ -17,9 +17,9 @@ pub struct PresenceConfig {
     #[device_config(flatten)]
     pub mqtt: MqttDeviceConfig,
     #[device_config(from_lua, rename("event_channel"), with(|ec: EventChannel| ec.get_tx()))]
-    tx: event::Sender,
+    pub tx: event::Sender,
     #[device_config(from_lua)]
-    client: WrappedAsyncClient,
+    pub client: WrappedAsyncClient,
 }
 
 pub const DEFAULT_PRESENCE: bool = false;

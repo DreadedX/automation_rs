@@ -13,15 +13,15 @@ use crate::mqtt::WrappedAsyncClient;
 
 #[derive(Debug, Clone, LuaDeviceConfig)]
 pub struct AudioSetupConfig {
-    identifier: String,
+    pub identifier: String,
     #[device_config(flatten)]
-    mqtt: MqttDeviceConfig,
+    pub mqtt: MqttDeviceConfig,
     #[device_config(from_lua)]
-    mixer: WrappedDevice,
+    pub mixer: WrappedDevice,
     #[device_config(from_lua)]
-    speakers: WrappedDevice,
+    pub speakers: WrappedDevice,
     #[device_config(from_lua)]
-    client: WrappedAsyncClient,
+    pub client: WrappedAsyncClient,
 }
 
 #[derive(Debug, LuaDevice)]

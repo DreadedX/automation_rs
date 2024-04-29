@@ -18,11 +18,11 @@ use crate::mqtt::WrappedAsyncClient;
 #[derive(Debug, Clone, LuaDeviceConfig)]
 pub struct AirFilterConfig {
     #[device_config(flatten)]
-    info: InfoConfig,
+    pub info: InfoConfig,
     #[device_config(flatten)]
-    mqtt: MqttDeviceConfig,
+    pub mqtt: MqttDeviceConfig,
     #[device_config(from_lua)]
-    client: WrappedAsyncClient,
+    pub client: WrappedAsyncClient,
 }
 
 #[derive(Debug, LuaDevice)]

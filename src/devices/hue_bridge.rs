@@ -18,8 +18,8 @@ pub enum Flag {
 
 #[derive(Debug, Clone, Deserialize)]
 pub struct FlagIDs {
-    pub presence: isize,
-    pub darkness: isize,
+    presence: isize,
+    darkness: isize,
 }
 
 #[derive(Debug, LuaDeviceConfig, Clone)]

@@ -31,18 +31,18 @@ pub enum OutletType {
 #[derive(Debug, Clone, LuaDeviceConfig)]
 pub struct IkeaOutletConfig {
     #[device_config(flatten)]
-    info: InfoConfig,
+    pub info: InfoConfig,
     #[device_config(flatten)]
-    mqtt: MqttDeviceConfig,
+    pub mqtt: MqttDeviceConfig,
     #[device_config(default(OutletType::Outlet))]
-    outlet_type: OutletType,
+    pub outlet_type: OutletType,
     #[device_config(default, with(|t: Option<_>| t.map(Duration::from_secs)))]
-    timeout: Option<Duration>,
+    pub timeout: Option<Duration>,
     #[device_config(default)]
     pub remotes: Vec<MqttDeviceConfig>,
 
     #[device_config(from_lua)]
-    client: WrappedAsyncClient,
+    pub client: WrappedAsyncClient,
 }
 
 #[derive(Debug, LuaDevice)]

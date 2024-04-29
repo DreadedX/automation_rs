@@ -19,14 +19,14 @@ use crate::mqtt::WrappedAsyncClient;
 #[derive(Debug, Clone, LuaDeviceConfig)]
 pub struct WakeOnLANConfig {
     #[device_config(flatten)]
-    info: InfoConfig,
+    pub info: InfoConfig,
     #[device_config(flatten)]
-    mqtt: MqttDeviceConfig,
-    mac_address: MacAddress,
+    pub mqtt: MqttDeviceConfig,
+    pub mac_address: MacAddress,
     #[device_config(default(Ipv4Addr::new(255, 255, 255, 255)))]
-    broadcast_ip: Ipv4Addr,
+    pub broadcast_ip: Ipv4Addr,
     #[device_config(from_lua)]
-    client: WrappedAsyncClient,
+    pub client: WrappedAsyncClient,
 }
 
 #[derive(Debug, LuaDevice)]

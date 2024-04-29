@@ -18,7 +18,7 @@ use crate::traits::Timeout;
 
 #[derive(Debug, Clone, LuaDeviceConfig)]
 pub struct HueGroupConfig {
-    identifier: String,
+    pub identifier: String,
     #[device_config(rename("ip"), with(|ip| SocketAddr::new(ip, 80)))]
     pub addr: SocketAddr,
     pub login: String,
@@ -28,7 +28,7 @@ pub struct HueGroupConfig {
     #[device_config(default)]
     pub remotes: Vec<MqttDeviceConfig>,
     #[device_config(from_lua)]
-    client: WrappedAsyncClient,
+    pub client: WrappedAsyncClient,
 }
 
 #[derive(Debug, LuaDevice)]
