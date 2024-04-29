@@ -1,9 +1,2 @@
 openid:
     base_url: "https://login.huizinga.dev/api/oidc"
-
-mqtt:
-    host: "mosquitto"
-    port: 8883
-    client_name: "automation_rs"
-    username: "mqtt"
-    password: "${MQTT_PASSWORD}"

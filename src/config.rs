@@ -4,7 +4,7 @@ use std::time::Duration;
 
 use regex::{Captures, Regex};
 use rumqttc::{MqttOptions, Transport};
-use serde::{Deserialize, Deserializer};
+use serde::Deserialize;
 use tracing::debug;
 
 use crate::auth::OpenIDConfig;
@@ -13,8 +13,6 @@ use crate::error::{ConfigParseError, MissingEnv};
 #[derive(Debug, Deserialize)]
 pub struct Config {
     pub openid: OpenIDConfig,
-    #[serde(deserialize_with = "deserialize_mqtt_options")]
-    pub mqtt: MqttOptions,
     #[serde(default)]
     pub fullfillment: FullfillmentConfig,
 }
@@ -42,13 +40,6 @@ impl From<MqttConfig> for MqttOptions {
 
         mqtt_options
     }
-}
-
-fn deserialize_mqtt_options<'de, D>(deserializer: D) -> Result<MqttOptions, D::Error>
-where
-    D: Deserializer<'de>,
-{
-    Ok(MqttOptions::from(MqttConfig::deserialize(deserializer)?))
 }
 
 #[derive(Debug, Deserialize)]

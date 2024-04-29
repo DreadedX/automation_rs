@@ -2,7 +2,7 @@
 use std::{fs, process};
 
 use automation::auth::{OpenIDConfig, User};
-use automation::config::Config;
+use automation::config::{Config, MqttConfig};
 use automation::device_manager::DeviceManager;
 use automation::devices::{
     AirFilter, AudioSetup, ContactSensor, DebugBridge, HueBridge, HueGroup, IkeaOutlet, KasaOutlet,
@@ -17,6 +17,7 @@ use axum::routing::post;
 use axum::{Json, Router};
 use dotenvy::dotenv;
 use google_home::{GoogleHome, Request};
+use mlua::LuaSerdeExt;
 use rumqttc::AsyncClient;
 use tracing::{debug, error, info, warn};
 
@@ -56,14 +57,8 @@ async fn app() -> anyhow::Result<()> {
         std::env::var("AUTOMATION_CONFIG").unwrap_or("./config/config.yml".into());
     let config = Config::parse_file(&config_filename)?;
 
-    // Create a mqtt client
-    // TODO: Since we wait with starting the eventloop we might fill the queue while setting up devices
-    let (client, eventloop) = AsyncClient::new(config.mqtt.clone(), 100);
-
     // Setup the device handler
     let device_manager = DeviceManager::new();
-
-    let event_channel = device_manager.event_channel();
 
     // Lua testing
     {
@@ -75,9 +70,20 @@ async fn app() -> anyhow::Result<()> {
         });
 
         let automation = lua.create_table()?;
+        let event_channel = device_manager.event_channel();
+        let create_mqtt_client = lua.create_function(move |lua, config: mlua::Value| {
+            let config: MqttConfig = lua.from_value(config)?;
 
+            // Create a mqtt client
+            // TODO: When starting up, the devices are not yet created, this could lead to a device being out of sync
+            let (client, eventloop) = AsyncClient::new(config.into(), 100);
+            mqtt::start(eventloop, &event_channel);
+
+            Ok(WrappedAsyncClient(client))
+        })?;
+
+        automation.set("create_mqtt_client", create_mqtt_client)?;
         automation.set("device_manager", device_manager.clone())?;
-        automation.set("mqtt_client", WrappedAsyncClient(client.clone()))?;
         automation.set("event_channel", device_manager.event_channel())?;
 
         let util = lua.create_table()?;
@@ -115,10 +121,6 @@ async fn app() -> anyhow::Result<()> {
             result => result,
         }?;
     }
-
-    // Wrap the mqtt eventloop and start listening for message
-    // NOTE: We wait until all the setup is done, as otherwise we might miss some messages
-    mqtt::start(eventloop, &event_channel);
 
     // Create google home fullfillment route
     let fullfillment = Router::new().route(

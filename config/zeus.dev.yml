@@ -1,10 +1,2 @@
 openid:
     base_url: "https://login.huizinga.dev/api/oidc"
-
-mqtt:
-    host: "olympus.lan.huizinga.dev"
-    port: 8883
-    client_name: "automation-zeus"
-    username: "mqtt"
-    password: "${MQTT_PASSWORD}"
-    tls: true
