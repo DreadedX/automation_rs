@@ -17,7 +17,7 @@ pub trait GoogleHomeDevice:
     fn get_id(&self) -> String;
     fn is_online(&self) -> bool;
 
-    // Default values that can optionally be overriden
+    // Default values that can optionally be overridden
     fn will_report_state(&self) -> bool {
         false
     }

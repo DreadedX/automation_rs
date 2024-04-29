@@ -18,7 +18,7 @@ pub struct GoogleHome {
 }
 
 #[derive(Debug, Error)]
-pub enum FullfillmentError {
+pub enum FulfillmentError {
     #[error("Expected at least one ResponsePayload")]
     ExpectedOnePayload,
 }
@@ -34,7 +34,7 @@ impl GoogleHome {
         &self,
         request: Request,
         devices: &HashMap<String, Arc<RwLock<Box<T>>>>,
-    ) -> Result<Response, FullfillmentError> {
+    ) -> Result<Response, FulfillmentError> {
         // TODO: What do we do if we actually get more then one thing in the input array, right now
         // we only respond to the first thing
         let intent = request.inputs.into_iter().next();
@@ -55,7 +55,7 @@ impl GoogleHome {
 
         payload
             .await
-            .ok_or(FullfillmentError::ExpectedOnePayload)
+            .ok_or(FulfillmentError::ExpectedOnePayload)
             .map(|payload| Response::new(&request.request_id, payload))
     }
 

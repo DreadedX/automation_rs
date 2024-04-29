@@ -154,7 +154,7 @@ impl Ntfy {
             .await;
 
         if let Err(err) = res {
-            error!("Something went wrong while sending the notifcation: {err}");
+            error!("Something went wrong while sending the notification: {err}");
         } else if let Ok(res) = res {
             let status = res.status();
             if !status.is_success() {

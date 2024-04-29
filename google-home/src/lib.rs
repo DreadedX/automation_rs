@@ -2,7 +2,7 @@
 #![feature(specialization)]
 #![feature(let_chains)]
 pub mod device;
-mod fullfillment;
+mod fulfillment;
 
 mod request;
 mod response;
@@ -13,6 +13,6 @@ pub mod traits;
 pub mod types;
 
 pub use device::GoogleHomeDevice;
-pub use fullfillment::{FullfillmentError, GoogleHome};
+pub use fulfillment::{FulfillmentError, GoogleHome};
 pub use request::Request;
 pub use response::Response;

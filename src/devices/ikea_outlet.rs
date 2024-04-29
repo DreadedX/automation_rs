@@ -233,7 +233,7 @@ impl crate::traits::Timeout for IkeaOutlet {
             tokio::time::sleep(timeout).await;
             debug!(id, "Turning outlet off!");
             // TODO: Idealy we would call self.set_on(false), however since we want to do
-            // it after a timeout we have to put it in a seperate task.
+            // it after a timeout we have to put it in a separate task.
             // I don't think we can really get around calling outside function
             set_on(client, &topic, false).await;
         }));
