@@ -6,9 +6,9 @@ use anyhow::anyhow;
 use automation::auth::User;
 use automation::config::{FulfillmentConfig, MqttConfig};
 use automation::device_manager::DeviceManager;
-use automation::devices;
 use automation::error::ApiError;
 use automation::mqtt::{self, WrappedAsyncClient};
+use automation::{devices, LUA};
 use axum::extract::FromRef;
 use axum::http::StatusCode;
 use axum::response::IntoResponse;
@@ -53,61 +53,63 @@ async fn app() -> anyhow::Result<()> {
     info!("Starting automation_rs...");
 
     // Setup the device handler
-    let device_manager = DeviceManager::new();
+    let device_manager = DeviceManager::new().await;
 
-    let lua = mlua::Lua::new();
+    let fulfillment_config = {
+        let lua = LUA.lock().await;
 
-    lua.set_warning_function(|_lua, text, _cont| {
-        warn!("{text}");
-        Ok(())
-    });
+        lua.set_warning_function(|_lua, text, _cont| {
+            warn!("{text}");
+            Ok(())
+        });
 
-    let automation = lua.create_table()?;
-    let event_channel = device_manager.event_channel();
-    let new_mqtt_client = lua.create_function(move |lua, config: mlua::Value| {
-        let config: MqttConfig = lua.from_value(config)?;
+        let automation = lua.create_table()?;
+        let event_channel = device_manager.event_channel();
+        let new_mqtt_client = lua.create_function(move |lua, config: mlua::Value| {
+            let config: MqttConfig = lua.from_value(config)?;
 
-        // Create a mqtt client
-        // TODO: When starting up, the devices are not yet created, this could lead to a device being out of sync
-        let (client, eventloop) = AsyncClient::new(config.into(), 100);
-        mqtt::start(eventloop, &event_channel);
+            // Create a mqtt client
+            // TODO: When starting up, the devices are not yet created, this could lead to a device being out of sync
+            let (client, eventloop) = AsyncClient::new(config.into(), 100);
+            mqtt::start(eventloop, &event_channel);
 
-        Ok(WrappedAsyncClient(client))
-    })?;
+            Ok(WrappedAsyncClient(client))
+        })?;
 
-    automation.set("new_mqtt_client", new_mqtt_client)?;
-    automation.set("device_manager", device_manager.clone())?;
+        automation.set("new_mqtt_client", new_mqtt_client)?;
+        automation.set("device_manager", device_manager.clone())?;
 
-    let util = lua.create_table()?;
-    let get_env = lua.create_function(|_lua, name: String| {
-        std::env::var(name).map_err(mlua::ExternalError::into_lua_err)
-    })?;
-    util.set("get_env", get_env)?;
-    automation.set("util", util)?;
+        let util = lua.create_table()?;
+        let get_env = lua.create_function(|_lua, name: String| {
+            std::env::var(name).map_err(mlua::ExternalError::into_lua_err)
+        })?;
+        util.set("get_env", get_env)?;
+        automation.set("util", util)?;
 
-    lua.globals().set("automation", automation)?;
+        lua.globals().set("automation", automation)?;
 
-    devices::register_with_lua(&lua)?;
+        devices::register_with_lua(&lua)?;
 
-    // TODO: Make this not hardcoded
-    let config_filename = std::env::var("AUTOMATION_CONFIG").unwrap_or("./config.lua".into());
-    let config_path = Path::new(&config_filename);
-    match lua.load(config_path).exec_async().await {
-        Err(error) => {
-            println!("{error}");
-            Err(error)
+        // TODO: Make this not hardcoded
+        let config_filename = std::env::var("AUTOMATION_CONFIG").unwrap_or("./config.lua".into());
+        let config_path = Path::new(&config_filename);
+        match lua.load(config_path).exec_async().await {
+            Err(error) => {
+                println!("{error}");
+                Err(error)
+            }
+            result => result,
+        }?;
+
+        let automation: mlua::Table = lua.globals().get("automation")?;
+        let fulfillment_config: Option<mlua::Value> = automation.get("fulfillment")?;
+        if let Some(fulfillment_config) = fulfillment_config {
+            let fulfillment_config: FulfillmentConfig = lua.from_value(fulfillment_config)?;
+            debug!("automation.fulfillment = {fulfillment_config:?}");
+            fulfillment_config
+        } else {
+            return Err(anyhow!("Fulfillment is not configured"));
         }
-        result => result,
-    }?;
-
-    let automation: mlua::Table = lua.globals().get("automation")?;
-    let fulfillment_config: Option<mlua::Value> = automation.get("fulfillment")?;
-    let fulfillment_config = if let Some(fulfillment_config) = fulfillment_config {
-        let fulfillment_config: FulfillmentConfig = lua.from_value(fulfillment_config)?;
-        debug!("automation.fulfillment = {fulfillment_config:?}");
-        fulfillment_config
-    } else {
-        return Err(anyhow!("Fulfillment is not configured"));
     };
 
     // Create google home fulfillment route

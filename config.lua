@@ -160,23 +160,14 @@ automation.device_manager:add(ContactSensor.new({
 	},
 }))
 
-local bedroom_air_filter = automation.device_manager:add(AirFilter.new({
+local bedroom_air_filter = AirFilter.new({
 	name = "Air Filter",
 	room = "Bedroom",
 	topic = "pico/filter/bedroom",
 	client = mqtt_client,
-}))
-
--- TODO: Use the wrapped device bedroom_air_filter instead of the string
-automation.device_manager:add_schedule({
-	["0 0 19 * * *"] = {
-		on = {
-			"bedroom_air_filter",
-		},
-	},
-	["0 0 20 * * *"] = {
-		off = {
-			"bedroom_air_filter",
-		},
-	},
 })
+automation.device_manager:add(bedroom_air_filter)
+
+automation.device_manager:schedule("0/1 * * * * *", function()
+	print("Device: " .. bedroom_air_filter:get_id())
+end)

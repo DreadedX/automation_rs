@@ -3,15 +3,14 @@ use std::ops::{Deref, DerefMut};
 use std::sync::Arc;
 
 use futures::future::join_all;
-use google_home::traits::OnOff;
-use mlua::{FromLua, LuaSerdeExt};
+use mlua::FromLua;
 use tokio::sync::{RwLock, RwLockReadGuard};
 use tokio_cron_scheduler::{Job, JobScheduler};
 use tracing::{debug, instrument, trace};
 
 use crate::devices::Device;
 use crate::event::{Event, EventChannel, OnDarkness, OnMqtt, OnNotification, OnPresence};
-use crate::schedule::{Action, Schedule};
+use crate::LUA;
 
 #[derive(Debug, FromLua, Clone)]
 pub struct WrappedDevice(Arc<RwLock<Box<dyn Device>>>);
@@ -35,23 +34,31 @@ impl DerefMut for WrappedDevice {
         &mut self.0
     }
 }
-impl mlua::UserData for WrappedDevice {}
+impl mlua::UserData for WrappedDevice {
+    fn add_methods<'lua, M: mlua::prelude::LuaUserDataMethods<'lua, Self>>(methods: &mut M) {
+        methods.add_async_method("get_id", |_lua, this, _: ()| async {
+            Ok(crate::devices::Device::get_id(this.0.read().await.as_ref()))
+        });
+    }
+}
 
 pub type DeviceMap = HashMap<String, Arc<RwLock<Box<dyn Device>>>>;
 
-#[derive(Debug, Clone)]
+#[derive(Clone)]
 pub struct DeviceManager {
     devices: Arc<RwLock<DeviceMap>>,
     event_channel: EventChannel,
+    scheduler: JobScheduler,
 }
 
 impl DeviceManager {
-    pub fn new() -> Self {
+    pub async fn new() -> Self {
         let (event_channel, mut event_rx) = EventChannel::new();
 
         let device_manager = Self {
             devices: Arc::new(RwLock::new(HashMap::new())),
             event_channel,
+            scheduler: JobScheduler::new().await.unwrap(),
         };
 
         tokio::spawn({
@@ -67,56 +74,9 @@ impl DeviceManager {
             }
         });
 
+        device_manager.scheduler.start().await.unwrap();
+
         device_manager
-    }
-
-    // TODO: This function is currently extremely cursed...
-    pub async fn add_schedule(&self, schedule: Schedule) {
-        let sched = JobScheduler::new().await.unwrap();
-
-        for (when, actions) in schedule {
-            let manager = self.clone();
-            sched
-                .add(
-                    Job::new_async(when.as_str(), move |_uuid, _l| {
-                        let actions = actions.clone();
-                        let manager = manager.clone();
-
-                        Box::pin(async move {
-                            for (action, targets) in actions {
-                                for target in targets {
-                                    let device = manager.get(&target).await.unwrap();
-                                    match action {
-                                        Action::On => {
-                                            let mut device = device.write().await;
-                                            let device: Option<&mut dyn OnOff> =
-                                                device.as_mut().cast_mut();
-
-                                            if let Some(device) = device {
-                                                device.set_on(true).await.unwrap();
-                                            }
-                                        }
-                                        Action::Off => {
-                                            let mut device = device.write().await;
-                                            let device: Option<&mut dyn OnOff> =
-                                                device.as_mut().cast_mut();
-
-                                            if let Some(device) = device {
-                                                device.set_on(false).await.unwrap();
-                                            }
-                                        }
-                                    }
-                                }
-                            }
-                        })
-                    })
-                    .unwrap(),
-                )
-                .await
-                .unwrap();
-        }
-
-        sched.start().await.unwrap();
     }
 
     pub async fn add(&self, device: &WrappedDevice) {
@@ -220,12 +180,6 @@ impl DeviceManager {
     }
 }
 
-impl Default for DeviceManager {
-    fn default() -> Self {
-        Self::new()
-    }
-}
-
 impl mlua::UserData for DeviceManager {
     fn add_methods<'lua, M: mlua::UserDataMethods<'lua, Self>>(methods: &mut M) {
         methods.add_async_method("add", |_lua, this, device: WrappedDevice| async move {
@@ -234,11 +188,40 @@ impl mlua::UserData for DeviceManager {
             Ok(())
         });
 
-        methods.add_async_method("add_schedule", |lua, this, schedule| async {
-            let schedule = lua.from_value(schedule)?;
-            this.add_schedule(schedule).await;
-            Ok(())
-        });
+        methods.add_async_method(
+            "schedule",
+            |lua, this, (schedule, f): (String, mlua::Function)| async move {
+                debug!("schedule = {schedule}");
+                let uuid = this
+                    .scheduler
+                    .add(
+                        Job::new_async(schedule.as_str(), |uuid, _lock| {
+                            Box::pin(async move {
+                                let lua = LUA.lock().await;
+                                let f: mlua::Function =
+                                    lua.named_registry_value(uuid.to_string().as_str()).unwrap();
+
+                                f.call::<_, ()>(()).unwrap();
+                            })
+                        })
+                        .unwrap(),
+                    )
+                    .await
+                    .unwrap();
+
+                // Store the function in the registry
+                lua.set_named_registry_value(uuid.to_string().as_str(), f)
+                    .unwrap();
+
+                Ok(())
+            },
+        );
+
+        // methods.add_async_method("add_schedule", |lua, this, schedule| async {
+        //     let schedule = lua.from_value(schedule)?;
+        //     this.add_schedule(schedule).await;
+        //     Ok(())
+        // });
 
         methods.add_method("event_channel", |_lua, this, ()| Ok(this.event_channel()))
     }
