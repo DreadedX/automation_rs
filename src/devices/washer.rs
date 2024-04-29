@@ -4,9 +4,8 @@ use rumqttc::Publish;
 use tracing::{debug, error, trace, warn};
 
 use super::ntfy::Priority;
-use super::{Device, Notification};
+use super::{Device, LuaDeviceCreate, Notification};
 use crate::config::MqttDeviceConfig;
-use crate::error::DeviceConfigError;
 use crate::event::{self, Event, EventChannel, OnMqtt};
 use crate::messages::PowerMessage;
 use crate::mqtt::WrappedAsyncClient;
@@ -27,14 +26,17 @@ pub struct WasherConfig {
 // TODO: Add google home integration
 #[derive(Debug, LuaDevice)]
 pub struct Washer {
-    #[config]
     config: WasherConfig,
 
     running: isize,
 }
 
-impl Washer {
-    async fn create(config: WasherConfig) -> Result<Self, DeviceConfigError> {
+#[async_trait]
+impl LuaDeviceCreate for Washer {
+    type Config = WasherConfig;
+    type Error = rumqttc::ClientError;
+
+    async fn create(config: Self::Config) -> Result<Self, Self::Error> {
         trace!(id = config.identifier, "Setting up Washer");
 
         config

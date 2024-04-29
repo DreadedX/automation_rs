@@ -7,7 +7,7 @@ use mlua::FromLua;
 use tokio::task::JoinHandle;
 use tracing::{debug, error, trace, warn};
 
-use super::Device;
+use super::{Device, LuaDeviceCreate};
 use crate::config::MqttDeviceConfig;
 use crate::device_manager::WrappedDevice;
 use crate::devices::DEFAULT_PRESENCE;
@@ -64,7 +64,6 @@ pub struct ContactSensorConfig {
 
 #[derive(Debug, LuaDevice)]
 pub struct ContactSensor {
-    #[config]
     config: ContactSensorConfig,
 
     overall_presence: bool,
@@ -72,8 +71,12 @@ pub struct ContactSensor {
     handle: Option<JoinHandle<()>>,
 }
 
-impl ContactSensor {
-    async fn create(config: ContactSensorConfig) -> Result<Self, DeviceConfigError> {
+#[async_trait]
+impl LuaDeviceCreate for ContactSensor {
+    type Config = ContactSensorConfig;
+    type Error = DeviceConfigError;
+
+    async fn create(config: Self::Config) -> Result<Self, Self::Error> {
         trace!(id = config.identifier, "Setting up ContactSensor");
 
         // Make sure the devices implement the required traits

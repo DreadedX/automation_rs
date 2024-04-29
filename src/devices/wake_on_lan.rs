@@ -10,9 +10,8 @@ use google_home::{device, GoogleHomeDevice};
 use rumqttc::Publish;
 use tracing::{debug, error, trace};
 
-use super::Device;
+use super::{Device, LuaDeviceCreate};
 use crate::config::{InfoConfig, MqttDeviceConfig};
-use crate::error::DeviceConfigError;
 use crate::event::OnMqtt;
 use crate::messages::ActivateMessage;
 use crate::mqtt::WrappedAsyncClient;
@@ -32,12 +31,15 @@ pub struct WakeOnLANConfig {
 
 #[derive(Debug, LuaDevice)]
 pub struct WakeOnLAN {
-    #[config]
     config: WakeOnLANConfig,
 }
 
-impl WakeOnLAN {
-    async fn create(config: WakeOnLANConfig) -> Result<Self, DeviceConfigError> {
+#[async_trait]
+impl LuaDeviceCreate for WakeOnLAN {
+    type Config = WakeOnLANConfig;
+    type Error = rumqttc::ClientError;
+
+    async fn create(config: Self::Config) -> Result<Self, Self::Error> {
         trace!(id = config.info.identifier(), "Setting up WakeOnLAN");
 
         config

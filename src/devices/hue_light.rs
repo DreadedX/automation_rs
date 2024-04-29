@@ -9,9 +9,8 @@ use google_home::traits::OnOff;
 use rumqttc::{Publish, SubscribeFilter};
 use tracing::{debug, error, trace, warn};
 
-use super::Device;
+use super::{Device, LuaDeviceCreate};
 use crate::config::MqttDeviceConfig;
-use crate::error::DeviceConfigError;
 use crate::event::OnMqtt;
 use crate::messages::{RemoteAction, RemoteMessage};
 use crate::mqtt::WrappedAsyncClient;
@@ -34,13 +33,16 @@ pub struct HueGroupConfig {
 
 #[derive(Debug, LuaDevice)]
 pub struct HueGroup {
-    #[config]
     config: HueGroupConfig,
 }
 
 // Couple of helper function to get the correct urls
-impl HueGroup {
-    async fn create(config: HueGroupConfig) -> Result<Self, DeviceConfigError> {
+#[async_trait]
+impl LuaDeviceCreate for HueGroup {
+    type Config = HueGroupConfig;
+    type Error = rumqttc::ClientError;
+
+    async fn create(config: Self::Config) -> Result<Self, Self::Error> {
         trace!(id = config.identifier, "Setting up AudioSetup");
 
         if !config.remotes.is_empty() {
@@ -55,7 +57,9 @@ impl HueGroup {
 
         Ok(Self { config })
     }
+}
 
+impl HueGroup {
     fn url_base(&self) -> String {
         format!("http://{}/api/{}", self.config.addr, self.config.login)
     }

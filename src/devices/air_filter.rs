@@ -8,9 +8,9 @@ use google_home::GoogleHomeDevice;
 use rumqttc::Publish;
 use tracing::{debug, error, trace, warn};
 
+use super::LuaDeviceCreate;
 use crate::config::{InfoConfig, MqttDeviceConfig};
 use crate::devices::Device;
-use crate::error::DeviceConfigError;
 use crate::event::OnMqtt;
 use crate::messages::{AirFilterFanState, AirFilterState, SetAirFilterFanState};
 use crate::mqtt::WrappedAsyncClient;
@@ -27,7 +27,6 @@ pub struct AirFilterConfig {
 
 #[derive(Debug, LuaDevice)]
 pub struct AirFilter {
-    #[config]
     config: AirFilterConfig,
 
     last_known_state: AirFilterState,
@@ -53,8 +52,12 @@ impl AirFilter {
     }
 }
 
-impl AirFilter {
-    async fn create(config: AirFilterConfig) -> Result<Self, DeviceConfigError> {
+#[async_trait]
+impl LuaDeviceCreate for AirFilter {
+    type Config = AirFilterConfig;
+    type Error = rumqttc::ClientError;
+
+    async fn create(config: Self::Config) -> Result<Self, Self::Error> {
         trace!(id = config.info.identifier(), "Setting up AirFilter");
 
         config

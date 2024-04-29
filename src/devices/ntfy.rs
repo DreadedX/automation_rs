@@ -1,4 +1,5 @@
 use std::collections::HashMap;
+use std::convert::Infallible;
 
 use async_trait::async_trait;
 use automation_macro::{LuaDevice, LuaDeviceConfig};
@@ -6,8 +7,8 @@ use serde::Serialize;
 use serde_repr::*;
 use tracing::{error, trace, warn};
 
+use super::LuaDeviceCreate;
 use crate::devices::Device;
-use crate::error::DeviceConfigError;
 use crate::event::{self, Event, EventChannel, OnNotification, OnPresence};
 
 #[derive(Debug, Serialize_repr, Clone, Copy)]
@@ -121,12 +122,15 @@ pub struct NtfyConfig {
 
 #[derive(Debug, LuaDevice)]
 pub struct Ntfy {
-    #[config]
     config: NtfyConfig,
 }
 
-impl Ntfy {
-    async fn create(config: NtfyConfig) -> Result<Self, DeviceConfigError> {
+#[async_trait]
+impl LuaDeviceCreate for Ntfy {
+    type Config = NtfyConfig;
+    type Error = Infallible;
+
+    async fn create(config: Self::Config) -> Result<Self, Self::Error> {
         trace!(id = "ntfy", "Setting up Ntfy");
         Ok(Self { config })
     }

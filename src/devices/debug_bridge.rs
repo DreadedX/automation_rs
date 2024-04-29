@@ -1,10 +1,12 @@
+use std::convert::Infallible;
+
 use async_trait::async_trait;
 use automation_macro::{LuaDevice, LuaDeviceConfig};
 use tracing::{trace, warn};
 
+use super::LuaDeviceCreate;
 use crate::config::MqttDeviceConfig;
 use crate::devices::Device;
-use crate::error::DeviceConfigError;
 use crate::event::{OnDarkness, OnPresence};
 use crate::messages::{DarknessMessage, PresenceMessage};
 use crate::mqtt::WrappedAsyncClient;
@@ -20,12 +22,15 @@ pub struct DebugBridgeConfig {
 
 #[derive(Debug, LuaDevice)]
 pub struct DebugBridge {
-    #[config]
     config: DebugBridgeConfig,
 }
 
-impl DebugBridge {
-    async fn create(config: DebugBridgeConfig) -> Result<Self, DeviceConfigError> {
+#[async_trait]
+impl LuaDeviceCreate for DebugBridge {
+    type Config = DebugBridgeConfig;
+    type Error = Infallible;
+
+    async fn create(config: Self::Config) -> Result<Self, Self::Error> {
         trace!(id = config.identifier, "Setting up DebugBridge");
         Ok(Self { config })
     }

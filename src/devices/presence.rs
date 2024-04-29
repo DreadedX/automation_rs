@@ -5,9 +5,9 @@ use automation_macro::{LuaDevice, LuaDeviceConfig};
 use rumqttc::Publish;
 use tracing::{debug, trace, warn};
 
+use super::LuaDeviceCreate;
 use crate::config::MqttDeviceConfig;
 use crate::devices::Device;
-use crate::error::DeviceConfigError;
 use crate::event::{self, Event, EventChannel, OnMqtt};
 use crate::messages::PresenceMessage;
 use crate::mqtt::WrappedAsyncClient;
@@ -26,14 +26,17 @@ pub const DEFAULT_PRESENCE: bool = false;
 
 #[derive(Debug, LuaDevice)]
 pub struct Presence {
-    #[config]
     config: PresenceConfig,
     devices: HashMap<String, bool>,
     current_overall_presence: bool,
 }
 
-impl Presence {
-    async fn create(config: PresenceConfig) -> Result<Self, DeviceConfigError> {
+#[async_trait]
+impl LuaDeviceCreate for Presence {
+    type Config = PresenceConfig;
+    type Error = rumqttc::ClientError;
+
+    async fn create(config: Self::Config) -> Result<Self, Self::Error> {
         trace!(id = "ntfy", "Setting up Presence");
 
         config

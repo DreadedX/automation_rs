@@ -14,6 +14,7 @@ mod washer;
 
 use std::fmt::Debug;
 
+use async_trait::async_trait;
 use automation_cast::Cast;
 use google_home::traits::OnOff;
 use google_home::GoogleHomeDevice;
@@ -33,6 +34,16 @@ pub use self::wake_on_lan::*;
 pub use self::washer::*;
 use crate::event::{OnDarkness, OnMqtt, OnNotification, OnPresence};
 use crate::traits::Timeout;
+
+#[async_trait]
+pub trait LuaDeviceCreate {
+    type Config;
+    type Error;
+
+    async fn create(config: Self::Config) -> Result<Self, Self::Error>
+    where
+        Self: Sized;
+}
 
 pub trait Device:
     Debug

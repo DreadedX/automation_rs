@@ -1,3 +1,4 @@
+use std::convert::Infallible;
 use std::net::SocketAddr;
 
 use async_trait::async_trait;
@@ -5,8 +6,8 @@ use automation_macro::{LuaDevice, LuaDeviceConfig};
 use serde::{Deserialize, Serialize};
 use tracing::{error, trace, warn};
 
+use super::LuaDeviceCreate;
 use crate::devices::Device;
-use crate::error::DeviceConfigError;
 use crate::event::{OnDarkness, OnPresence};
 
 #[derive(Debug)]
@@ -32,7 +33,6 @@ pub struct HueBridgeConfig {
 
 #[derive(Debug, LuaDevice)]
 pub struct HueBridge {
-    #[config]
     config: HueBridgeConfig,
 }
 
@@ -41,12 +41,18 @@ struct FlagMessage {
     flag: bool,
 }
 
-impl HueBridge {
-    async fn create(config: HueBridgeConfig) -> Result<Self, DeviceConfigError> {
+#[async_trait]
+impl LuaDeviceCreate for HueBridge {
+    type Config = HueBridgeConfig;
+    type Error = Infallible;
+
+    async fn create(config: Self::Config) -> Result<Self, Infallible> {
         trace!(id = config.identifier, "Setting up HueBridge");
         Ok(Self { config })
     }
+}
 
+impl HueBridge {
     pub async fn set_flag(&self, flag: Flag, value: bool) {
         let flag_id = match flag {
             Flag::Presence => self.config.flags.presence,

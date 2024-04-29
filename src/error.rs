@@ -92,12 +92,8 @@ impl MissingWildcard {
 
 #[derive(Debug, Error)]
 pub enum DeviceConfigError {
-    #[error("Child '{1}' of device '{0}' does not exist")]
-    MissingChild(String, String),
     #[error("Device '{0}' does not implement expected trait '{1}'")]
     MissingTrait(String, String),
-    #[error(transparent)]
-    MissingWildcard(#[from] MissingWildcard),
     #[error(transparent)]
     MqttClientError(#[from] rumqttc::ClientError),
 }

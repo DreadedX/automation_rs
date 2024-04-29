@@ -12,9 +12,9 @@ use serde::Deserialize;
 use tokio::task::JoinHandle;
 use tracing::{debug, error, trace, warn};
 
+use super::LuaDeviceCreate;
 use crate::config::{InfoConfig, MqttDeviceConfig};
 use crate::devices::Device;
-use crate::error::DeviceConfigError;
 use crate::event::{OnMqtt, OnPresence};
 use crate::messages::{OnOffMessage, RemoteAction, RemoteMessage};
 use crate::mqtt::WrappedAsyncClient;
@@ -47,7 +47,6 @@ pub struct IkeaOutletConfig {
 
 #[derive(Debug, LuaDevice)]
 pub struct IkeaOutlet {
-    #[config]
     config: IkeaOutletConfig,
 
     last_known_state: bool,
@@ -71,8 +70,12 @@ async fn set_on(client: WrappedAsyncClient, topic: &str, on: bool) {
         .ok();
 }
 
-impl IkeaOutlet {
-    async fn create(config: IkeaOutletConfig) -> Result<Self, DeviceConfigError> {
+#[async_trait]
+impl LuaDeviceCreate for IkeaOutlet {
+    type Config = IkeaOutletConfig;
+    type Error = rumqttc::ClientError;
+
+    async fn create(config: Self::Config) -> Result<Self, Self::Error> {
         trace!(id = config.info.identifier(), "Setting up IkeaOutlet");
 
         if !config.remotes.is_empty() {

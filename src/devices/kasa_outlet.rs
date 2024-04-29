@@ -1,3 +1,4 @@
+use std::convert::Infallible;
 use std::net::SocketAddr;
 use std::str::Utf8Error;
 
@@ -12,8 +13,7 @@ use tokio::io::{AsyncReadExt, AsyncWriteExt};
 use tokio::net::TcpStream;
 use tracing::trace;
 
-use super::Device;
-use crate::error::DeviceConfigError;
+use super::{Device, LuaDeviceCreate};
 
 #[derive(Debug, Clone, LuaDeviceConfig)]
 pub struct KasaOutletConfig {
@@ -24,12 +24,15 @@ pub struct KasaOutletConfig {
 
 #[derive(Debug, LuaDevice)]
 pub struct KasaOutlet {
-    #[config]
     config: KasaOutletConfig,
 }
 
-impl KasaOutlet {
-    async fn create(config: KasaOutletConfig) -> Result<Self, DeviceConfigError> {
+#[async_trait]
+impl LuaDeviceCreate for KasaOutlet {
+    type Config = KasaOutletConfig;
+    type Error = Infallible;
+
+    async fn create(config: Self::Config) -> Result<Self, Self::Error> {
         trace!(id = config.identifier, "Setting up KasaOutlet");
         Ok(Self { config })
     }

@@ -3,9 +3,9 @@ use automation_macro::{LuaDevice, LuaDeviceConfig};
 use rumqttc::Publish;
 use tracing::{debug, trace, warn};
 
+use super::LuaDeviceCreate;
 use crate::config::MqttDeviceConfig;
 use crate::devices::Device;
-use crate::error::DeviceConfigError;
 use crate::event::{self, Event, EventChannel, OnMqtt};
 use crate::messages::BrightnessMessage;
 use crate::mqtt::WrappedAsyncClient;
@@ -27,14 +27,17 @@ pub const DEFAULT: bool = false;
 
 #[derive(Debug, LuaDevice)]
 pub struct LightSensor {
-    #[config]
     config: LightSensorConfig,
 
     is_dark: bool,
 }
 
-impl LightSensor {
-    async fn create(config: LightSensorConfig) -> Result<Self, DeviceConfigError> {
+#[async_trait]
+impl LuaDeviceCreate for LightSensor {
+    type Config = LightSensorConfig;
+    type Error = rumqttc::ClientError;
+
+    async fn create(config: Self::Config) -> Result<Self, Self::Error> {
         trace!(id = config.identifier, "Setting up LightSensor");
 
         config

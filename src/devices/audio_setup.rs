@@ -3,7 +3,7 @@ use automation_macro::{LuaDevice, LuaDeviceConfig};
 use google_home::traits::OnOff;
 use tracing::{debug, error, trace, warn};
 
-use super::Device;
+use super::{Device, LuaDeviceCreate};
 use crate::config::MqttDeviceConfig;
 use crate::device_manager::WrappedDevice;
 use crate::error::DeviceConfigError;
@@ -26,12 +26,15 @@ pub struct AudioSetupConfig {
 
 #[derive(Debug, LuaDevice)]
 pub struct AudioSetup {
-    #[config]
     config: AudioSetupConfig,
 }
 
-impl AudioSetup {
-    async fn create(config: AudioSetupConfig) -> Result<Self, DeviceConfigError> {
+#[async_trait]
+impl LuaDeviceCreate for AudioSetup {
+    type Config = AudioSetupConfig;
+    type Error = DeviceConfigError;
+
+    async fn create(config: Self::Config) -> Result<Self, Self::Error> {
         trace!(id = config.identifier, "Setting up AudioSetup");
 
         {
