@@ -1,23 +1,24 @@
 use async_trait::async_trait;
-use automation_macro::{LuaDevice, LuaDeviceConfig};
+use automation_macro::{LuaDevice, LuaDeviceConfig, LuaTypeDefinition};
 use rumqttc::Publish;
 use tracing::{debug, error, trace, warn};
 
 use super::ntfy::Priority;
-use super::{Device, LuaDeviceCreate, Notification};
+use super::{Device, LuaDeviceCreate};
 use crate::config::MqttDeviceConfig;
+use crate::devices::ntfy::Notification;
 use crate::event::{self, Event, EventChannel, OnMqtt};
 use crate::messages::PowerMessage;
 use crate::mqtt::WrappedAsyncClient;
 
-#[derive(Debug, Clone, LuaDeviceConfig)]
+#[derive(Debug, Clone, LuaDeviceConfig, LuaTypeDefinition)]
 pub struct WasherConfig {
     pub identifier: String,
     #[device_config(flatten)]
     pub mqtt: MqttDeviceConfig,
     // Power in Watt
     pub threshold: f32,
-    #[device_config(rename("event_channel"), from_lua, with(|ec: EventChannel| ec.get_tx()))]
+    #[device_config(rename("event_channel"), from_lua, from(EventChannel), with(|ec: EventChannel| ec.get_tx()))]
     pub tx: event::Sender,
     #[device_config(from_lua)]
     pub client: WrappedAsyncClient,

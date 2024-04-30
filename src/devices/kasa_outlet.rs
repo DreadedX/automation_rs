@@ -1,9 +1,9 @@
 use std::convert::Infallible;
-use std::net::SocketAddr;
+use std::net::{Ipv4Addr, SocketAddr};
 use std::str::Utf8Error;
 
 use async_trait::async_trait;
-use automation_macro::{LuaDevice, LuaDeviceConfig};
+use automation_macro::{LuaDevice, LuaDeviceConfig, LuaTypeDefinition};
 use bytes::{Buf, BufMut};
 use google_home::errors::{self, DeviceError};
 use google_home::traits;
@@ -15,10 +15,10 @@ use tracing::trace;
 
 use super::{Device, LuaDeviceCreate};
 
-#[derive(Debug, Clone, LuaDeviceConfig)]
+#[derive(Debug, Clone, LuaDeviceConfig, LuaTypeDefinition)]
 pub struct KasaOutletConfig {
     pub identifier: String,
-    #[device_config(rename("ip"), with(|ip| SocketAddr::new(ip, 9999)))]
+    #[device_config(rename("ip"), from(Ipv4Addr), with(|ip| SocketAddr::new(ip, 9999)))]
     pub addr: SocketAddr,
 }
 

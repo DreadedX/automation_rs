@@ -1,7 +1,7 @@
 use std::time::Duration;
 
 use async_trait::async_trait;
-use automation_macro::{LuaDevice, LuaDeviceConfig};
+use automation_macro::{LuaDevice, LuaDeviceConfig, LuaTypeDefinition};
 use google_home::traits::OnOff;
 use mlua::FromLua;
 use tokio::task::JoinHandle;
@@ -18,11 +18,11 @@ use crate::mqtt::WrappedAsyncClient;
 use crate::traits::Timeout;
 
 // NOTE: If we add more presence devices we might need to move this out of here
-#[derive(Debug, Clone, LuaDeviceConfig)]
+#[derive(Debug, Clone, LuaDeviceConfig, LuaTypeDefinition)]
 pub struct PresenceDeviceConfig {
     #[device_config(flatten)]
     pub mqtt: MqttDeviceConfig,
-    #[device_config(with(Duration::from_secs))]
+    #[device_config(from(u64), with(Duration::from_secs))]
     pub timeout: Duration,
 }
 
@@ -41,15 +41,15 @@ impl From<TriggerDevicesHelper> for Vec<(WrappedDevice, bool)> {
     }
 }
 
-#[derive(Debug, Clone, LuaDeviceConfig)]
+#[derive(Debug, Clone, LuaDeviceConfig, LuaTypeDefinition)]
 pub struct TriggerConfig {
     #[device_config(from_lua, from(TriggerDevicesHelper))]
     pub devices: Vec<(WrappedDevice, bool)>,
-    #[device_config(default, with(|t: Option<_>| t.map(Duration::from_secs)))]
+    #[device_config(default, from(Option<u64>), with(|t: Option<_>| t.map(Duration::from_secs)))]
     pub timeout: Option<Duration>,
 }
 
-#[derive(Debug, Clone, LuaDeviceConfig)]
+#[derive(Debug, Clone, LuaDeviceConfig, LuaTypeDefinition)]
 pub struct ContactSensorConfig {
     pub identifier: String,
     #[device_config(flatten)]

@@ -1,8 +1,8 @@
 use std::convert::Infallible;
-use std::net::SocketAddr;
+use std::net::{Ipv4Addr, SocketAddr};
 
 use async_trait::async_trait;
-use automation_macro::{LuaDevice, LuaDeviceConfig};
+use automation_macro::{LuaDevice, LuaDeviceConfig, LuaTypeDefinition};
 use serde::{Deserialize, Serialize};
 use tracing::{error, trace, warn};
 
@@ -16,16 +16,16 @@ pub enum Flag {
     Darkness,
 }
 
-#[derive(Debug, Clone, Deserialize)]
+#[derive(Debug, Clone, Deserialize, LuaTypeDefinition)]
 pub struct FlagIDs {
     presence: isize,
     darkness: isize,
 }
 
-#[derive(Debug, LuaDeviceConfig, Clone)]
+#[derive(Debug, LuaDeviceConfig, Clone, LuaTypeDefinition)]
 pub struct HueBridgeConfig {
     pub identifier: String,
-    #[device_config(rename("ip"), with(|ip| SocketAddr::new(ip, 80)))]
+    #[device_config(rename("ip"), from(Ipv4Addr), with(|ip| SocketAddr::new(ip, 80)))]
     pub addr: SocketAddr,
     pub login: String,
     pub flags: FlagIDs,

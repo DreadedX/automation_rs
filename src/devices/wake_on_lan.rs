@@ -1,7 +1,7 @@
 use std::net::Ipv4Addr;
 
 use async_trait::async_trait;
-use automation_macro::{LuaDevice, LuaDeviceConfig};
+use automation_macro::{LuaDevice, LuaDeviceConfig, LuaTypeDefinition};
 use eui48::MacAddress;
 use google_home::errors::ErrorCode;
 use google_home::traits::{self, Scene};
@@ -16,7 +16,7 @@ use crate::event::OnMqtt;
 use crate::messages::ActivateMessage;
 use crate::mqtt::WrappedAsyncClient;
 
-#[derive(Debug, Clone, LuaDeviceConfig)]
+#[derive(Debug, Clone, LuaDeviceConfig, LuaTypeDefinition)]
 pub struct WakeOnLANConfig {
     #[device_config(flatten)]
     pub info: InfoConfig,

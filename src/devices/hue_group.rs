@@ -1,9 +1,9 @@
-use std::net::SocketAddr;
+use std::net::{Ipv4Addr, SocketAddr};
 use std::time::Duration;
 
 use anyhow::{anyhow, Context, Result};
 use async_trait::async_trait;
-use automation_macro::{LuaDevice, LuaDeviceConfig};
+use automation_macro::{LuaDevice, LuaDeviceConfig, LuaTypeDefinition};
 use google_home::errors::ErrorCode;
 use google_home::traits::OnOff;
 use rumqttc::{Publish, SubscribeFilter};
@@ -16,10 +16,10 @@ use crate::messages::{RemoteAction, RemoteMessage};
 use crate::mqtt::WrappedAsyncClient;
 use crate::traits::Timeout;
 
-#[derive(Debug, Clone, LuaDeviceConfig)]
+#[derive(Debug, Clone, LuaDeviceConfig, LuaTypeDefinition)]
 pub struct HueGroupConfig {
     pub identifier: String,
-    #[device_config(rename("ip"), with(|ip| SocketAddr::new(ip, 80)))]
+    #[device_config(rename("ip"), from(Ipv4Addr), with(|ip| SocketAddr::new(ip, 80)))]
     pub addr: SocketAddr,
     pub login: String,
     pub group_id: isize,

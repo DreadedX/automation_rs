@@ -2,7 +2,7 @@ use std::collections::HashMap;
 use std::convert::Infallible;
 
 use async_trait::async_trait;
-use automation_macro::{LuaDevice, LuaDeviceConfig};
+use automation_macro::{LuaDevice, LuaDeviceConfig, LuaTypeDefinition};
 use serde::Serialize;
 use serde_repr::*;
 use tracing::{error, trace, warn};
@@ -111,12 +111,12 @@ impl Default for Notification {
     }
 }
 
-#[derive(Debug, LuaDeviceConfig)]
+#[derive(Debug, LuaDeviceConfig, LuaTypeDefinition)]
 pub struct NtfyConfig {
     #[device_config(default("https://ntfy.sh".into()))]
     pub url: String,
     pub topic: String,
-    #[device_config(rename("event_channel"), from_lua, with(|ec: EventChannel| ec.get_tx()))]
+    #[device_config(rename("event_channel"), from_lua, from(EventChannel), with(|ec: EventChannel| ec.get_tx()))]
     pub tx: event::Sender,
 }
 

@@ -1,7 +1,7 @@
 use std::collections::HashMap;
 
 use async_trait::async_trait;
-use automation_macro::{LuaDevice, LuaDeviceConfig};
+use automation_macro::{LuaDevice, LuaDeviceConfig, LuaTypeDefinition};
 use rumqttc::Publish;
 use tracing::{debug, trace, warn};
 
@@ -12,11 +12,11 @@ use crate::event::{self, Event, EventChannel, OnMqtt};
 use crate::messages::PresenceMessage;
 use crate::mqtt::WrappedAsyncClient;
 
-#[derive(Debug, LuaDeviceConfig)]
+#[derive(Debug, LuaDeviceConfig, LuaTypeDefinition)]
 pub struct PresenceConfig {
     #[device_config(flatten)]
     pub mqtt: MqttDeviceConfig,
-    #[device_config(from_lua, rename("event_channel"), with(|ec: EventChannel| ec.get_tx()))]
+    #[device_config(from_lua, rename("event_channel"), from(EventChannel), with(|ec: EventChannel| ec.get_tx()))]
     pub tx: event::Sender,
     #[device_config(from_lua)]
     pub client: WrappedAsyncClient,

@@ -1,5 +1,5 @@
 use async_trait::async_trait;
-use automation_macro::{LuaDevice, LuaDeviceConfig};
+use automation_macro::{LuaDevice, LuaDeviceConfig, LuaTypeDefinition};
 use google_home::traits::OnOff;
 use tracing::{debug, error, trace, warn};
 
@@ -11,7 +11,7 @@ use crate::event::{OnMqtt, OnPresence};
 use crate::messages::{RemoteAction, RemoteMessage};
 use crate::mqtt::WrappedAsyncClient;
 
-#[derive(Debug, Clone, LuaDeviceConfig)]
+#[derive(Debug, Clone, LuaDeviceConfig, LuaTypeDefinition)]
 pub struct AudioSetupConfig {
     pub identifier: String,
     #[device_config(flatten)]

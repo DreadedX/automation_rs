@@ -1,7 +1,7 @@
 use std::convert::Infallible;
 
 use async_trait::async_trait;
-use automation_macro::{LuaDevice, LuaDeviceConfig};
+use automation_macro::{LuaDevice, LuaDeviceConfig, LuaTypeDefinition};
 use tracing::{trace, warn};
 
 use super::LuaDeviceCreate;
@@ -11,7 +11,7 @@ use crate::event::{OnDarkness, OnPresence};
 use crate::messages::{DarknessMessage, PresenceMessage};
 use crate::mqtt::WrappedAsyncClient;
 
-#[derive(Debug, LuaDeviceConfig, Clone)]
+#[derive(Debug, LuaDeviceConfig, Clone, LuaTypeDefinition)]
 pub struct DebugBridgeConfig {
     pub identifier: String,
     #[device_config(flatten)]

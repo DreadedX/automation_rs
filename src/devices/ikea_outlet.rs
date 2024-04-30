@@ -2,7 +2,7 @@ use std::time::Duration;
 
 use anyhow::Result;
 use async_trait::async_trait;
-use automation_macro::{LuaDevice, LuaDeviceConfig};
+use automation_macro::{LuaDevice, LuaDeviceConfig, LuaTypeDefinition};
 use google_home::errors::ErrorCode;
 use google_home::traits::{self, OnOff};
 use google_home::types::Type;
@@ -28,7 +28,7 @@ pub enum OutletType {
     Light,
 }
 
-#[derive(Debug, Clone, LuaDeviceConfig)]
+#[derive(Debug, Clone, LuaDeviceConfig, LuaTypeDefinition)]
 pub struct IkeaOutletConfig {
     #[device_config(flatten)]
     pub info: InfoConfig,
@@ -36,7 +36,7 @@ pub struct IkeaOutletConfig {
     pub mqtt: MqttDeviceConfig,
     #[device_config(default(OutletType::Outlet))]
     pub outlet_type: OutletType,
-    #[device_config(default, with(|t: Option<_>| t.map(Duration::from_secs)))]
+    #[device_config(default, from(Option<u64>), with(|t: Option<_>| t.map(Duration::from_secs)))]
     pub timeout: Option<Duration>,
     #[device_config(default)]
     pub remotes: Vec<MqttDeviceConfig>,

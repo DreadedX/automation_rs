@@ -1,5 +1,5 @@
 use async_trait::async_trait;
-use automation_macro::{LuaDevice, LuaDeviceConfig};
+use automation_macro::{LuaDevice, LuaDeviceConfig, LuaTypeDefinition};
 use rumqttc::Publish;
 use tracing::{debug, trace, warn};
 
@@ -10,14 +10,14 @@ use crate::event::{self, Event, EventChannel, OnMqtt};
 use crate::messages::BrightnessMessage;
 use crate::mqtt::WrappedAsyncClient;
 
-#[derive(Debug, Clone, LuaDeviceConfig)]
+#[derive(Debug, Clone, LuaDeviceConfig, LuaTypeDefinition)]
 pub struct LightSensorConfig {
     pub identifier: String,
     #[device_config(flatten)]
     pub mqtt: MqttDeviceConfig,
     pub min: isize,
     pub max: isize,
-    #[device_config(rename("event_channel"), from_lua, with(|ec: EventChannel| ec.get_tx()))]
+    #[device_config(rename("event_channel"), from(EventChannel), from_lua, with(|ec: EventChannel| ec.get_tx()))]
     pub tx: event::Sender,
     #[device_config(from_lua)]
     pub client: WrappedAsyncClient,

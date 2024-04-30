@@ -1,6 +1,3 @@
-use std::fs::File;
-use std::io::Write;
-
 use itertools::Itertools;
 use proc_macro2::TokenStream;
 use quote::{quote, quote_spanned};
@@ -26,7 +23,7 @@ mod kw {
 }
 
 #[derive(Debug)]
-enum Argument {
+pub enum Argument {
     Flatten {
         _keyword: kw::flatten,
     },
@@ -110,8 +107,8 @@ impl Parse for Argument {
 }
 
 #[derive(Debug)]
-struct Args {
-    args: Punctuated<Argument, Token![,]>,
+pub(crate) struct Args {
+    pub(crate) args: Punctuated<Argument, Token![,]>,
 }
 
 impl Parse for Args {
@@ -221,6 +218,21 @@ fn field_from_lua(field: &Field) -> TokenStream {
                     temp.into()
                 }
             }),
+            _ => None,
+        })
+        .collect::<Vec<_>>()
+        .as_slice()
+    {
+        [] => value,
+        [value] => value.to_owned(),
+        _ => {
+            return quote_spanned! {field.span() => compile_error!("Field contains duplicate 'from'")}
+        }
+    };
+
+    let value = match args
+        .iter()
+        .filter_map(|arg| match arg {
             Argument::With { expr, .. } => Some(quote! {
                 {
                     let temp = #value;
@@ -235,7 +247,7 @@ fn field_from_lua(field: &Field) -> TokenStream {
         [] => value,
         [value] => value.to_owned(),
         _ => {
-            return quote_spanned! {field.span() => compile_error!("Only one of either 'from' or 'with' is allowed")}
+            return quote_spanned! {field.span() => compile_error!("Field contains duplicate 'with'")}
         }
     };
 
@@ -278,16 +290,6 @@ pub fn impl_lua_device_config_macro(ast: &DeriveInput) -> TokenStream {
             }
         }
     };
-
-    let mut def = format!("--- @meta\n--- @class {name}\n");
-    for field in fields {
-        def += &format!("--- @field {} any\n", field.ident.clone().unwrap())
-    }
-
-    File::create(format!("./definitions/generated/{name}.lua"))
-        .unwrap()
-        .write_all(def.as_bytes())
-        .unwrap();
 
     impl_from_lua
 }

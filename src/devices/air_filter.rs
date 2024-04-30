@@ -1,5 +1,5 @@
 use async_trait::async_trait;
-use automation_macro::{LuaDevice, LuaDeviceConfig};
+use automation_macro::{LuaDevice, LuaDeviceConfig, LuaTypeDefinition};
 use google_home::device::Name;
 use google_home::errors::ErrorCode;
 use google_home::traits::{AvailableSpeeds, FanSpeed, HumiditySetting, OnOff, Speed, SpeedValues};
@@ -15,7 +15,7 @@ use crate::event::OnMqtt;
 use crate::messages::{AirFilterFanState, AirFilterState, SetAirFilterFanState};
 use crate::mqtt::WrappedAsyncClient;
 
-#[derive(Debug, Clone, LuaDeviceConfig)]
+#[derive(Debug, Clone, LuaDeviceConfig, LuaTypeDefinition)]
 pub struct AirFilterConfig {
     #[device_config(flatten)]
     pub info: InfoConfig,
