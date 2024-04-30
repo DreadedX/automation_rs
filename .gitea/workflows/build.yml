@@ -7,9 +7,33 @@ on:
             - feature/**
 
 jobs:
+    build:
+        name: Build automation_rs
+        runs-on: ubuntu-latest
+        container: catthehacker/ubuntu:act-latest
+        steps:
+            - name: Checkout
+              uses: actions/checkout@v4
+
+            - name: Setup Rust
+              uses: actions-rust-lang/setup-rust-toolchain@v1
+              with:
+                  rustflags: ""
+
+            - name: Build
+              run: cargo build --release --all-targets
+
+            - name: Upload artifact
+              uses: actions/upload-artifact@v3
+              with:
+                  name: build
+                  path: target/x86_64-unknown-linux-gnu/release/automation
+
     check:
         name: Run pre-commit checks
         runs-on: ubuntu-latest
+        # The lua definition check require that generate_definitions is build first
+        needs: [build]
         container: catthehacker/ubuntu:act-latest
         steps:
             - name: Checkout
@@ -47,28 +71,6 @@ jobs:
             - name: Run pre-commit
               run: pre-commit run --show-diff-on-failure --color=always --all-files
               shell: bash
-
-    build:
-        name: Build automation_rs
-        runs-on: ubuntu-latest
-        container: catthehacker/ubuntu:act-latest
-        steps:
-            - name: Checkout
-              uses: actions/checkout@v4
-
-            - name: Setup Rust
-              uses: actions-rust-lang/setup-rust-toolchain@v1
-              with:
-                  rustflags: ""
-
-            - name: Build
-              run: cargo build --release
-
-            - name: Upload artifact
-              uses: actions/upload-artifact@v3
-              with:
-                  name: build
-                  path: target/x86_64-unknown-linux-gnu/release/automation
 
     container:
         name: Build Docker image

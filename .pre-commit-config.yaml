@@ -30,3 +30,13 @@ repos:
     rev: v0.1.0
     hooks:
       - id: dockerfilelint
+
+  - repo: local
+    hooks:
+      - id: lua-definitions
+        name: Generate lua definitions
+        description: This hook generates up to date lua definitions.
+        entry: cargo run --release --bin generate_definitions
+        language: system
+        types: [rust]
+        pass_filenames: false

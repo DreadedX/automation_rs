@@ -181,3 +181,4 @@ function Washer.new(config) end
 --- @field event_channel EventChannel
 --- @field client WrappedAsyncClient
 
+-- End of generated file
