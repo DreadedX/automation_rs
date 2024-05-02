@@ -44,7 +44,8 @@ async fn main() {
 async fn app() -> anyhow::Result<()> {
     dotenv().ok();
 
-    console_subscriber::init();
+    tracing_subscriber::fmt::init();
+    // console_subscriber::init();
 
     info!("Starting automation_rs...");
 
