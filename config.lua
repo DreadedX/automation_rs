@@ -1,8 +1,7 @@
 print("Hello from lua")
 
-automation.fulfillment = {
-	openid_url = "https://login.huizinga.dev/api/oidc",
-}
+local host = automation.util.get_hostname()
+print("Running @" .. host)
 
 local debug, value = pcall(automation.util.get_env, "DEBUG")
 if debug and value ~= "true" then
@@ -17,13 +16,19 @@ local function mqtt_automation(topic)
 	return "automation/" .. topic
 end
 
+automation.fulfillment = {
+	openid_url = "https://login.huizinga.dev/api/oidc",
+}
+
 local mqtt_client = automation.new_mqtt_client({
-	host = debug and "olympus.lan.huizinga.dev" or "mosquitto",
+	host = (host == "zeus" and "olympus.lan.huizinga.dev")
+		or (host == "hephaestus" and "olympus.vpn.huizinga.dev")
+		or "mosquitto",
 	port = 8883,
-	client_name = debug and "automation-debug" or "automation_rs",
+	client_name = "automation-" .. host,
 	username = "mqtt",
 	password = automation.util.get_env("MQTT_PASSWORD"),
-	tls = debug and true or false,
+	tls = host == "zeus" or host == "hephaestus",
 })
 
 automation.device_manager:add(Ntfy.new({

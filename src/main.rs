@@ -84,6 +84,12 @@ async fn app() -> anyhow::Result<()> {
             std::env::var(name).map_err(mlua::ExternalError::into_lua_err)
         })?;
         util.set("get_env", get_env)?;
+        let get_hostname = lua.create_function(|_lua, ()| {
+            hostname::get()
+                .map(|name| name.to_str().unwrap_or("unknown").to_owned())
+                .map_err(mlua::ExternalError::into_lua_err)
+        })?;
+        util.set("get_hostname", get_hostname)?;
         automation.set("util", util)?;
 
         lua.globals().set("automation", automation)?;
