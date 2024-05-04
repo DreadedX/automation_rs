@@ -6,7 +6,6 @@ use tracing::{debug, error, trace, warn};
 use super::Device;
 use crate::config::MqttDeviceConfig;
 use crate::device_manager::{ConfigExternal, DeviceConfig, WrappedDevice};
-use crate::devices::As;
 use crate::error::DeviceConfigError;
 use crate::event::{OnMqtt, OnPresence};
 use crate::messages::{RemoteAction, RemoteMessage};
@@ -39,8 +38,11 @@ impl DeviceConfig for AudioSetupConfig {
                 self.mixer.clone(),
             ))?;
 
-        if !As::<dyn OnOff>::is(mixer.read().await.as_ref()) {
-            return Err(DeviceConfigError::MissingTrait(self.mixer, "OnOff".into()));
+        {
+            let mixer = mixer.read().await;
+            if (mixer.as_ref().cast() as Option<&dyn OnOff>).is_none() {
+                return Err(DeviceConfigError::MissingTrait(self.mixer, "OnOff".into()));
+            }
         }
 
         let speakers =
@@ -52,11 +54,11 @@ impl DeviceConfig for AudioSetupConfig {
                     self.speakers.clone(),
                 ))?;
 
-        if !As::<dyn OnOff>::is(speakers.read().await.as_ref()) {
-            return Err(DeviceConfigError::MissingTrait(
-                self.speakers,
-                "OnOff".into(),
-            ));
+        {
+            let speakers = speakers.read().await;
+            if (speakers.as_ref().cast() as Option<&dyn OnOff>).is_none() {
+                return Err(DeviceConfigError::MissingTrait(self.mixer, "OnOff".into()));
+            }
         }
 
         let device = AudioSetup {
@@ -103,8 +105,8 @@ impl OnMqtt for AudioSetup {
         let mut mixer = self.mixer.write().await;
         let mut speakers = self.speakers.write().await;
         if let (Some(mixer), Some(speakers)) = (
-            As::<dyn OnOff>::cast_mut(mixer.as_mut()),
-            As::<dyn OnOff>::cast_mut(speakers.as_mut()),
+            mixer.as_mut().cast_mut() as Option<&mut dyn OnOff>,
+            speakers.as_mut().cast_mut() as Option<&mut dyn OnOff>,
         ) {
             match action {
 				RemoteAction::On => {
@@ -137,10 +139,9 @@ impl OnPresence for AudioSetup {
     async fn on_presence(&mut self, presence: bool) {
         let mut mixer = self.mixer.write().await;
         let mut speakers = self.speakers.write().await;
-
         if let (Some(mixer), Some(speakers)) = (
-            As::<dyn OnOff>::cast_mut(mixer.as_mut()),
-            As::<dyn OnOff>::cast_mut(speakers.as_mut()),
+            mixer.as_mut().cast_mut() as Option<&mut dyn OnOff>,
+            speakers.as_mut().cast_mut() as Option<&mut dyn OnOff>,
         ) {
             // Turn off the audio setup when we leave the house
             if !presence {

@@ -16,8 +16,7 @@ pub enum Trait {
 }
 
 #[async_trait]
-#[impl_cast::device_trait]
-pub trait OnOff {
+pub trait OnOff: Sync + Send {
     fn is_command_only(&self) -> Option<bool> {
         None
     }
@@ -32,8 +31,7 @@ pub trait OnOff {
 }
 
 #[async_trait]
-#[impl_cast::device_trait]
-pub trait Scene {
+pub trait Scene: Sync + Send {
     fn is_scene_reversible(&self) -> Option<bool> {
         None
     }
@@ -60,8 +58,7 @@ pub struct AvailableSpeeds {
 }
 
 #[async_trait]
-#[impl_cast::device_trait]
-pub trait FanSpeed {
+pub trait FanSpeed: Sync + Send {
     fn reversible(&self) -> Option<bool> {
         None
     }
@@ -76,8 +73,7 @@ pub trait FanSpeed {
 }
 
 #[async_trait]
-#[impl_cast::device_trait]
-pub trait HumiditySetting {
+pub trait HumiditySetting: Sync + Send {
     // TODO: This implementation is not complete, I have only implemented what I need right now
     fn query_only_humidity_setting(&self) -> Option<bool> {
         None

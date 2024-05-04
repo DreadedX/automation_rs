@@ -1,4 +1,5 @@
 use async_trait::async_trait;
+use automation_cast::Cast;
 use serde::Serialize;
 
 use crate::errors::{DeviceError, ErrorCode};
@@ -7,43 +8,10 @@ use crate::response;
 use crate::traits::{FanSpeed, HumiditySetting, OnOff, Scene, Trait};
 use crate::types::Type;
 
-// TODO: Find a more elegant way to do this
-pub trait AsGoogleHomeDevice {
-    fn cast(&self) -> Option<&dyn GoogleHomeDevice>;
-    fn cast_mut(&mut self) -> Option<&mut dyn GoogleHomeDevice>;
-}
-
-// Default impl
-impl<T> AsGoogleHomeDevice for T
-where
-    T: 'static,
-{
-    default fn cast(&self) -> Option<&(dyn GoogleHomeDevice + 'static)> {
-        None
-    }
-
-    default fn cast_mut(&mut self) -> Option<&mut (dyn GoogleHomeDevice + 'static)> {
-        None
-    }
-}
-
-// Specialization
-impl<T> AsGoogleHomeDevice for T
-where
-    T: GoogleHomeDevice + 'static,
-{
-    fn cast(&self) -> Option<&(dyn GoogleHomeDevice + 'static)> {
-        Some(self)
-    }
-
-    fn cast_mut(&mut self) -> Option<&mut (dyn GoogleHomeDevice + 'static)> {
-        Some(self)
-    }
-}
-
 #[async_trait]
-#[impl_cast::device(As: OnOff + Scene + FanSpeed + HumiditySetting)]
-pub trait GoogleHomeDevice: AsGoogleHomeDevice + Sync + Send + 'static {
+pub trait GoogleHomeDevice:
+    Sync + Send + Cast<dyn OnOff> + Cast<dyn Scene> + Cast<dyn FanSpeed> + Cast<dyn HumiditySetting>
+{
     fn get_device_type(&self) -> Type;
     fn get_device_name(&self) -> Name;
     fn get_id(&self) -> &str;
@@ -76,26 +44,26 @@ pub trait GoogleHomeDevice: AsGoogleHomeDevice + Sync + Send + 'static {
         let mut traits = Vec::new();
 
         // OnOff
-        if let Some(on_off) = As::<dyn OnOff>::cast(self) {
+        if let Some(on_off) = self.cast() as Option<&dyn OnOff> {
             traits.push(Trait::OnOff);
             device.attributes.command_only_on_off = on_off.is_command_only();
             device.attributes.query_only_on_off = on_off.is_query_only();
         }
 
         // Scene
-        if let Some(scene) = As::<dyn Scene>::cast(self) {
+        if let Some(scene) = self.cast() as Option<&dyn Scene> {
             traits.push(Trait::Scene);
             device.attributes.scene_reversible = scene.is_scene_reversible();
         }
 
         // FanSpeed
-        if let Some(fan_speed) = As::<dyn FanSpeed>::cast(self) {
+        if let Some(fan_speed) = self.cast() as Option<&dyn FanSpeed> {
             traits.push(Trait::FanSpeed);
             device.attributes.command_only_fan_speed = fan_speed.command_only_fan_speed();
             device.attributes.available_fan_speeds = Some(fan_speed.available_speeds());
         }
 
-        if let Some(humidity_setting) = As::<dyn HumiditySetting>::cast(self) {
+        if let Some(humidity_setting) = self.cast() as Option<&dyn HumiditySetting> {
             traits.push(Trait::HumiditySetting);
             device.attributes.query_only_humidity_setting =
                 humidity_setting.query_only_humidity_setting();
@@ -113,7 +81,7 @@ pub trait GoogleHomeDevice: AsGoogleHomeDevice + Sync + Send + 'static {
         }
 
         // OnOff
-        if let Some(on_off) = As::<dyn OnOff>::cast(self) {
+        if let Some(on_off) = self.cast() as Option<&dyn OnOff> {
             device.state.on = on_off
                 .is_on()
                 .await
@@ -122,11 +90,11 @@ pub trait GoogleHomeDevice: AsGoogleHomeDevice + Sync + Send + 'static {
         }
 
         // FanSpeed
-        if let Some(fan_speed) = As::<dyn FanSpeed>::cast(self) {
+        if let Some(fan_speed) = self.cast() as Option<&dyn FanSpeed> {
             device.state.current_fan_speed_setting = Some(fan_speed.current_speed().await);
         }
 
-        if let Some(humidity_setting) = As::<dyn HumiditySetting>::cast(self) {
+        if let Some(humidity_setting) = self.cast() as Option<&dyn HumiditySetting> {
             device.state.humidity_ambient_percent =
                 Some(humidity_setting.humidity_ambient_percent().await);
         }
@@ -137,21 +105,21 @@ pub trait GoogleHomeDevice: AsGoogleHomeDevice + Sync + Send + 'static {
     async fn execute(&mut self, command: &CommandType) -> Result<(), ErrorCode> {
         match command {
             CommandType::OnOff { on } => {
-                if let Some(t) = As::<dyn OnOff>::cast_mut(self) {
+                if let Some(t) = self.cast_mut() as Option<&mut dyn OnOff> {
                     t.set_on(*on).await?;
                 } else {
                     return Err(DeviceError::ActionNotAvailable.into());
                 }
             }
             CommandType::ActivateScene { deactivate } => {
-                if let Some(t) = As::<dyn Scene>::cast(self) {
+                if let Some(t) = self.cast_mut() as Option<&mut dyn Scene> {
                     t.set_active(!deactivate).await?;
                 } else {
                     return Err(DeviceError::ActionNotAvailable.into());
                 }
             }
             CommandType::SetFanSpeed { fan_speed } => {
-                if let Some(t) = As::<dyn FanSpeed>::cast(self) {
+                if let Some(t) = self.cast_mut() as Option<&mut dyn FanSpeed> {
                     t.set_speed(fan_speed).await?;
                 }
             }

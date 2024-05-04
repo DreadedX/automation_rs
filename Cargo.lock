@@ -76,6 +76,7 @@ version = "0.1.0"
 dependencies = [
  "anyhow",
  "async-trait",
+ "automation_cast",
  "axum",
  "bytes",
  "console-subscriber",
@@ -84,7 +85,6 @@ dependencies = [
  "eui48",
  "futures",
  "google-home",
- "impl_cast",
  "indexmap 2.0.0",
  "paste",
  "pollster",
@@ -103,6 +103,10 @@ dependencies = [
  "tracing-subscriber",
  "wakey",
 ]
+
+[[package]]
+name = "automation_cast"
+version = "0.1.0"
 
 [[package]]
 name = "axum"
@@ -568,8 +572,8 @@ version = "0.1.0"
 dependencies = [
  "anyhow",
  "async-trait",
+ "automation_cast",
  "futures",
- "impl_cast",
  "serde",
  "serde_json",
  "thiserror",
@@ -759,14 +763,6 @@ checksum = "7d20d6b07bfbc108882d88ed8e37d39636dcc260e15e30c45e6ba089610b917c"
 dependencies = [
  "unicode-bidi",
  "unicode-normalization",
-]
-
-[[package]]
-name = "impl_cast"
-version = "0.1.0"
-dependencies = [
- "quote",
- "syn 2.0.28",
 ]
 
 [[package]]

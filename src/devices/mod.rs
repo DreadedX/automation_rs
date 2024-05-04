@@ -12,8 +12,11 @@ mod presence;
 mod wake_on_lan;
 mod washer;
 
-use google_home::device::AsGoogleHomeDevice;
+use std::fmt::Debug;
+
+use automation_cast::Cast;
 use google_home::traits::OnOff;
+use google_home::GoogleHomeDevice;
 
 pub use self::air_filter::AirFilterConfig;
 pub use self::audio_setup::AudioSetupConfig;
@@ -31,7 +34,18 @@ pub use self::washer::WasherConfig;
 use crate::event::{OnDarkness, OnMqtt, OnNotification, OnPresence};
 use crate::traits::Timeout;
 
-#[impl_cast::device(As: OnMqtt + OnPresence + OnDarkness + OnNotification + OnOff + Timeout)]
-pub trait Device: AsGoogleHomeDevice + std::fmt::Debug + Sync + Send {
+pub trait Device:
+    Debug
+    + Sync
+    + Send
+    + Cast<dyn GoogleHomeDevice>
+    + Cast<dyn OnMqtt>
+    + Cast<dyn OnMqtt>
+    + Cast<dyn OnPresence>
+    + Cast<dyn OnDarkness>
+    + Cast<dyn OnNotification>
+    + Cast<dyn OnOff>
+    + Cast<dyn Timeout>
+{
     fn get_id(&self) -> &str;
 }

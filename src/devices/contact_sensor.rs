@@ -11,7 +11,7 @@ use tracing::{debug, error, trace, warn};
 use super::Device;
 use crate::config::MqttDeviceConfig;
 use crate::device_manager::{ConfigExternal, DeviceConfig, WrappedDevice};
-use crate::devices::{As, DEFAULT_PRESENCE};
+use crate::devices::DEFAULT_PRESENCE;
 use crate::error::DeviceConfigError;
 use crate::event::{OnMqtt, OnPresence};
 use crate::messages::{ContactMessage, PresenceMessage};
@@ -60,20 +60,23 @@ impl DeviceConfig for ContactSensorConfig {
                     DeviceConfigError::MissingChild(device_name.into(), "OnOff".into()),
                 )?;
 
-                if !As::<dyn OnOff>::is(device.read().await.as_ref()) {
-                    return Err(DeviceConfigError::MissingTrait(
-                        device_name.into(),
-                        "OnOff".into(),
-                    ));
-                }
-
-                if !trigger_config.timeout.is_zero()
-                    && !As::<dyn Timeout>::is(device.read().await.as_ref())
                 {
-                    return Err(DeviceConfigError::MissingTrait(
-                        device_name.into(),
-                        "Timeout".into(),
-                    ));
+                    let device = device.read().await;
+                    if (device.as_ref().cast() as Option<&dyn OnOff>).is_none() {
+                        return Err(DeviceConfigError::MissingTrait(
+                            device_name.into(),
+                            "OnOff".into(),
+                        ));
+                    }
+
+                    if trigger_config.timeout.is_zero()
+                        && (device.as_ref().cast() as Option<&dyn Timeout>).is_none()
+                    {
+                        return Err(DeviceConfigError::MissingTrait(
+                            device_name.into(),
+                            "Timeout".into(),
+                        ));
+                    }
                 }
 
                 devices.push((device, false));
@@ -161,7 +164,7 @@ impl OnMqtt for ContactSensor {
             if !self.is_closed {
                 for (light, previous) in &mut trigger.devices {
                     let mut light = light.write().await;
-                    if let Some(light) = As::<dyn OnOff>::cast_mut(light.as_mut()) {
+                    if let Some(light) = light.as_mut().cast_mut() as Option<&mut dyn OnOff> {
                         *previous = light.is_on().await.unwrap();
                         light.set_on(true).await.ok();
                     }
@@ -172,10 +175,12 @@ impl OnMqtt for ContactSensor {
                     if !previous {
                         // If the timeout is zero just turn the light off directly
                         if trigger.timeout.is_zero()
-                            && let Some(light) = As::<dyn OnOff>::cast_mut(light.as_mut())
+                            && let Some(light) = light.as_mut().cast_mut() as Option<&mut dyn OnOff>
                         {
                             light.set_on(false).await.ok();
-                        } else if let Some(light) = As::<dyn Timeout>::cast_mut(light.as_mut()) {
+                        } else if let Some(light) =
+                            light.as_mut().cast_mut() as Option<&mut dyn Timeout>
+                        {
                             light.start_timeout(trigger.timeout).await.unwrap();
                         }
                         // TODO: Put a warning/error on creation if either of this has to option to fail

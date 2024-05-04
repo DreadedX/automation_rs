@@ -1,5 +1,4 @@
 use async_trait::async_trait;
-use impl_cast::device_trait;
 use rumqttc::Publish;
 use tokio::sync::mpsc;
 
@@ -32,26 +31,22 @@ impl EventChannel {
 }
 
 #[async_trait]
-#[device_trait]
-pub trait OnMqtt {
+pub trait OnMqtt: Sync + Send {
     fn topics(&self) -> Vec<&str>;
     async fn on_mqtt(&mut self, message: Publish);
 }
 
 #[async_trait]
-#[device_trait]
-pub trait OnPresence {
+pub trait OnPresence: Sync + Send {
     async fn on_presence(&mut self, presence: bool);
 }
 
 #[async_trait]
-#[device_trait]
-pub trait OnDarkness {
+pub trait OnDarkness: Sync + Send {
     async fn on_darkness(&mut self, dark: bool);
 }
 
 #[async_trait]
-#[device_trait]
-pub trait OnNotification {
+pub trait OnNotification: Sync + Send {
     async fn on_notification(&mut self, notification: Notification);
 }

@@ -1,14 +1,15 @@
 use std::collections::HashMap;
 use std::sync::Arc;
 
+use automation_cast::Cast;
 use futures::future::{join_all, OptionFuture};
 use thiserror::Error;
 use tokio::sync::{Mutex, RwLock};
 
-use crate::device::AsGoogleHomeDevice;
 use crate::errors::{DeviceError, ErrorCode};
 use crate::request::{self, Intent, Request};
 use crate::response::{self, execute, query, sync, Response, ResponsePayload, State};
+use crate::GoogleHomeDevice;
 
 #[derive(Debug)]
 pub struct GoogleHome {
@@ -29,7 +30,7 @@ impl GoogleHome {
         }
     }
 
-    pub async fn handle_request<T: AsGoogleHomeDevice + ?Sized + 'static>(
+    pub async fn handle_request<T: Cast<dyn GoogleHomeDevice> + ?Sized + 'static>(
         &self,
         request: Request,
         devices: &HashMap<String, Arc<RwLock<Box<T>>>>,
@@ -58,7 +59,7 @@ impl GoogleHome {
             .map(|payload| Response::new(&request.request_id, payload))
     }
 
-    async fn sync<T: AsGoogleHomeDevice + ?Sized + 'static>(
+    async fn sync<T: Cast<dyn GoogleHomeDevice> + ?Sized + 'static>(
         &self,
         devices: &HashMap<String, Arc<RwLock<Box<T>>>>,
     ) -> sync::Payload {
@@ -75,7 +76,7 @@ impl GoogleHome {
         resp_payload
     }
 
-    async fn query<T: AsGoogleHomeDevice + ?Sized + 'static>(
+    async fn query<T: Cast<dyn GoogleHomeDevice> + ?Sized + 'static>(
         &self,
         payload: request::query::Payload,
         devices: &HashMap<String, Arc<RwLock<Box<T>>>>,
@@ -107,7 +108,7 @@ impl GoogleHome {
         resp_payload
     }
 
-    async fn execute<T: AsGoogleHomeDevice + ?Sized + 'static>(
+    async fn execute<T: Cast<dyn GoogleHomeDevice> + ?Sized + 'static>(
         &self,
         payload: request::execute::Payload,
         devices: &HashMap<String, Arc<RwLock<Box<T>>>>,

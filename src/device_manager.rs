@@ -12,7 +12,7 @@ use tokio_cron_scheduler::{Job, JobScheduler};
 use tracing::{debug, error, instrument, trace};
 
 use crate::devices::{
-    AirFilterConfig, As, AudioSetupConfig, ContactSensorConfig, DebugBridgeConfig, Device,
+    AirFilterConfig, AudioSetupConfig, ContactSensorConfig, DebugBridgeConfig, Device,
     HueBridgeConfig, HueGroupConfig, IkeaOutletConfig, KasaOutletConfig, LightSensorConfig,
     WakeOnLANConfig, WasherConfig,
 };
@@ -106,22 +106,22 @@ impl DeviceManager {
                                     let device = manager.get(&target).await.unwrap();
                                     match action {
                                         Action::On => {
-                                            As::<dyn OnOff>::cast_mut(
-                                                device.write().await.as_mut(),
-                                            )
-                                            .unwrap()
-                                            .set_on(true)
-                                            .await
-                                            .unwrap();
+                                            let mut device = device.write().await;
+                                            let device: Option<&mut dyn OnOff> =
+                                                device.as_mut().cast_mut();
+
+                                            if let Some(device) = device {
+                                                device.set_on(true).await.unwrap();
+                                            }
                                         }
                                         Action::Off => {
-                                            As::<dyn OnOff>::cast_mut(
-                                                device.write().await.as_mut(),
-                                            )
-                                            .unwrap()
-                                            .set_on(false)
-                                            .await
-                                            .unwrap();
+                                            let mut device = device.write().await;
+                                            let device: Option<&mut dyn OnOff> =
+                                                device.as_mut().cast_mut();
+
+                                            if let Some(device) = device {
+                                                device.set_on(false).await.unwrap();
+                                            }
                                         }
                                     }
                                 }
@@ -142,14 +142,17 @@ impl DeviceManager {
 
         debug!(id, "Adding device");
 
-        // If the device listens to mqtt, subscribe to the topics
-        if let Some(device) = As::<dyn OnMqtt>::cast(device.as_ref()) {
-            for topic in device.topics() {
-                trace!(id, topic, "Subscribing to topic");
-                if let Err(err) = self.client.subscribe(topic, QoS::AtLeastOnce).await {
-                    // NOTE: Pretty sure that this can only happen if the mqtt client if no longer
-                    // running
-                    error!(id, topic, "Failed to subscribe to topic: {err}");
+        {
+            // If the device listens to mqtt, subscribe to the topics
+            let device: Option<&dyn OnMqtt> = device.as_ref().cast();
+            if let Some(device) = device {
+                for topic in device.topics() {
+                    trace!(id, topic, "Subscribing to topic");
+                    if let Err(err) = self.client.subscribe(topic, QoS::AtLeastOnce).await {
+                        // NOTE: Pretty sure that this can only happen if the mqtt client if no longer
+                        // running
+                        error!(id, topic, "Failed to subscribe to topic: {err}");
+                    }
                 }
             }
         }
@@ -199,8 +202,8 @@ impl DeviceManager {
                     let message = message.clone();
                     async move {
                         let mut device = device.write().await;
-                        let device = device.as_mut();
-                        if let Some(device) = As::<dyn OnMqtt>::cast_mut(device) {
+                        let device: Option<&mut dyn OnMqtt> = device.as_mut().cast_mut();
+                        if let Some(device) = device {
                             let subscribed = device
                                 .topics()
                                 .iter()
@@ -220,8 +223,8 @@ impl DeviceManager {
                 let devices = self.devices.read().await;
                 let iter = devices.iter().map(|(id, device)| async move {
                     let mut device = device.write().await;
-                    let device = device.as_mut();
-                    if let Some(device) = As::<dyn OnDarkness>::cast_mut(device) {
+                    let device: Option<&mut dyn OnDarkness> = device.as_mut().cast_mut();
+                    if let Some(device) = device {
                         trace!(id, "Handling");
                         device.on_darkness(dark).await;
                     }
@@ -233,8 +236,8 @@ impl DeviceManager {
                 let devices = self.devices.read().await;
                 let iter = devices.iter().map(|(id, device)| async move {
                     let mut device = device.write().await;
-                    let device = device.as_mut();
-                    if let Some(device) = As::<dyn OnPresence>::cast_mut(device) {
+                    let device: Option<&mut dyn OnPresence> = device.as_mut().cast_mut();
+                    if let Some(device) = device {
                         trace!(id, "Handling");
                         device.on_presence(presence).await;
                     }
@@ -248,8 +251,8 @@ impl DeviceManager {
                     let notification = notification.clone();
                     async move {
                         let mut device = device.write().await;
-                        let device = device.as_mut();
-                        if let Some(device) = As::<dyn OnNotification>::cast_mut(device) {
+                        let device: Option<&mut dyn OnNotification> = device.as_mut().cast_mut();
+                        if let Some(device) = device {
                             trace!(id, "Handling");
                             device.on_notification(notification).await;
                         }
