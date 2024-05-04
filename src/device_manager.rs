@@ -142,17 +142,14 @@ impl DeviceManager {
 
         debug!(id, "Adding device");
 
-        {
-            // If the device listens to mqtt, subscribe to the topics
-            let device: Option<&dyn OnMqtt> = device.as_ref().cast();
-            if let Some(device) = device {
-                for topic in device.topics() {
-                    trace!(id, topic, "Subscribing to topic");
-                    if let Err(err) = self.client.subscribe(topic, QoS::AtLeastOnce).await {
-                        // NOTE: Pretty sure that this can only happen if the mqtt client if no longer
-                        // running
-                        error!(id, topic, "Failed to subscribe to topic: {err}");
-                    }
+        // If the device listens to mqtt, subscribe to the topics
+        if let Some(device) = device.as_ref().cast() as Option<&dyn OnMqtt> {
+            for topic in device.topics() {
+                trace!(id, topic, "Subscribing to topic");
+                if let Err(err) = self.client.subscribe(topic, QoS::AtLeastOnce).await {
+                    // NOTE: Pretty sure that this can only happen if the mqtt client if no longer
+                    // running
+                    error!(id, topic, "Failed to subscribe to topic: {err}");
                 }
             }
         }
