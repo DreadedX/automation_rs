@@ -137,8 +137,7 @@ automation.device_manager:add(IkeaOutlet.new({
 	topic = mqtt_z2m("workbench/outlet"),
 	client = mqtt_client,
 }))
-
-local hallway_lights = automation.device_manager:add(HueGroup.new({
+local hallway_lights = HueGroup.new({
 	identifier = "hallway_lights",
 	ip = hue_ip,
 	login = hue_token,
@@ -149,7 +148,8 @@ local hallway_lights = automation.device_manager:add(HueGroup.new({
 		{ topic = mqtt_z2m("hallway/remote") },
 	},
 	client = mqtt_client,
-}))
+})
+automation.device_manager:add(hallway_lights)
 
 automation.device_manager:add(ContactSensor.new({
 	identifier = "hallway_frontdoor",
@@ -173,6 +173,9 @@ local bedroom_air_filter = AirFilter.new({
 })
 automation.device_manager:add(bedroom_air_filter)
 
-automation.device_manager:schedule("0/1 * * * * *", function()
-	print("Device: " .. bedroom_air_filter:get_id())
+automation.device_manager:schedule("0 0 19 * * *", function()
+	bedroom_air_filter:set_on(true)
+end)
+automation.device_manager:schedule("0 0 20 * * *", function()
+	bedroom_air_filter:set_on(false)
 end)

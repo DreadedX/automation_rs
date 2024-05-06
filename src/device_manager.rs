@@ -5,6 +5,7 @@ use std::sync::Arc;
 
 use futures::future::join_all;
 use futures::Future;
+use google_home::traits::OnOff;
 use mlua::FromLua;
 use tokio::sync::{RwLock, RwLockReadGuard};
 use tokio_cron_scheduler::{Job, JobScheduler};
@@ -41,6 +42,17 @@ impl mlua::UserData for WrappedDevice {
     fn add_methods<'lua, M: mlua::prelude::LuaUserDataMethods<'lua, Self>>(methods: &mut M) {
         methods.add_async_method("get_id", |_lua, this, _: ()| async {
             Ok(crate::devices::Device::get_id(this.0.read().await.as_ref()))
+        });
+
+        methods.add_async_method("set_on", |_lua, this, on: bool| async move {
+            let mut device = this.0.write().await;
+            let device = device.as_mut();
+
+            if let Some(device) = device.cast_mut() as Option<&mut dyn OnOff> {
+                device.set_on(on).await.unwrap()
+            };
+
+            Ok(())
         });
     }
 }
