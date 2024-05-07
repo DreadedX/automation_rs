@@ -1,11 +1,12 @@
 # automation_rs
 
-Custom home automation solution with google-home integration
+Custom home automation solution with Google Home integration and lua scripting.
 
 ## Development
 
-Make sure to setup git hooks by running
+This repository uses [pre-commit](https://pre-commit.com) to make sure everything is ready to go when committing.
+Install the pre-commit hooks by running the following command:
 
-```sh
-git config --local core.hooksPath .git-hooks/
+```bash
+pre-commit install
 ```
