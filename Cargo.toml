@@ -2,10 +2,10 @@
 name = "automation"
 version = "0.1.0"
 edition = "2021"
+default-run = "automation"
 
 [workspace]
 members = ["google-home", "automation_macro", "automation_cast"]
-
 
 [dependencies]
 automation_macro = { path = "./automation_macro" }
