@@ -116,7 +116,7 @@ automation.device_manager:add(IkeaOutlet.new({
 
 automation.device_manager:add(Washer.new({
 	identifier = "bathroom_washer",
-	topic = mqtt_z2m("batchroom/washer"),
+	topic = mqtt_z2m("bathroom/washer"),
 	client = mqtt_client,
 	threshold = 1,
 	event_channel = automation.device_manager:event_channel(),
