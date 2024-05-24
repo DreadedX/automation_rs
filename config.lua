@@ -37,7 +37,7 @@ automation.device_manager:add(Ntfy.new({
 }))
 
 automation.device_manager:add(Presence.new({
-	topic = "automation_dev/presence/+/#",
+	topic = mqtt_automation("presence/+/#"),
 	client = mqtt_client,
 	event_channel = automation.device_manager:event_channel(),
 }))
@@ -137,6 +137,7 @@ automation.device_manager:add(IkeaOutlet.new({
 	topic = mqtt_z2m("workbench/outlet"),
 	client = mqtt_client,
 }))
+
 local hallway_lights = HueGroup.new({
 	identifier = "hallway_lights",
 	ip = hue_ip,
