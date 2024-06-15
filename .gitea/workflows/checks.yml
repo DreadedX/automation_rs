@@ -1,0 +1,17 @@
+name: Check
+on:
+    push:
+        branches: "**"
+
+jobs:
+    check:
+        name: Run checks
+        runs-on: ubuntu-latest
+        container: git.huizinga.dev/dreaded_x/pre-commit:master
+        steps:
+            - name: Checkout
+              uses: actions/checkout@v4
+
+            - name: Run pre-commit
+              run: SKIP=sqlx-prepare pre-commit run --show-diff-on-failure --color=always --all-files
+              shell: bash
