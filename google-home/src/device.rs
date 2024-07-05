@@ -1,17 +1,13 @@
 use async_trait::async_trait;
-use automation_cast::Cast;
 use serde::Serialize;
 
-use crate::errors::{DeviceError, ErrorCode};
-use crate::request::execute::CommandType;
+use crate::errors::ErrorCode;
 use crate::response;
-use crate::traits::{FanSpeed, HumiditySetting, OnOff, Scene, Trait};
+use crate::traits::{Command, GoogleHomeDeviceFulfillment};
 use crate::types::Type;
 
 #[async_trait]
-pub trait GoogleHomeDevice:
-    Sync + Send + Cast<dyn OnOff> + Cast<dyn Scene> + Cast<dyn FanSpeed> + Cast<dyn HumiditySetting>
-{
+pub trait GoogleHomeDevice: GoogleHomeDeviceFulfillment {
     fn get_device_type(&self) -> Type;
     fn get_device_name(&self) -> Name;
     fn get_id(&self) -> String;
@@ -41,35 +37,10 @@ pub trait GoogleHomeDevice:
         }
         device.device_info = self.get_device_info();
 
-        let mut traits = Vec::new();
-
-        // OnOff
-        if let Some(on_off) = self.cast() as Option<&dyn OnOff> {
-            traits.push(Trait::OnOff);
-            device.attributes.command_only_on_off = on_off.is_command_only();
-            device.attributes.query_only_on_off = on_off.is_query_only();
-        }
-
-        // Scene
-        if let Some(scene) = self.cast() as Option<&dyn Scene> {
-            traits.push(Trait::Scene);
-            device.attributes.scene_reversible = scene.is_scene_reversible();
-        }
-
-        // FanSpeed
-        if let Some(fan_speed) = self.cast() as Option<&dyn FanSpeed> {
-            traits.push(Trait::FanSpeed);
-            device.attributes.command_only_fan_speed = fan_speed.command_only_fan_speed();
-            device.attributes.available_fan_speeds = Some(fan_speed.available_speeds());
-        }
-
-        if let Some(humidity_setting) = self.cast() as Option<&dyn HumiditySetting> {
-            traits.push(Trait::HumiditySetting);
-            device.attributes.query_only_humidity_setting =
-                humidity_setting.query_only_humidity_setting();
-        }
+        let (traits, attributes) = GoogleHomeDeviceFulfillment::sync(self).await.unwrap();
 
         device.traits = traits;
+        device.attributes = attributes;
 
         device
     }
@@ -80,50 +51,15 @@ pub trait GoogleHomeDevice:
             device.set_offline();
         }
 
-        // OnOff
-        if let Some(on_off) = self.cast() as Option<&dyn OnOff> {
-            device.state.on = on_off
-                .is_on()
-                .await
-                .map_err(|err| device.set_error(err))
-                .ok();
-        }
-
-        // FanSpeed
-        if let Some(fan_speed) = self.cast() as Option<&dyn FanSpeed> {
-            device.state.current_fan_speed_setting = Some(fan_speed.current_speed().await);
-        }
-
-        if let Some(humidity_setting) = self.cast() as Option<&dyn HumiditySetting> {
-            device.state.humidity_ambient_percent =
-                Some(humidity_setting.humidity_ambient_percent().await);
-        }
+        device.state = GoogleHomeDeviceFulfillment::query(self).await.unwrap();
 
         device
     }
 
-    async fn execute(&mut self, command: &CommandType) -> Result<(), ErrorCode> {
-        match command {
-            CommandType::OnOff { on } => {
-                if let Some(t) = self.cast_mut() as Option<&mut dyn OnOff> {
-                    t.set_on(*on).await?;
-                } else {
-                    return Err(DeviceError::ActionNotAvailable.into());
-                }
-            }
-            CommandType::ActivateScene { deactivate } => {
-                if let Some(t) = self.cast_mut() as Option<&mut dyn Scene> {
-                    t.set_active(!deactivate).await?;
-                } else {
-                    return Err(DeviceError::ActionNotAvailable.into());
-                }
-            }
-            CommandType::SetFanSpeed { fan_speed } => {
-                if let Some(t) = self.cast_mut() as Option<&mut dyn FanSpeed> {
-                    t.set_speed(fan_speed).await?;
-                }
-            }
-        }
+    async fn execute(&mut self, command: Command) -> Result<(), ErrorCode> {
+        GoogleHomeDeviceFulfillment::execute(self, command.clone())
+            .await
+            .unwrap();
 
         Ok(())
     }

@@ -1,6 +1,5 @@
 use serde::Serialize;
 
-use crate::attributes::Attributes;
 use crate::device;
 use crate::errors::ErrorCode;
 use crate::traits::Trait;
@@ -47,7 +46,7 @@ pub struct Device {
     pub room_hint: Option<String>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub device_info: Option<device::Info>,
-    pub attributes: Attributes,
+    pub attributes: serde_json::Value,
 }
 
 impl Device {
@@ -61,7 +60,7 @@ impl Device {
             notification_supported_by_agent: None,
             room_hint: None,
             device_info: None,
-            attributes: Attributes::default(),
+            attributes: Default::default(),
         }
     }
 }

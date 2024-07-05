@@ -207,7 +207,7 @@ impl Response {
 
 #[async_trait]
 impl traits::OnOff for KasaOutlet {
-    async fn is_on(&self) -> Result<bool, errors::ErrorCode> {
+    async fn on(&self) -> Result<bool, errors::ErrorCode> {
         let mut stream = TcpStream::connect(self.config.addr)
             .await
             .or::<DeviceError>(Err(DeviceError::DeviceOffline))?;

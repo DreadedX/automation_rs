@@ -155,7 +155,7 @@ impl OnMqtt for ContactSensor {
                 for (light, previous) in &mut trigger.devices {
                     let mut light = light.write().await;
                     if let Some(light) = light.as_mut().cast_mut() as Option<&mut dyn OnOff> {
-                        *previous = light.is_on().await.unwrap();
+                        *previous = light.on().await.unwrap();
                         light.set_on(true).await.ok();
                     }
                 }

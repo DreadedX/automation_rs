@@ -8,7 +8,7 @@ use tokio::sync::{Mutex, RwLock};
 
 use crate::errors::{DeviceError, ErrorCode};
 use crate::request::{self, Intent, Request};
-use crate::response::{self, execute, query, sync, Response, ResponsePayload, State};
+use crate::response::{self, execute, query, sync, Response, ResponsePayload};
 use crate::GoogleHomeDevice;
 
 #[derive(Debug)]
@@ -66,7 +66,7 @@ impl GoogleHome {
         let mut resp_payload = sync::Payload::new(&self.user_id);
         let f = devices.iter().map(|(_, device)| async move {
             if let Some(device) = device.read().await.as_ref().cast() {
-                Some(device.sync().await)
+                Some(GoogleHomeDevice::sync(device).await)
             } else {
                 None
             }
@@ -91,7 +91,7 @@ impl GoogleHome {
                 let device = if let Some(device) = devices.get(id.as_str())
                     && let Some(device) = device.read().await.as_ref().cast()
                 {
-                    device.query().await
+                    GoogleHomeDevice::query(device).await
                 } else {
                     let mut device = query::Device::new();
                     device.set_offline();
@@ -121,12 +121,12 @@ impl GoogleHome {
                 let mut success = response::execute::Command::new(execute::Status::Success);
                 success.states = Some(execute::States {
                     online: true,
-                    state: State::default(),
+                    state: Default::default(),
                 });
                 let mut offline = response::execute::Command::new(execute::Status::Offline);
                 offline.states = Some(execute::States {
                     online: false,
-                    state: State::default(),
+                    state: Default::default(),
                 });
                 let mut errors: HashMap<ErrorCode, response::execute::Command> = HashMap::new();
 
@@ -147,7 +147,8 @@ impl GoogleHome {
                                 // NOTE: We can not use .map here because async =(
                                 let mut results = Vec::new();
                                 for cmd in &execution {
-                                    results.push(device.execute(cmd).await);
+                                    results
+                                        .push(GoogleHomeDevice::execute(device, cmd.clone()).await);
                                 }
 
                                 // Convert vec of results to a result with a vec and the first

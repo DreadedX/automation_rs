@@ -134,7 +134,7 @@ impl GoogleHomeDevice for AirFilter {
 
 #[async_trait]
 impl OnOff for AirFilter {
-    async fn is_on(&self) -> Result<bool, ErrorCode> {
+    async fn on(&self) -> Result<bool, ErrorCode> {
         Ok(self.last_known_state.state != AirFilterFanState::Off)
     }
 
@@ -153,7 +153,7 @@ impl OnOff for AirFilter {
 
 #[async_trait]
 impl FanSpeed for AirFilter {
-    fn available_speeds(&self) -> AvailableSpeeds {
+    fn available_fan_speeds(&self) -> AvailableSpeeds {
         AvailableSpeeds {
             speeds: vec![
                 Speed {
@@ -189,7 +189,7 @@ impl FanSpeed for AirFilter {
         }
     }
 
-    async fn current_speed(&self) -> String {
+    fn current_fan_speed_setting(&self) -> Result<String, ErrorCode> {
         let speed = match self.last_known_state.state {
             AirFilterFanState::Off => "off",
             AirFilterFanState::Low => "low",
@@ -197,17 +197,18 @@ impl FanSpeed for AirFilter {
             AirFilterFanState::High => "high",
         };
 
-        speed.into()
+        Ok(speed.into())
     }
 
-    async fn set_speed(&self, speed: &str) -> Result<(), ErrorCode> {
-        let state = if speed == "off" {
+    async fn set_fan_speed(&mut self, fan_speed: String) -> Result<(), ErrorCode> {
+        let fan_speed = fan_speed.as_str();
+        let state = if fan_speed == "off" {
             AirFilterFanState::Off
-        } else if speed == "low" {
+        } else if fan_speed == "low" {
             AirFilterFanState::Low
-        } else if speed == "medium" {
+        } else if fan_speed == "medium" {
             AirFilterFanState::Medium
-        } else if speed == "high" {
+        } else if fan_speed == "high" {
             AirFilterFanState::High
         } else {
             return Err(google_home::errors::DeviceError::TransientError.into());
@@ -225,7 +226,7 @@ impl HumiditySetting for AirFilter {
         Some(true)
     }
 
-    async fn humidity_ambient_percent(&self) -> isize {
-        self.last_known_state.humidity.round() as isize
+    fn humidity_ambient_percent(&self) -> Result<isize, ErrorCode> {
+        Ok(self.last_known_state.humidity.round() as isize)
     }
 }

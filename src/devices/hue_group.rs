@@ -152,7 +152,7 @@ impl OnOff for HueGroup {
         Ok(())
     }
 
-    async fn is_on(&self) -> Result<bool, ErrorCode> {
+    async fn on(&self) -> Result<bool, ErrorCode> {
         let res = reqwest::Client::new()
             .get(self.url_get_state())
             .send()

@@ -3,7 +3,6 @@ use std::collections::HashMap;
 use serde::Serialize;
 
 use crate::errors::ErrorCode;
-use crate::response::State;
 
 #[derive(Debug, Serialize)]
 #[serde(rename_all = "camelCase")]
@@ -53,7 +52,7 @@ pub struct Device {
     error_code: Option<ErrorCode>,
 
     #[serde(flatten)]
-    pub state: State,
+    pub state: serde_json::Value,
 }
 
 impl Device {
@@ -62,7 +61,7 @@ impl Device {
             online: true,
             status: Status::Success,
             error_code: None,
-            state: State::default(),
+            state: Default::default(),
         }
     }
 
@@ -88,6 +87,8 @@ impl Default for Device {
 
 #[cfg(test)]
 mod tests {
+    use serde_json::json;
+
     use super::*;
     use crate::response::{Response, ResponsePayload};
 
@@ -96,11 +97,15 @@ mod tests {
         let mut query_resp = Payload::new();
 
         let mut device = Device::new();
-        device.state.on = Some(true);
+        device.state = json!({
+            "on": true,
+        });
         query_resp.add_device("123", device);
 
         let mut device = Device::new();
-        device.state.on = Some(false);
+        device.state = json!({
+            "on": true,
+        });
         query_resp.add_device("456", device);
 
         let resp = Response::new(

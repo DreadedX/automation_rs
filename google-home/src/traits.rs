@@ -1,42 +1,39 @@
-use async_trait::async_trait;
+use automation_cast::Cast;
+use automation_macro::google_home_traits;
 use serde::Serialize;
 
 use crate::errors::ErrorCode;
+use crate::GoogleHomeDevice;
 
-#[derive(Debug, Serialize)]
-pub enum Trait {
-    #[serde(rename = "action.devices.traits.OnOff")]
-    OnOff,
-    #[serde(rename = "action.devices.traits.Scene")]
-    Scene,
-    #[serde(rename = "action.devices.traits.FanSpeed")]
-    FanSpeed,
-    #[serde(rename = "action.devices.traits.HumiditySetting")]
-    HumiditySetting,
-}
+google_home_traits! {
+    GoogleHomeDevice,
+    "action.devices.traits.OnOff" => trait OnOff {
+        command_only_on_off: Option<bool>,
+        query_only_on_off: Option<bool>,
+        async fn on(&self) -> Result<bool, ErrorCode>,
+        "action.devices.commands.OnOff" => async fn set_on(&mut self, on: bool) -> Result<(), ErrorCode>,
+    },
+    "action.devices.traits.Scene" => trait Scene {
+        scene_reversible: Option<bool>,
 
-#[async_trait]
-pub trait OnOff: Sync + Send {
-    fn is_command_only(&self) -> Option<bool> {
-        None
+        "action.devices.commands.ActivateScene" => async fn set_active(&mut self, activate: bool) -> Result<(), ErrorCode>,
+    },
+    "action.devices.traits.FanSpeed" => trait FanSpeed {
+        reversible: Option<bool>,
+        command_only_fan_speed: Option<bool>,
+        available_fan_speeds: AvailableSpeeds,
+
+        fn current_fan_speed_setting(&self) -> Result<String, ErrorCode>,
+
+        // TODO: Figure out some syntax for optional command?
+        // Probably better to just force the user to always implement commands?
+        "action.devices.commands.SetFanSpeed" => async fn set_fan_speed(&mut self, fan_speed: String) -> Result<(), ErrorCode>,
+    },
+    "action.devices.traits.HumiditySetting" => trait HumiditySetting {
+        query_only_humidity_setting: Option<bool>,
+
+        fn humidity_ambient_percent(&self) -> Result<isize, ErrorCode>,
     }
-
-    fn is_query_only(&self) -> Option<bool> {
-        None
-    }
-
-    // TODO: Implement correct error so we can handle them properly
-    async fn is_on(&self) -> Result<bool, ErrorCode>;
-    async fn set_on(&mut self, on: bool) -> Result<(), ErrorCode>;
-}
-
-#[async_trait]
-pub trait Scene: Sync + Send {
-    fn is_scene_reversible(&self) -> Option<bool> {
-        None
-    }
-
-    async fn set_active(&self, activate: bool) -> Result<(), ErrorCode>;
 }
 
 #[derive(Debug, Serialize)]
@@ -55,29 +52,4 @@ pub struct Speed {
 pub struct AvailableSpeeds {
     pub speeds: Vec<Speed>,
     pub ordered: bool,
-}
-
-#[async_trait]
-pub trait FanSpeed: Sync + Send {
-    fn reversible(&self) -> Option<bool> {
-        None
-    }
-
-    fn command_only_fan_speed(&self) -> Option<bool> {
-        None
-    }
-
-    fn available_speeds(&self) -> AvailableSpeeds;
-    async fn current_speed(&self) -> String;
-    async fn set_speed(&self, speed: &str) -> Result<(), ErrorCode>;
-}
-
-#[async_trait]
-pub trait HumiditySetting: Sync + Send {
-    // TODO: This implementation is not complete, I have only implemented what I need right now
-    fn query_only_humidity_setting(&self) -> Option<bool> {
-        None
-    }
-
-    async fn humidity_ambient_percent(&self) -> isize;
 }

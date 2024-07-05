@@ -92,7 +92,7 @@ impl OnMqtt for AudioSetup {
         ) {
             match action {
 				RemoteAction::On => {
-					if mixer.is_on().await.unwrap() {
+					if mixer.on().await.unwrap() {
 						speakers.set_on(false).await.unwrap();
 						mixer.set_on(false).await.unwrap();
 					} else {
@@ -101,9 +101,9 @@ impl OnMqtt for AudioSetup {
 					}
 				},
 				RemoteAction::BrightnessMoveUp => {
-					if !mixer.is_on().await.unwrap() {
+					if !mixer.on().await.unwrap() {
 						mixer.set_on(true).await.unwrap();
-					} else if speakers.is_on().await.unwrap() {
+					} else if speakers.on().await.unwrap() {
 						speakers.set_on(false).await.unwrap();
 					} else {
 						speakers.set_on(true).await.unwrap();

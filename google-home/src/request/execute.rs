@@ -1,5 +1,7 @@
 use serde::Deserialize;
 
+use crate::traits;
+
 #[derive(Debug, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct Payload {
@@ -10,7 +12,7 @@ pub struct Payload {
 #[serde(rename_all = "camelCase")]
 pub struct Command {
     pub devices: Vec<Device>,
-    pub execution: Vec<CommandType>,
+    pub execution: Vec<traits::Command>,
 }
 
 #[derive(Debug, Deserialize)]
@@ -18,20 +20,6 @@ pub struct Command {
 pub struct Device {
     pub id: String,
     // customData
-}
-
-#[derive(Debug, Deserialize, Clone)]
-#[serde(tag = "command", content = "params")]
-pub enum CommandType {
-    #[serde(rename = "action.devices.commands.OnOff")]
-    OnOff { on: bool },
-    #[serde(rename = "action.devices.commands.ActivateScene")]
-    ActivateScene { deactivate: bool },
-    #[serde(
-        rename = "action.devices.commands.SetFanSpeed",
-        rename_all = "camelCase"
-    )]
-    SetFanSpeed { fan_speed: String },
 }
 
 #[cfg(test)]
@@ -74,7 +62,7 @@ mod tests {
                 assert_eq!(payload.commands[0].devices.len(), 0);
                 assert_eq!(payload.commands[0].execution.len(), 1);
                 match &payload.commands[0].execution[0] {
-                    CommandType::SetFanSpeed { fan_speed } => assert_eq!(fan_speed, "Test"),
+                    traits::Command::SetFanSpeed { fan_speed } => assert_eq!(fan_speed, "Test"),
                     _ => panic!("Expected SetFanSpeed"),
                 }
             }

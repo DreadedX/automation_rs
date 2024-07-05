@@ -205,7 +205,7 @@ impl GoogleHomeDevice for IkeaOutlet {
 
 #[async_trait]
 impl traits::OnOff for IkeaOutlet {
-    async fn is_on(&self) -> Result<bool, ErrorCode> {
+    async fn on(&self) -> Result<bool, ErrorCode> {
         Ok(self.last_known_state)
     }
 

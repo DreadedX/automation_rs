@@ -1,7 +1,6 @@
 use serde::Serialize;
 
 use crate::errors::ErrorCode;
-use crate::response::State;
 
 #[derive(Debug, Serialize, Clone)]
 #[serde(rename_all = "camelCase")]
@@ -72,7 +71,7 @@ pub struct States {
     pub online: bool,
 
     #[serde(flatten)]
-    pub state: State,
+    pub state: serde_json::Value,
 }
 
 #[derive(Debug, Serialize, Clone)]
@@ -87,19 +86,19 @@ pub enum Status {
 
 #[cfg(test)]
 mod tests {
+    use serde_json::json;
+
     use super::*;
     use crate::errors::DeviceError;
-    use crate::response::{Response, ResponsePayload, State};
+    use crate::response::{Response, ResponsePayload};
 
     #[test]
     fn serialize() {
         let mut execute_resp = Payload::new();
 
-        let state = State {
-            on: Some(true),
-            current_fan_speed_setting: None,
-            humidity_ambient_percent: None,
-        };
+        let state = json!({
+            "on": true,
+        });
         let mut command = Command::new(Status::Success);
         command.states = Some(States {
             online: true,

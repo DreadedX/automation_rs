@@ -27,16 +27,3 @@ pub enum ResponsePayload {
     Query(query::Payload),
     Execute(execute::Payload),
 }
-
-#[derive(Debug, Default, Serialize, Clone)]
-#[serde(rename_all = "camelCase")]
-pub struct State {
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub on: Option<bool>,
-
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub current_fan_speed_setting: Option<String>,
-
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub humidity_ambient_percent: Option<isize>,
-}

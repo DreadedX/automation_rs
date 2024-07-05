@@ -103,7 +103,7 @@ impl GoogleHomeDevice for WakeOnLAN {
 
 #[async_trait]
 impl traits::Scene for WakeOnLAN {
-    async fn set_active(&self, activate: bool) -> Result<(), ErrorCode> {
+    async fn set_active(&mut self, activate: bool) -> Result<(), ErrorCode> {
         if activate {
             debug!(
                 id = Device::get_id(self),

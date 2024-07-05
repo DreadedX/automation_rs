@@ -7,7 +7,6 @@ mod fulfillment;
 mod request;
 mod response;
 
-mod attributes;
 pub mod errors;
 pub mod traits;
 pub mod types;
