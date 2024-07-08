@@ -12,6 +12,20 @@ jobs:
             - name: Checkout
               uses: actions/checkout@v4
 
+            - uses: https://gitea.com/actions/go-hashfiles@v0.0.1
+              id: get-hash
+              with:
+                  patterns: |-
+                      .pre-commit-config.yaml
+
+            - name: set PY
+              run: echo "PY=$(python -VV | sha256sum | cut -d ' ' -f1)" >> $GITHUB_ENV
+
+            - uses: actions/cache@v4
+              with:
+                  path: ~/.cache/pre-commit
+                  key: pre-commit|${{ env.PY }}|${{ steps.get-hash.outputs.hash }}
+
             - name: Run pre-commit
               run: SKIP=sqlx-prepare pre-commit run --show-diff-on-failure --color=always --all-files
               shell: bash
