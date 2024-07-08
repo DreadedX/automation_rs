@@ -17,7 +17,6 @@ use std::fmt::Debug;
 use async_trait::async_trait;
 use automation_cast::Cast;
 use google_home::traits::OnOff;
-use google_home::GoogleHomeDevice;
 
 pub use self::air_filter::*;
 pub use self::audio_setup::*;
@@ -67,7 +66,7 @@ pub trait Device:
     Debug
     + Sync
     + Send
-    + Cast<dyn GoogleHomeDevice>
+    + Cast<dyn google_home::Device>
     + Cast<dyn OnMqtt>
     + Cast<dyn OnMqtt>
     + Cast<dyn OnPresence>

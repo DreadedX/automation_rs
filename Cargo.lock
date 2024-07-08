@@ -103,7 +103,7 @@ dependencies = [
  "enum_dispatch",
  "eui48",
  "futures",
- "google-home",
+ "google_home",
  "hostname",
  "indexmap 2.2.6",
  "mlua",
@@ -637,19 +637,28 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "b6c80984affa11d98d1b88b66ac8853f143217b399d3c74116778ff8fdb4ed2e"
 
 [[package]]
-name = "google-home"
+name = "google_home"
 version = "0.1.0"
 dependencies = [
  "anyhow",
  "async-trait",
  "automation_cast",
- "automation_macro",
  "futures",
+ "google_home_macro",
  "json_value_merge",
  "serde",
  "serde_json",
  "thiserror",
  "tokio",
+]
+
+[[package]]
+name = "google_home_macro"
+version = "0.1.0"
+dependencies = [
+ "proc-macro2",
+ "quote",
+ "syn 2.0.60",
 ]
 
 [[package]]

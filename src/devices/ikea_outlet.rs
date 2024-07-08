@@ -3,10 +3,10 @@ use std::time::Duration;
 use anyhow::Result;
 use async_trait::async_trait;
 use automation_macro::{LuaDevice, LuaDeviceConfig};
+use google_home::device;
 use google_home::errors::ErrorCode;
 use google_home::traits::{self, OnOff};
 use google_home::types::Type;
-use google_home::{device, GoogleHomeDevice};
 use rumqttc::{matches, Publish, SubscribeFilter};
 use serde::Deserialize;
 use tokio::task::JoinHandle;
@@ -171,7 +171,7 @@ impl OnPresence for IkeaOutlet {
     }
 }
 
-impl GoogleHomeDevice for IkeaOutlet {
+impl google_home::Device for IkeaOutlet {
     fn get_device_type(&self) -> Type {
         match self.config.outlet_type {
             OutletType::Outlet => Type::Outlet,

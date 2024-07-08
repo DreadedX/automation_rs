@@ -1,12 +1,12 @@
 use automation_cast::Cast;
-use automation_macro::google_home_traits;
+use google_home_macro::traits;
 use serde::Serialize;
 
 use crate::errors::ErrorCode;
-use crate::GoogleHomeDevice;
+use crate::Device;
 
-google_home_traits! {
-    GoogleHomeDevice,
+traits! {
+    Device,
     "action.devices.traits.OnOff" => trait OnOff {
         command_only_on_off: Option<bool>,
         query_only_on_off: Option<bool>,

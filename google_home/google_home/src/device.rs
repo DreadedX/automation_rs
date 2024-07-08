@@ -3,11 +3,11 @@ use serde::Serialize;
 
 use crate::errors::ErrorCode;
 use crate::response;
-use crate::traits::{Command, GoogleHomeDeviceFulfillment};
+use crate::traits::{Command, DeviceFulfillment};
 use crate::types::Type;
 
 #[async_trait]
-pub trait GoogleHomeDevice: GoogleHomeDeviceFulfillment {
+pub trait Device: DeviceFulfillment {
     fn get_device_type(&self) -> Type;
     fn get_device_name(&self) -> Name;
     fn get_id(&self) -> String;
@@ -37,7 +37,7 @@ pub trait GoogleHomeDevice: GoogleHomeDeviceFulfillment {
         }
         device.device_info = self.get_device_info();
 
-        let (traits, attributes) = GoogleHomeDeviceFulfillment::sync(self).await.unwrap();
+        let (traits, attributes) = DeviceFulfillment::sync(self).await.unwrap();
 
         device.traits = traits;
         device.attributes = attributes;
@@ -51,13 +51,13 @@ pub trait GoogleHomeDevice: GoogleHomeDeviceFulfillment {
             device.set_offline();
         }
 
-        device.state = GoogleHomeDeviceFulfillment::query(self).await.unwrap();
+        device.state = DeviceFulfillment::query(self).await.unwrap();
 
         device
     }
 
     async fn execute(&mut self, command: Command) -> Result<(), ErrorCode> {
-        GoogleHomeDeviceFulfillment::execute(self, command.clone())
+        DeviceFulfillment::execute(self, command.clone())
             .await
             .unwrap();
 

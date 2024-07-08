@@ -9,7 +9,7 @@ use tokio::sync::{Mutex, RwLock};
 use crate::errors::{DeviceError, ErrorCode};
 use crate::request::{self, Intent, Request};
 use crate::response::{self, execute, query, sync, Response, ResponsePayload};
-use crate::GoogleHomeDevice;
+use crate::Device;
 
 #[derive(Debug)]
 pub struct GoogleHome {
@@ -30,7 +30,7 @@ impl GoogleHome {
         }
     }
 
-    pub async fn handle_request<T: Cast<dyn GoogleHomeDevice> + ?Sized + 'static>(
+    pub async fn handle_request<T: Cast<dyn Device> + ?Sized + 'static>(
         &self,
         request: Request,
         devices: &HashMap<String, Arc<RwLock<Box<T>>>>,
@@ -59,14 +59,14 @@ impl GoogleHome {
             .map(|payload| Response::new(&request.request_id, payload))
     }
 
-    async fn sync<T: Cast<dyn GoogleHomeDevice> + ?Sized + 'static>(
+    async fn sync<T: Cast<dyn Device> + ?Sized + 'static>(
         &self,
         devices: &HashMap<String, Arc<RwLock<Box<T>>>>,
     ) -> sync::Payload {
         let mut resp_payload = sync::Payload::new(&self.user_id);
         let f = devices.iter().map(|(_, device)| async move {
             if let Some(device) = device.read().await.as_ref().cast() {
-                Some(GoogleHomeDevice::sync(device).await)
+                Some(Device::sync(device).await)
             } else {
                 None
             }
@@ -76,7 +76,7 @@ impl GoogleHome {
         resp_payload
     }
 
-    async fn query<T: Cast<dyn GoogleHomeDevice> + ?Sized + 'static>(
+    async fn query<T: Cast<dyn Device> + ?Sized + 'static>(
         &self,
         payload: request::query::Payload,
         devices: &HashMap<String, Arc<RwLock<Box<T>>>>,
@@ -91,7 +91,7 @@ impl GoogleHome {
                 let device = if let Some(device) = devices.get(id.as_str())
                     && let Some(device) = device.read().await.as_ref().cast()
                 {
-                    GoogleHomeDevice::query(device).await
+                    Device::query(device).await
                 } else {
                     let mut device = query::Device::new();
                     device.set_offline();
@@ -108,7 +108,7 @@ impl GoogleHome {
         resp_payload
     }
 
-    async fn execute<T: Cast<dyn GoogleHomeDevice> + ?Sized + 'static>(
+    async fn execute<T: Cast<dyn Device> + ?Sized + 'static>(
         &self,
         payload: request::execute::Payload,
         devices: &HashMap<String, Arc<RwLock<Box<T>>>>,
@@ -147,8 +147,7 @@ impl GoogleHome {
                                 // NOTE: We can not use .map here because async =(
                                 let mut results = Vec::new();
                                 for cmd in &execution {
-                                    results
-                                        .push(GoogleHomeDevice::execute(device, cmd.clone()).await);
+                                    results.push(Device::execute(device, cmd.clone()).await);
                                 }
 
                                 // Convert vec of results to a result with a vec and the first

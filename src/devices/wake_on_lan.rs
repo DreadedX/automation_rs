@@ -3,10 +3,10 @@ use std::net::Ipv4Addr;
 use async_trait::async_trait;
 use automation_macro::{LuaDevice, LuaDeviceConfig};
 use eui48::MacAddress;
+use google_home::device;
 use google_home::errors::ErrorCode;
 use google_home::traits::{self, Scene};
 use google_home::types::Type;
-use google_home::{device, GoogleHomeDevice};
 use rumqttc::Publish;
 use tracing::{debug, error, trace};
 
@@ -76,7 +76,7 @@ impl OnMqtt for WakeOnLAN {
     }
 }
 
-impl GoogleHomeDevice for WakeOnLAN {
+impl google_home::Device for WakeOnLAN {
     fn get_device_type(&self) -> Type {
         Type::Scene
     }

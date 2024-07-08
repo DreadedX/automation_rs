@@ -4,7 +4,6 @@ use google_home::device::Name;
 use google_home::errors::ErrorCode;
 use google_home::traits::{AvailableSpeeds, FanSpeed, HumiditySetting, OnOff, Speed, SpeedValues};
 use google_home::types::Type;
-use google_home::GoogleHomeDevice;
 use rumqttc::Publish;
 use tracing::{debug, error, trace, warn};
 
@@ -106,7 +105,7 @@ impl OnMqtt for AirFilter {
     }
 }
 
-impl GoogleHomeDevice for AirFilter {
+impl google_home::Device for AirFilter {
     fn get_device_type(&self) -> Type {
         Type::AirPurifier
     }
