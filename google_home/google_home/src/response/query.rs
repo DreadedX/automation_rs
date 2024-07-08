@@ -113,10 +113,26 @@ mod tests {
             ResponsePayload::Query(query_resp),
         );
 
-        let json = serde_json::to_string(&resp).unwrap();
+        let resp = serde_json::to_value(resp).unwrap();
 
-        println!("{}", json);
+        let resp_expected = json!({
+            "requestId": "ff36a3cc-ec34-11e6-b1a0-64510650abcf",
+            "payload": {
+                "devices": {
+                    "123": {
+                        "online": true,
+                        "status": "SUCCESS",
+                        "on": true
+                    },
+                    "456": {
+                        "online": true,
+                        "status": "SUCCESS",
+                        "on":true
+                    }
+                }
+            }
+        });
 
-        // TODO: Add a known correct output to test against
+        assert_eq!(resp, resp_expected);
     }
 }

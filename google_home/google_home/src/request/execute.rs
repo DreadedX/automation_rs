@@ -24,36 +24,38 @@ pub struct Device {
 
 #[cfg(test)]
 mod tests {
+    use serde_json::json;
+
     use super::*;
     use crate::request::{Intent, Request};
 
     #[test]
     fn deserialize_set_fan_speed() {
-        let json = r#"{
-  "requestId": "ff36a3cc-ec34-11e6-b1a0-64510650abcf",
-  "inputs": [
-    {
-      "intent": "action.devices.EXECUTE",
-      "payload": {
-        "commands": [
-          {
-            "devices": [],
-            "execution": [
-              {
-                "command": "action.devices.commands.SetFanSpeed",
-                "params": {
-                  "fanSpeed": "Test"
-                }
+        let req = json!({
+          "requestId": "ff36a3cc-ec34-11e6-b1a0-64510650abcf",
+          "inputs": [
+            {
+              "intent": "action.devices.EXECUTE",
+              "payload": {
+                "commands": [
+                  {
+                    "devices": [],
+                    "execution": [
+                      {
+                        "command": "action.devices.commands.SetFanSpeed",
+                        "params": {
+                          "fanSpeed": "Test"
+                        }
+                      }
+                    ]
+                  }
+                ]
               }
-            ]
-          }
-        ]
-      }
-    }
-  ]
-}"#;
+            }
+          ]
+        });
 
-        let req: Request = serde_json::from_str(json).unwrap();
+        let req: Request = serde_json::from_value(req).unwrap();
 
         assert_eq!(req.inputs.len(), 1);
         match &req.inputs[0] {
@@ -72,48 +74,48 @@ mod tests {
 
     #[test]
     fn deserialize() {
-        let json = r#"{
-  "requestId": "ff36a3cc-ec34-11e6-b1a0-64510650abcf",
-  "inputs": [
-    {
-      "intent": "action.devices.EXECUTE",
-      "payload": {
-        "commands": [
-          {
-            "devices": [
-              {
-                "id": "123",
-                "customData": {
-                  "fooValue": 74,
-                  "barValue": true,
-                  "bazValue": "sheepdip"
-                }
-              },
-              {
-                "id": "456",
-                "customData": {
-                  "fooValue": 36,
-                  "barValue": false,
-                  "bazValue": "moarsheep"
-                }
+        let req = json!({
+          "requestId": "ff36a3cc-ec34-11e6-b1a0-64510650abcf",
+          "inputs": [
+            {
+              "intent": "action.devices.EXECUTE",
+              "payload": {
+                "commands": [
+                  {
+                    "devices": [
+                      {
+                        "id": "123",
+                        "customData": {
+                          "fooValue": 74,
+                          "barValue": true,
+                          "bazValue": "sheepdip"
+                        }
+                      },
+                      {
+                        "id": "456",
+                        "customData": {
+                          "fooValue": 36,
+                          "barValue": false,
+                          "bazValue": "moarsheep"
+                        }
+                      }
+                    ],
+                    "execution": [
+                      {
+                        "command": "action.devices.commands.OnOff",
+                        "params": {
+                          "on": true
+                        }
+                      }
+                    ]
+                  }
+                ]
               }
-            ],
-            "execution": [
-              {
-                "command": "action.devices.commands.OnOff",
-                "params": {
-                  "on": true
-                }
-              }
-            ]
-          }
-        ]
-      }
-    }
-  ]
-}"#;
+            }
+          ]
+        });
 
-        let req: Request = serde_json::from_str(json).unwrap();
+        let req: Request = serde_json::from_value(req).unwrap();
 
         println!("{:?}", req);
 

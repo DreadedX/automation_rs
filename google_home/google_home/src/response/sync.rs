@@ -46,6 +46,7 @@ pub struct Device {
     pub room_hint: Option<String>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub device_info: Option<device::Info>,
+    #[serde(skip_serializing_if = "serde_json::Value::is_null")]
     pub attributes: serde_json::Value,
 }
 
@@ -67,6 +68,8 @@ impl Device {
 
 #[cfg(test)]
 mod tests {
+    use serde_json::json;
+
     use super::*;
     use crate::response::{Response, ResponsePayload};
     use crate::traits::Trait;
@@ -96,10 +99,35 @@ mod tests {
             ResponsePayload::Sync(sync_resp),
         );
 
-        let json = serde_json::to_string(&resp).unwrap();
+        let resp = serde_json::to_value(resp).unwrap();
 
-        println!("{}", json);
+        let resp_expected = json!({
+            "requestId": "ff36a3cc-ec34-11e6-b1a0-64510650abcf",
+            "payload": {
+                "agentUserId": "1836.15267389",
+                "devices": [
+                    {
+                        "id": "123",
+                        "type": "action.devices.types.KETTLE",
+                        "traits": ["action.devices.traits.OnOff"],
+                        "name": {
+                            "defaultNames": ["My Outlet 1234"],
+                            "name": "Night light",
+                            "nicknames": ["wall plug"]
+                        },
+                        "willReportState": false,
+                        "roomHint": "kitchen",
+                        "deviceInfo": {
+                            "manufacturer": "lights-out-inc",
+                            "model": "hs1234",
+                            "hwVersion": "3.2",
+                            "swVersion": "11.4"
+                        }
+                    }
+                ]
+            }
+        });
 
-        // assert_eq!(json, r#"{"requestId":"ff36a3cc-ec34-11e6-b1a0-64510650abcf","payload":{"agentUserId":"1836.15267389","devices":[{"id":"123","type":"action.devices.types.KETTLE","traits":["action.devices.traits.OnOff"],"name":{"defaultNames":["My Outlet 1234"],"name":"Night light","nicknames":["wall plug"]},"willReportState":false,"roomHint":"kitchen","deviceInfo":{"manufacturer":"lights-out-inc","model":"hs1234","hwVersion":"3.2","swVersion":"11.4"}}]}}"#)
+        assert_eq!(resp, resp_expected);
     }
 }

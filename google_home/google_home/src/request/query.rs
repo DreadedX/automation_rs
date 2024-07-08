@@ -15,40 +15,42 @@ pub struct Device {
 
 #[cfg(test)]
 mod tests {
+    use serde_json::json;
+
     use crate::request::{Intent, Request};
 
     #[test]
     fn deserialize() {
-        let json = r#"{
-  "requestId": "ff36a3cc-ec34-11e6-b1a0-64510650abcf",
-  "inputs": [
-    {
-      "intent": "action.devices.QUERY",
-      "payload": {
-        "devices": [
-          {
-            "id": "123",
-            "customData": {
-              "fooValue": 74,
-              "barValue": true,
-              "bazValue": "foo"
+        let req = json!({
+          "requestId": "ff36a3cc-ec34-11e6-b1a0-64510650abcf",
+          "inputs": [
+            {
+              "intent": "action.devices.QUERY",
+              "payload": {
+                "devices": [
+                  {
+                    "id": "123",
+                    "customData": {
+                      "fooValue": 74,
+                      "barValue": true,
+                      "bazValue": "foo"
+                    }
+                  },
+                  {
+                    "id": "456",
+                    "customData": {
+                      "fooValue": 12,
+                      "barValue": false,
+                      "bazValue": "bar"
+                    }
+                  }
+                ]
+              }
             }
-          },
-          {
-            "id": "456",
-            "customData": {
-              "fooValue": 12,
-              "barValue": false,
-              "bazValue": "bar"
-            }
-          }
-        ]
-      }
-    }
-  ]
-}"#;
+          ]
+        });
 
-        let req: Request = serde_json::from_str(json).unwrap();
+        let req: Request = serde_json::from_value(req).unwrap();
 
         println!("{:?}", req);
 

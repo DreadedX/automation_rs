@@ -117,10 +117,28 @@ mod tests {
             ResponsePayload::Execute(execute_resp),
         );
 
-        let json = serde_json::to_string(&resp).unwrap();
+        let resp = serde_json::to_value(resp).unwrap();
 
-        println!("{}", json);
+        let resp_expected = json!({
+            "payload": {
+                "commands": [
+                    {
+                        "states": {
+                            "on": true,
+                            "online": true
+                        },
+                        "ids": ["123"],
+                        "status": "SUCCESS"
+                    }, {
+                        "errorCode": "deviceNotFound",
+                        "ids": ["456"],
+                        "status":"ERROR"
+                    }
+                ]
+            },
+            "requestId": "ff36a3cc-ec34-11e6-b1a0-64510650abcf"
+        });
 
-        // TODO: Add a known correct output to test against
+        assert_eq!(resp, resp_expected);
     }
 }
