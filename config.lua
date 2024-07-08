@@ -109,7 +109,7 @@ automation.device_manager:add(IkeaOutlet.new({
 	outlet_type = "Light",
 	name = "Light",
 	room = "Bathroom",
-	topic = mqtt_z2m("batchroom/light"),
+	topic = mqtt_z2m("bathroom/light"),
 	client = mqtt_client,
 	timeout = debug and 60 or 45 * 60,
 }))
