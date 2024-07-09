@@ -37,7 +37,7 @@ traits! {
 }
 
 #[derive(Debug, Serialize)]
-pub struct SpeedValues {
+pub struct SpeedValue {
     pub speed_synonym: Vec<String>,
     pub lang: String,
 }
@@ -45,7 +45,7 @@ pub struct SpeedValues {
 #[derive(Debug, Serialize)]
 pub struct Speed {
     pub speed_name: String,
-    pub speed_values: Vec<SpeedValues>,
+    pub speed_values: Vec<SpeedValue>,
 }
 
 #[derive(Debug, Serialize)]

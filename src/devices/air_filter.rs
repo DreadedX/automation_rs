@@ -2,7 +2,7 @@ use async_trait::async_trait;
 use automation_macro::{LuaDevice, LuaDeviceConfig};
 use google_home::device::Name;
 use google_home::errors::ErrorCode;
-use google_home::traits::{AvailableSpeeds, FanSpeed, HumiditySetting, OnOff, Speed, SpeedValues};
+use google_home::traits::{AvailableSpeeds, FanSpeed, HumiditySetting, OnOff, Speed, SpeedValue};
 use google_home::types::Type;
 use rumqttc::Publish;
 use tracing::{debug, error, trace, warn};
@@ -157,28 +157,28 @@ impl FanSpeed for AirFilter {
             speeds: vec![
                 Speed {
                     speed_name: "off".into(),
-                    speed_values: vec![SpeedValues {
+                    speed_values: vec![SpeedValue {
                         speed_synonym: vec!["Off".into()],
                         lang: "en".into(),
                     }],
                 },
                 Speed {
                     speed_name: "low".into(),
-                    speed_values: vec![SpeedValues {
+                    speed_values: vec![SpeedValue {
                         speed_synonym: vec!["Low".into()],
                         lang: "en".into(),
                     }],
                 },
                 Speed {
                     speed_name: "medium".into(),
-                    speed_values: vec![SpeedValues {
+                    speed_values: vec![SpeedValue {
                         speed_synonym: vec!["Medium".into()],
                         lang: "en".into(),
                     }],
                 },
                 Speed {
                     speed_name: "high".into(),
-                    speed_values: vec![SpeedValues {
+                    speed_values: vec![SpeedValue {
                         speed_synonym: vec!["High".into()],
                         lang: "en".into(),
                     }],
