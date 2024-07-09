@@ -248,7 +248,7 @@ fn get_state_struct(t: &Trait) -> proc_macro2::TokenStream {
 
     let name = get_state_struct_ident(t);
     quote! {
-        #[derive(Debug, Default, serde::Serialize)]
+        #[derive(Debug, serde::Serialize)]
         #[serde(rename_all = "camelCase")]
         struct #name {
             #(#fields,)*

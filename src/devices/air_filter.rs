@@ -2,7 +2,10 @@ use async_trait::async_trait;
 use automation_macro::{LuaDevice, LuaDeviceConfig};
 use google_home::device::Name;
 use google_home::errors::ErrorCode;
-use google_home::traits::{AvailableSpeeds, FanSpeed, HumiditySetting, OnOff, Speed, SpeedValue};
+use google_home::traits::{
+    AvailableSpeeds, FanSpeed, HumiditySetting, OnOff, Speed, SpeedValue, TemperatureSetting,
+    TemperatureUnit,
+};
 use google_home::types::Type;
 use rumqttc::Publish;
 use tracing::{debug, error, trace, warn};
@@ -69,6 +72,7 @@ impl LuaDeviceCreate for AirFilter {
             last_known_state: AirFilterState {
                 state: AirFilterFanState::Off,
                 humidity: 0.0,
+                temperature: 0.0,
             },
         })
     }
@@ -227,5 +231,21 @@ impl HumiditySetting for AirFilter {
 
     fn humidity_ambient_percent(&self) -> Result<isize, ErrorCode> {
         Ok(self.last_known_state.humidity.round() as isize)
+    }
+}
+
+impl TemperatureSetting for AirFilter {
+    fn query_only_temperature_control(&self) -> Option<bool> {
+        Some(true)
+    }
+
+    #[allow(non_snake_case)]
+    fn temperatureUnitForUX(&self) -> TemperatureUnit {
+        TemperatureUnit::Celsius
+    }
+
+    fn temperature_ambient_celsius(&self) -> f32 {
+        // HACK: Round to one decimal place
+        (10.0 * self.last_known_state.temperature).round() / 10.0
     }
 }

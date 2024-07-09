@@ -261,6 +261,7 @@ pub struct SetAirFilterFanState {
 pub struct AirFilterState {
     pub state: AirFilterFanState,
     pub humidity: f32,
+    pub temperature: f32,
 }
 
 impl SetAirFilterFanState {

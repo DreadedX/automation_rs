@@ -1,3 +1,4 @@
+#![allow(non_snake_case)]
 use automation_cast::Cast;
 use google_home_macro::traits;
 use serde::Serialize;
@@ -33,6 +34,13 @@ traits! {
         query_only_humidity_setting: Option<bool>,
 
         fn humidity_ambient_percent(&self) -> Result<isize, ErrorCode>,
+    },
+    "action.devices.traits.TemperatureControl" => trait TemperatureSetting {
+        query_only_temperature_control: Option<bool>,
+        // TODO: Add rename
+        temperatureUnitForUX: TemperatureUnit,
+
+        fn temperature_ambient_celsius(&self) -> f32,
     }
 }
 
@@ -52,4 +60,12 @@ pub struct Speed {
 pub struct AvailableSpeeds {
     pub speeds: Vec<Speed>,
     pub ordered: bool,
+}
+
+#[derive(Debug, Serialize)]
+pub enum TemperatureUnit {
+    #[serde(rename = "C")]
+    Celsius,
+    #[serde(rename = "F")]
+    Fahrenheit,
 }
