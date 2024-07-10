@@ -17,7 +17,7 @@ traits! {
     "action.devices.traits.Scene" => trait Scene {
         scene_reversible: Option<bool>,
 
-        "action.devices.commands.ActivateScene" => async fn set_active(&mut self, activate: bool) -> Result<(), ErrorCode>,
+        "action.devices.commands.ActivateScene" => async fn set_active(&mut self, deactivate: bool) -> Result<(), ErrorCode>,
     },
     "action.devices.traits.FanSpeed" => trait FanSpeed {
         reversible: Option<bool>,

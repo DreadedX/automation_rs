@@ -103,8 +103,17 @@ impl google_home::Device for WakeOnLAN {
 
 #[async_trait]
 impl traits::Scene for WakeOnLAN {
-    async fn set_active(&mut self, activate: bool) -> Result<(), ErrorCode> {
-        if activate {
+    async fn set_active(&mut self, deactivate: bool) -> Result<(), ErrorCode> {
+        if deactivate {
+            debug!(
+                id = Device::get_id(self),
+                "Trying to deactivate computer, this is not currently supported"
+            );
+            // We do not support deactivating this scene
+            Err(ErrorCode::DeviceError(
+                google_home::errors::DeviceError::ActionNotAvailable,
+            ))
+        } else {
             debug!(
                 id = Device::get_id(self),
                 "Activating Computer: {} (Sending to {})",
@@ -131,15 +140,6 @@ impl traits::Scene for WakeOnLAN {
                 google_home::errors::DeviceError::TransientError.into()
             })
             .map(|_| debug!(id = Device::get_id(self), "Success!"))
-        } else {
-            debug!(
-                id = Device::get_id(self),
-                "Trying to deactivate computer, this is not currently supported"
-            );
-            // We do not support deactivating this scene
-            Err(ErrorCode::DeviceError(
-                google_home::errors::DeviceError::ActionNotAvailable,
-            ))
         }
     }
 }
