@@ -54,7 +54,7 @@ pub struct ContactSensorConfig {
     pub identifier: String,
     #[device_config(flatten)]
     pub mqtt: MqttDeviceConfig,
-    #[device_config(from_lua)]
+    #[device_config(from_lua, default)]
     pub presence: Option<PresenceDeviceConfig>,
     #[device_config(from_lua)]
     pub trigger: Option<TriggerConfig>,

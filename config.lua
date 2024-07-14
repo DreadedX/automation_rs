@@ -166,6 +166,15 @@ automation.device_manager:add(ContactSensor.new({
 	},
 }))
 
+automation.device_manager:add(ContactSensor.new({
+	identifier = "hallway_trash",
+	topic = mqtt_z2m("hallway/trash"),
+	client = mqtt_client,
+	trigger = {
+		devices = { hallway_lights },
+	},
+}))
+
 local bedroom_air_filter = AirFilter.new({
 	name = "Air Filter",
 	room = "Bedroom",
