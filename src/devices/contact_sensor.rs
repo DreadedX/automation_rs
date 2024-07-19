@@ -6,6 +6,7 @@ use automation_macro::LuaDeviceConfig;
 use google_home::traits::OnOff;
 use tokio::sync::{RwLock, RwLockReadGuard, RwLockWriteGuard};
 use tokio::task::JoinHandle;
+use tokio_util::task::LocalPoolHandle;
 use tracing::{debug, error, trace, warn};
 
 use super::{Device, LuaDeviceCreate};
@@ -17,6 +18,7 @@ use crate::event::{OnMqtt, OnPresence};
 use crate::messages::{ContactMessage, PresenceMessage};
 use crate::mqtt::WrappedAsyncClient;
 use crate::traits::Timeout;
+use crate::LUA;
 
 // NOTE: If we add more presence devices we might need to move this out of here
 #[derive(Debug, Clone, LuaDeviceConfig)]
@@ -35,6 +37,37 @@ pub struct TriggerConfig {
     pub timeout: Option<Duration>,
 }
 
+#[derive(Debug, Clone, Copy)]
+pub struct ActionCallback(uuid::Uuid);
+
+impl<'lua> FromLua<'lua> for ActionCallback {
+    fn from_lua(value: mlua::Value<'lua>, lua: &'lua mlua::Lua) -> mlua::Result<Self> {
+        let uuid = uuid::Uuid::new_v4();
+        lua.set_named_registry_value(&uuid.to_string(), value)?;
+
+        Ok(ActionCallback(uuid))
+    }
+}
+
+impl ActionCallback {
+    async fn call(&self, closed: bool) {
+        let pool = LocalPoolHandle::new(1);
+        let uuid = self.0;
+
+        pool.spawn_pinned(move || async move {
+            let lua = LUA.lock().await;
+            let action: mlua::Value = lua.named_registry_value(&uuid.to_string())?;
+            match action {
+                mlua::Value::Function(f) => f.call_async::<_, ()>(closed).await,
+                _ => todo!("Only functions are currently supported"),
+            }
+        })
+        .await
+        .unwrap()
+        .unwrap()
+    }
+}
+
 #[derive(Debug, Clone, LuaDeviceConfig)]
 pub struct Config {
     pub identifier: String,
@@ -46,6 +79,8 @@ pub struct Config {
     pub trigger: Option<TriggerConfig>,
     #[device_config(from_lua)]
     pub client: WrappedAsyncClient,
+    #[device_config(from_lua)]
+    pub action: ActionCallback,
 }
 
 #[derive(Debug)]
@@ -151,6 +186,8 @@ impl OnMqtt for ContactSensor {
 
         debug!(id = self.get_id(), "Updating state to {is_closed}");
         self.state_mut().await.is_closed = is_closed;
+
+        self.config.action.call(self.is_closed).await;
 
         if let Some(trigger) = &self.config.trigger {
             if !is_closed {

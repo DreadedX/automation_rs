@@ -16,6 +16,7 @@ use dotenvy::dotenv;
 use google_home::{GoogleHome, Request, Response};
 use mlua::LuaSerdeExt;
 use rumqttc::AsyncClient;
+use tokio_util::task::LocalPoolHandle;
 use tracing::{debug, error, info, warn};
 
 #[derive(Clone)]
@@ -95,6 +96,21 @@ async fn app() -> anyhow::Result<()> {
 
         automation.set("new_mqtt_client", new_mqtt_client)?;
         automation.set("device_manager", device_manager.clone())?;
+
+        let timeout = lua.create_function(|lua, (t, f): (u64, mlua::Function)| {
+            let pool = LocalPoolHandle::new(1);
+            let key = lua.create_registry_value(f).unwrap();
+            pool.spawn_pinned(move || async move {
+                tokio::time::sleep(std::time::Duration::from_secs(t)).await;
+                let lua = LUA.lock().await;
+                let f: mlua::Function = lua.registry_value(&key).unwrap();
+                f.call_async::<_, ()>(()).await.unwrap();
+                lua.remove_registry_value(key).unwrap();
+            });
+
+            Ok(())
+        })?;
+        automation.set("timeout", timeout)?;
 
         let util = lua.create_table()?;
         let get_env = lua.create_function(|_lua, name: String| {

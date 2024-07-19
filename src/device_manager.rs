@@ -44,6 +44,17 @@ impl mlua::UserData for WrappedDevice {
 
             Ok(())
         });
+
+        methods.add_async_method("is_on", |_lua, this, _: ()| async move {
+            let device = this.0.read().await;
+            let device = device.as_ref();
+
+            if let Some(device) = device.cast() as Option<&dyn OnOff> {
+                return Ok(device.on().await.unwrap());
+            };
+
+            Ok(false)
+        });
     }
 }
 
@@ -210,8 +221,7 @@ impl mlua::UserData for DeviceManager {
                 let uuid = this.scheduler.add(job).await.unwrap();
 
                 // Store the function in the registry
-                lua.set_named_registry_value(uuid.to_string().as_str(), f)
-                    .unwrap();
+                lua.set_named_registry_value(&uuid.to_string(), f).unwrap();
 
                 Ok(())
             },

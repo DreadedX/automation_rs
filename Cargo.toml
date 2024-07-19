@@ -4,7 +4,12 @@ version = "0.1.0"
 edition = "2021"
 
 [workspace]
-members = ["automation_macro", "automation_cast", "google_home/google_home", "google_home/google_home_macro"]
+members = [
+  "automation_macro",
+  "automation_cast",
+  "google_home/google_home",
+  "google_home/google_home_macro",
+]
 
 
 [dependencies]
@@ -54,7 +59,7 @@ mlua = { version = "0.9.7", features = [
 once_cell = "1.19.0"
 hostname = "0.4.0"
 tokio-util = { version = "0.7.11", features = ["full"] }
-uuid = "1.8.0"
+uuid = { version = "1.8.0", features = ["v4"] }
 dyn-clone = "1.0.17"
 
 [patch.crates-io]

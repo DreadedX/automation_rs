@@ -1,6 +1,7 @@
 #![allow(incomplete_features)]
 #![feature(specialization)]
 #![feature(let_chains)]
+#![feature(unboxed_closures)]
 
 use once_cell::sync::Lazy;
 use tokio::sync::Mutex;
