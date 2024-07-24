@@ -2,7 +2,7 @@ use std::time::Duration;
 
 use anyhow::Result;
 use async_trait::async_trait;
-use automation_macro::{LuaDevice, LuaDeviceConfig};
+use automation_macro::LuaDeviceConfig;
 use google_home::device;
 use google_home::errors::ErrorCode;
 use google_home::traits::{self, OnOff};
@@ -45,7 +45,7 @@ pub struct IkeaOutletConfig {
     pub client: WrappedAsyncClient,
 }
 
-#[derive(Debug, LuaDevice)]
+#[derive(Debug)]
 pub struct IkeaOutlet {
     config: IkeaOutletConfig,
 

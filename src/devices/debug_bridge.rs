@@ -1,7 +1,7 @@
 use std::convert::Infallible;
 
 use async_trait::async_trait;
-use automation_macro::{LuaDevice, LuaDeviceConfig};
+use automation_macro::LuaDeviceConfig;
 use tracing::{trace, warn};
 
 use super::LuaDeviceCreate;
@@ -20,7 +20,7 @@ pub struct DebugBridgeConfig {
     pub client: WrappedAsyncClient,
 }
 
-#[derive(Debug, LuaDevice)]
+#[derive(Debug)]
 pub struct DebugBridge {
     config: DebugBridgeConfig,
 }

@@ -3,7 +3,7 @@ use std::net::SocketAddr;
 use std::str::Utf8Error;
 
 use async_trait::async_trait;
-use automation_macro::{LuaDevice, LuaDeviceConfig};
+use automation_macro::LuaDeviceConfig;
 use bytes::{Buf, BufMut};
 use google_home::errors::{self, DeviceError};
 use google_home::traits;
@@ -22,7 +22,7 @@ pub struct KasaOutletConfig {
     pub addr: SocketAddr,
 }
 
-#[derive(Debug, LuaDevice)]
+#[derive(Debug)]
 pub struct KasaOutlet {
     config: KasaOutletConfig,
 }

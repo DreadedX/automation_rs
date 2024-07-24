@@ -44,20 +44,42 @@ pub trait LuaDeviceCreate {
         Self: Sized;
 }
 
+macro_rules! register_device {
+    ($lua:expr, $device:ty) => {
+        impl mlua::UserData for $device {
+            fn add_methods<'lua, M: mlua::UserDataMethods<'lua, Self>>(methods: &mut M) {
+                methods.add_async_function("new", |lua, config: mlua::Value| async {
+                    let config = mlua::FromLua::from_lua(config, lua)?;
+
+                    // TODO: Using crate:: could cause issues
+                    let device: $device = crate::devices::LuaDeviceCreate::create(config)
+                        .await
+                        .map_err(mlua::ExternalError::into_lua_err)?;
+
+                    Ok(crate::device_manager::WrappedDevice::new(Box::new(device)))
+                });
+            }
+        }
+
+        $lua.globals()
+            .set(stringify!($device), $lua.create_proxy::<$device>()?)?;
+    };
+}
+
 pub fn register_with_lua(lua: &mlua::Lua) -> mlua::Result<()> {
-    AirFilter::register_with_lua(lua)?;
-    AudioSetup::register_with_lua(lua)?;
-    ContactSensor::register_with_lua(lua)?;
-    DebugBridge::register_with_lua(lua)?;
-    HueBridge::register_with_lua(lua)?;
-    HueGroup::register_with_lua(lua)?;
-    IkeaOutlet::register_with_lua(lua)?;
-    KasaOutlet::register_with_lua(lua)?;
-    LightSensor::register_with_lua(lua)?;
-    Ntfy::register_with_lua(lua)?;
-    Presence::register_with_lua(lua)?;
-    WakeOnLAN::register_with_lua(lua)?;
-    Washer::register_with_lua(lua)?;
+    register_device!(lua, AirFilter);
+    register_device!(lua, AudioSetup);
+    register_device!(lua, ContactSensor);
+    register_device!(lua, DebugBridge);
+    register_device!(lua, HueBridge);
+    register_device!(lua, HueGroup);
+    register_device!(lua, IkeaOutlet);
+    register_device!(lua, KasaOutlet);
+    register_device!(lua, LightSensor);
+    register_device!(lua, Ntfy);
+    register_device!(lua, Presence);
+    register_device!(lua, WakeOnLAN);
+    register_device!(lua, Washer);
 
     Ok(())
 }

@@ -2,7 +2,7 @@ use std::convert::Infallible;
 use std::net::SocketAddr;
 
 use async_trait::async_trait;
-use automation_macro::{LuaDevice, LuaDeviceConfig};
+use automation_macro::LuaDeviceConfig;
 use serde::{Deserialize, Serialize};
 use tracing::{error, trace, warn};
 
@@ -31,7 +31,7 @@ pub struct HueBridgeConfig {
     pub flags: FlagIDs,
 }
 
-#[derive(Debug, LuaDevice)]
+#[derive(Debug)]
 pub struct HueBridge {
     config: HueBridgeConfig,
 }

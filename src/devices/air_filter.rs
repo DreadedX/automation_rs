@@ -1,5 +1,5 @@
 use async_trait::async_trait;
-use automation_macro::{LuaDevice, LuaDeviceConfig};
+use automation_macro::LuaDeviceConfig;
 use google_home::device::Name;
 use google_home::errors::ErrorCode;
 use google_home::traits::{
@@ -27,7 +27,7 @@ pub struct AirFilterConfig {
     pub client: WrappedAsyncClient,
 }
 
-#[derive(Debug, LuaDevice)]
+#[derive(Debug)]
 pub struct AirFilter {
     config: AirFilterConfig,
 

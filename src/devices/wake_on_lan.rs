@@ -1,7 +1,7 @@
 use std::net::Ipv4Addr;
 
 use async_trait::async_trait;
-use automation_macro::{LuaDevice, LuaDeviceConfig};
+use automation_macro::LuaDeviceConfig;
 use eui48::MacAddress;
 use google_home::device;
 use google_home::errors::ErrorCode;
@@ -29,7 +29,7 @@ pub struct WakeOnLANConfig {
     pub client: WrappedAsyncClient,
 }
 
-#[derive(Debug, LuaDevice)]
+#[derive(Debug)]
 pub struct WakeOnLAN {
     config: WakeOnLANConfig,
 }

@@ -1,5 +1,5 @@
 use async_trait::async_trait;
-use automation_macro::{LuaDevice, LuaDeviceConfig};
+use automation_macro::LuaDeviceConfig;
 use rumqttc::Publish;
 use tracing::{debug, error, trace, warn};
 
@@ -24,7 +24,7 @@ pub struct WasherConfig {
 }
 
 // TODO: Add google home integration
-#[derive(Debug, LuaDevice)]
+#[derive(Debug)]
 pub struct Washer {
     config: WasherConfig,
 

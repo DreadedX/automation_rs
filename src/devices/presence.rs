@@ -1,7 +1,7 @@
 use std::collections::HashMap;
 
 use async_trait::async_trait;
-use automation_macro::{LuaDevice, LuaDeviceConfig};
+use automation_macro::LuaDeviceConfig;
 use rumqttc::Publish;
 use tracing::{debug, trace, warn};
 
@@ -24,7 +24,7 @@ pub struct PresenceConfig {
 
 pub const DEFAULT_PRESENCE: bool = false;
 
-#[derive(Debug, LuaDevice)]
+#[derive(Debug)]
 pub struct Presence {
     config: PresenceConfig,
     devices: HashMap<String, bool>,

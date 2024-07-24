@@ -3,7 +3,7 @@ use std::time::Duration;
 
 use anyhow::{anyhow, Context, Result};
 use async_trait::async_trait;
-use automation_macro::{LuaDevice, LuaDeviceConfig};
+use automation_macro::LuaDeviceConfig;
 use google_home::errors::ErrorCode;
 use google_home::traits::OnOff;
 use rumqttc::{Publish, SubscribeFilter};
@@ -31,7 +31,7 @@ pub struct HueGroupConfig {
     pub client: WrappedAsyncClient,
 }
 
-#[derive(Debug, LuaDevice)]
+#[derive(Debug)]
 pub struct HueGroup {
     config: HueGroupConfig,
 }

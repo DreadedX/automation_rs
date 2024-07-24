@@ -1,7 +1,7 @@
 use std::time::Duration;
 
 use async_trait::async_trait;
-use automation_macro::{LuaDevice, LuaDeviceConfig};
+use automation_macro::LuaDeviceConfig;
 use google_home::traits::OnOff;
 use mlua::FromLua;
 use tokio::task::JoinHandle;
@@ -62,7 +62,7 @@ pub struct ContactSensorConfig {
     pub client: WrappedAsyncClient,
 }
 
-#[derive(Debug, LuaDevice)]
+#[derive(Debug)]
 pub struct ContactSensor {
     config: ContactSensorConfig,
 

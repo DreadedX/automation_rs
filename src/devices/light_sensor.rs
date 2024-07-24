@@ -1,5 +1,5 @@
 use async_trait::async_trait;
-use automation_macro::{LuaDevice, LuaDeviceConfig};
+use automation_macro::LuaDeviceConfig;
 use rumqttc::Publish;
 use tracing::{debug, trace, warn};
 
@@ -25,7 +25,7 @@ pub struct LightSensorConfig {
 
 const DEFAULT: bool = false;
 
-#[derive(Debug, LuaDevice)]
+#[derive(Debug)]
 pub struct LightSensor {
     config: LightSensorConfig,
 

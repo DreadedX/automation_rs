@@ -1,5 +1,5 @@
 use async_trait::async_trait;
-use automation_macro::{LuaDevice, LuaDeviceConfig};
+use automation_macro::LuaDeviceConfig;
 use google_home::traits::OnOff;
 use tracing::{debug, error, trace, warn};
 
@@ -24,7 +24,7 @@ pub struct AudioSetupConfig {
     pub client: WrappedAsyncClient,
 }
 
-#[derive(Debug, LuaDevice)]
+#[derive(Debug)]
 pub struct AudioSetup {
     config: AudioSetupConfig,
 }
