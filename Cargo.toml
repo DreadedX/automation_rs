@@ -55,6 +55,7 @@ once_cell = "1.19.0"
 hostname = "0.4.0"
 tokio-util = { version = "0.7.11", features = ["full"] }
 uuid = "1.8.0"
+dyn-clone = "1.0.17"
 
 [patch.crates-io]
 wakey = { git = "https://git.huizinga.dev/Dreaded_X/wakey" }

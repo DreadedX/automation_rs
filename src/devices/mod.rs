@@ -16,6 +16,7 @@ use std::fmt::Debug;
 
 use async_trait::async_trait;
 use automation_cast::Cast;
+use dyn_clone::DynClone;
 use google_home::traits::OnOff;
 
 pub use self::air_filter::AirFilter;
@@ -63,7 +64,7 @@ macro_rules! impl_device {
                         .await
                         .map_err(mlua::ExternalError::into_lua_err)?;
 
-                    Ok(crate::device_manager::WrappedDevice::new(Box::new(device)))
+                    Ok(crate::device_manager::WrappedDevice::new(device))
                 });
             }
         }
@@ -104,6 +105,7 @@ pub fn register_with_lua(lua: &mlua::Lua) -> mlua::Result<()> {
 
 pub trait Device:
     Debug
+    + DynClone
     + Sync
     + Send
     + Cast<dyn google_home::Device>
@@ -117,3 +119,5 @@ pub trait Device:
 {
     fn get_id(&self) -> String;
 }
+
+dyn_clone::clone_trait_object!(Device);

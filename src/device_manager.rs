@@ -17,16 +17,16 @@ use crate::event::{Event, EventChannel, OnDarkness, OnMqtt, OnNotification, OnPr
 use crate::LUA;
 
 #[derive(Debug, FromLua, Clone)]
-pub struct WrappedDevice(Arc<RwLock<Box<dyn Device>>>);
+pub struct WrappedDevice(Box<dyn Device>);
 
 impl WrappedDevice {
-    pub fn new(device: Box<dyn Device>) -> Self {
-        Self(Arc::new(RwLock::new(device)))
+    pub fn new(device: impl Device + 'static) -> Self {
+        Self(Box::new(device))
     }
 }
 
 impl Deref for WrappedDevice {
-    type Target = Arc<RwLock<Box<dyn Device>>>;
+    type Target = Box<dyn Device>;
 
     fn deref(&self) -> &Self::Target {
         &self.0
@@ -38,17 +38,13 @@ impl DerefMut for WrappedDevice {
         &mut self.0
     }
 }
+
 impl mlua::UserData for WrappedDevice {
     fn add_methods<'lua, M: mlua::prelude::LuaUserDataMethods<'lua, Self>>(methods: &mut M) {
-        methods.add_async_method("get_id", |_lua, this, _: ()| async {
-            Ok(crate::devices::Device::get_id(this.0.read().await.as_ref()))
-        });
+        methods.add_async_method("get_id", |_lua, this, _: ()| async { Ok(this.get_id()) });
 
         methods.add_async_method("set_on", |_lua, this, on: bool| async move {
-            let device = this.0.write().await;
-            let device = device.as_ref();
-
-            if let Some(device) = device.cast() as Option<&dyn OnOff> {
+            if let Some(device) = this.cast() as Option<&dyn OnOff> {
                 device.set_on(on).await.unwrap()
             };
 
@@ -57,7 +53,7 @@ impl mlua::UserData for WrappedDevice {
     }
 }
 
-pub type DeviceMap = HashMap<String, Arc<RwLock<Box<dyn Device>>>>;
+pub type DeviceMap = HashMap<String, Box<dyn Device>>;
 
 #[derive(Clone)]
 pub struct DeviceManager {
@@ -94,25 +90,20 @@ impl DeviceManager {
         device_manager
     }
 
-    pub async fn add(&self, device: &WrappedDevice) {
-        let id = device.read().await.get_id().to_owned();
+    pub async fn add(&self, device: Box<dyn Device>) {
+        let id = device.get_id();
 
         debug!(id, "Adding device");
 
-        self.devices.write().await.insert(id, device.0.clone());
+        self.devices.write().await.insert(id, device);
     }
 
     pub fn event_channel(&self) -> EventChannel {
         self.event_channel.clone()
     }
 
-    pub async fn get(&self, name: &str) -> Option<WrappedDevice> {
-        self.devices
-            .read()
-            .await
-            .get(name)
-            .cloned()
-            .map(WrappedDevice)
+    pub async fn get(&self, name: &str) -> Option<Box<dyn Device>> {
+        self.devices.read().await.get(name).cloned()
     }
 
     pub async fn devices(&self) -> RwLockReadGuard<DeviceMap> {
@@ -127,8 +118,7 @@ impl DeviceManager {
                 let iter = devices.iter().map(|(id, device)| {
                     let message = message.clone();
                     async move {
-                        let device = device.write().await;
-                        let device: Option<&dyn OnMqtt> = device.as_ref().cast();
+                        let device: Option<&dyn OnMqtt> = device.cast();
                         if let Some(device) = device {
                             // let subscribed = device
                             //     .topics()
@@ -149,8 +139,7 @@ impl DeviceManager {
             Event::Darkness(dark) => {
                 let devices = self.devices.read().await;
                 let iter = devices.iter().map(|(id, device)| async move {
-                    let device = device.write().await;
-                    let device: Option<&dyn OnDarkness> = device.as_ref().cast();
+                    let device: Option<&dyn OnDarkness> = device.cast();
                     if let Some(device) = device {
                         trace!(id, "Handling");
                         device.on_darkness(dark).await;
@@ -163,8 +152,7 @@ impl DeviceManager {
             Event::Presence(presence) => {
                 let devices = self.devices.read().await;
                 let iter = devices.iter().map(|(id, device)| async move {
-                    let device = device.write().await;
-                    let device: Option<&dyn OnPresence> = device.as_ref().cast();
+                    let device: Option<&dyn OnPresence> = device.cast();
                     if let Some(device) = device {
                         trace!(id, "Handling");
                         device.on_presence(presence).await;
@@ -179,8 +167,7 @@ impl DeviceManager {
                 let iter = devices.iter().map(|(id, device)| {
                     let notification = notification.clone();
                     async move {
-                        let device = device.write().await;
-                        let device: Option<&dyn OnNotification> = device.as_ref().cast();
+                        let device: Option<&dyn OnNotification> = device.cast();
                         if let Some(device) = device {
                             trace!(id, "Handling");
                             device.on_notification(notification).await;
@@ -215,7 +202,7 @@ fn run_schedule(
 impl mlua::UserData for DeviceManager {
     fn add_methods<'lua, M: mlua::UserDataMethods<'lua, Self>>(methods: &mut M) {
         methods.add_async_method("add", |_lua, this, device: WrappedDevice| async move {
-            this.add(&device).await;
+            this.add(device.0).await;
 
             Ok(())
         });

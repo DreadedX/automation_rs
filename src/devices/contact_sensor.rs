@@ -85,14 +85,13 @@ impl LuaDeviceCreate for ContactSensor {
         if let Some(trigger) = &config.trigger {
             for device in &trigger.devices {
                 {
-                    let device = device.read().await;
                     let id = device.get_id().to_owned();
-                    if (device.as_ref().cast() as Option<&dyn OnOff>).is_none() {
+                    if (device.cast() as Option<&dyn OnOff>).is_none() {
                         return Err(DeviceConfigError::MissingTrait(id, "OnOff".into()));
                     }
 
                     if trigger.timeout.is_none()
-                        && (device.as_ref().cast() as Option<&dyn Timeout>).is_none()
+                        && (device.cast() as Option<&dyn Timeout>).is_none()
                     {
                         return Err(DeviceConfigError::MissingTrait(id, "Timeout".into()));
                     }
@@ -160,8 +159,7 @@ impl OnMqtt for ContactSensor {
                     .iter()
                     .zip(self.state_mut().await.previous.iter_mut())
                 {
-                    let light = light.write().await;
-                    if let Some(light) = light.as_ref().cast() as Option<&dyn OnOff> {
+                    if let Some(light) = light.cast() as Option<&dyn OnOff> {
                         *previous = light.on().await.unwrap();
                         light.set_on(true).await.ok();
                     }
@@ -172,15 +170,14 @@ impl OnMqtt for ContactSensor {
                     .iter()
                     .zip(self.state_mut().await.previous.iter())
                 {
-                    let light = light.write().await;
                     if !previous {
                         // If the timeout is zero just turn the light off directly
                         if trigger.timeout.is_none()
-                            && let Some(light) = light.as_ref().cast() as Option<&dyn OnOff>
+                            && let Some(light) = light.cast() as Option<&dyn OnOff>
                         {
                             light.set_on(false).await.ok();
                         } else if let Some(timeout) = trigger.timeout
-                            && let Some(light) = light.as_ref().cast() as Option<&dyn Timeout>
+                            && let Some(light) = light.cast() as Option<&dyn Timeout>
                         {
                             light.start_timeout(timeout).await.unwrap();
                         }

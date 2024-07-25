@@ -38,15 +38,13 @@ impl LuaDeviceCreate for AudioSetup {
         trace!(id = config.identifier, "Setting up AudioSetup");
 
         {
-            let mixer = config.mixer.read().await;
-            let mixer_id = mixer.get_id().to_owned();
-            if (mixer.as_ref().cast() as Option<&dyn OnOff>).is_none() {
+            let mixer_id = config.mixer.get_id().to_owned();
+            if (config.mixer.cast() as Option<&dyn OnOff>).is_none() {
                 return Err(DeviceConfigError::MissingTrait(mixer_id, "OnOff".into()));
             }
 
-            let speakers = config.speakers.read().await;
-            let speakers_id = speakers.get_id().to_owned();
-            if (speakers.as_ref().cast() as Option<&dyn OnOff>).is_none() {
+            let speakers_id = config.speakers.get_id().to_owned();
+            if (config.speakers.cast() as Option<&dyn OnOff>).is_none() {
                 return Err(DeviceConfigError::MissingTrait(speakers_id, "OnOff".into()));
             }
         }
@@ -81,11 +79,9 @@ impl OnMqtt for AudioSetup {
             }
         };
 
-        let mixer = self.config.mixer.write().await;
-        let speakers = self.config.speakers.write().await;
         if let (Some(mixer), Some(speakers)) = (
-            mixer.as_ref().cast() as Option<&dyn OnOff>,
-            speakers.as_ref().cast() as Option<&dyn OnOff>,
+            self.config.mixer.cast() as Option<&dyn OnOff>,
+            self.config.speakers.cast() as Option<&dyn OnOff>,
         ) {
             match action {
 				RemoteAction::On => {
@@ -116,12 +112,9 @@ impl OnMqtt for AudioSetup {
 #[async_trait]
 impl OnPresence for AudioSetup {
     async fn on_presence(&self, presence: bool) {
-        let mixer = self.config.mixer.write().await;
-        let speakers = self.config.speakers.write().await;
-
         if let (Some(mixer), Some(speakers)) = (
-            mixer.as_ref().cast() as Option<&dyn OnOff>,
-            speakers.as_ref().cast() as Option<&dyn OnOff>,
+            self.config.mixer.cast() as Option<&dyn OnOff>,
+            self.config.speakers.cast() as Option<&dyn OnOff>,
         ) {
             // Turn off the audio setup when we leave the house
             if !presence {

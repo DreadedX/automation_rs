@@ -4,7 +4,7 @@ use std::sync::Arc;
 use automation_cast::Cast;
 use futures::future::{join_all, OptionFuture};
 use thiserror::Error;
-use tokio::sync::{Mutex, RwLock};
+use tokio::sync::Mutex;
 
 use crate::errors::{DeviceError, ErrorCode};
 use crate::request::{self, Intent, Request};
@@ -33,7 +33,7 @@ impl GoogleHome {
     pub async fn handle_request<T: Cast<dyn Device> + ?Sized + 'static>(
         &self,
         request: Request,
-        devices: &HashMap<String, Arc<RwLock<Box<T>>>>,
+        devices: &HashMap<String, Box<T>>,
     ) -> Result<Response, FulfillmentError> {
         // TODO: What do we do if we actually get more then one thing in the input array, right now
         // we only respond to the first thing
@@ -61,11 +61,11 @@ impl GoogleHome {
 
     async fn sync<T: Cast<dyn Device> + ?Sized + 'static>(
         &self,
-        devices: &HashMap<String, Arc<RwLock<Box<T>>>>,
+        devices: &HashMap<String, Box<T>>,
     ) -> sync::Payload {
         let mut resp_payload = sync::Payload::new(&self.user_id);
         let f = devices.iter().map(|(_, device)| async move {
-            if let Some(device) = device.read().await.as_ref().cast() {
+            if let Some(device) = device.as_ref().cast() {
                 Some(Device::sync(device).await)
             } else {
                 None
@@ -79,7 +79,7 @@ impl GoogleHome {
     async fn query<T: Cast<dyn Device> + ?Sized + 'static>(
         &self,
         payload: request::query::Payload,
-        devices: &HashMap<String, Arc<RwLock<Box<T>>>>,
+        devices: &HashMap<String, Box<T>>,
     ) -> query::Payload {
         let mut resp_payload = query::Payload::new();
         let f = payload
@@ -89,7 +89,7 @@ impl GoogleHome {
             .map(|id| async move {
                 // NOTE: Requires let_chains feature
                 let device = if let Some(device) = devices.get(id.as_str())
-                    && let Some(device) = device.read().await.as_ref().cast()
+                    && let Some(device) = device.as_ref().cast()
                 {
                     Device::query(device).await
                 } else {
@@ -111,7 +111,7 @@ impl GoogleHome {
     async fn execute<T: Cast<dyn Device> + ?Sized + 'static>(
         &self,
         payload: request::execute::Payload,
-        devices: &HashMap<String, Arc<RwLock<Box<T>>>>,
+        devices: &HashMap<String, Box<T>>,
     ) -> execute::Payload {
         let resp_payload = Arc::new(Mutex::new(response::execute::Payload::new()));
 
@@ -138,7 +138,7 @@ impl GoogleHome {
                         let execution = command.execution.clone();
                         async move {
                             if let Some(device) = devices.get(id.as_str())
-                                && let Some(device) = device.write().await.as_ref().cast()
+                                && let Some(device) = device.as_ref().cast()
                             {
                                 if !device.is_online() {
                                     return (id, Ok(false));
