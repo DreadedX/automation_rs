@@ -1,9 +1,10 @@
+use std::sync::Arc;
 use std::time::Duration;
 
 use async_trait::async_trait;
 use automation_macro::LuaDeviceConfig;
 use google_home::traits::OnOff;
-use mlua::FromLua;
+use tokio::sync::{RwLock, RwLockReadGuard, RwLockWriteGuard};
 use tokio::task::JoinHandle;
 use tracing::{debug, error, trace, warn};
 
@@ -26,31 +27,16 @@ pub struct PresenceDeviceConfig {
     pub timeout: Duration,
 }
 
-#[derive(Debug, Clone)]
-struct TriggerDevicesHelper(Vec<WrappedDevice>);
-
-impl<'lua> FromLua<'lua> for TriggerDevicesHelper {
-    fn from_lua(value: mlua::Value<'lua>, lua: &'lua mlua::Lua) -> mlua::Result<Self> {
-        Ok(TriggerDevicesHelper(mlua::FromLua::from_lua(value, lua)?))
-    }
-}
-
-impl From<TriggerDevicesHelper> for Vec<(WrappedDevice, bool)> {
-    fn from(value: TriggerDevicesHelper) -> Self {
-        value.0.into_iter().map(|device| (device, false)).collect()
-    }
-}
-
 #[derive(Debug, Clone, LuaDeviceConfig)]
 pub struct TriggerConfig {
-    #[device_config(from_lua, from(TriggerDevicesHelper))]
-    pub devices: Vec<(WrappedDevice, bool)>,
+    #[device_config(from_lua)]
+    pub devices: Vec<WrappedDevice>,
     #[device_config(default, with(|t: Option<_>| t.map(Duration::from_secs)))]
     pub timeout: Option<Duration>,
 }
 
 #[derive(Debug, Clone, LuaDeviceConfig)]
-pub struct ContactSensorConfig {
+pub struct Config {
     pub identifier: String,
     #[device_config(flatten)]
     pub mqtt: MqttDeviceConfig,
@@ -63,25 +49,41 @@ pub struct ContactSensorConfig {
 }
 
 #[derive(Debug)]
-pub struct ContactSensor {
-    config: ContactSensorConfig,
-
+struct State {
     overall_presence: bool,
     is_closed: bool,
+    previous: Vec<bool>,
     handle: Option<JoinHandle<()>>,
+}
+
+#[derive(Debug, Clone)]
+pub struct ContactSensor {
+    config: Config,
+    state: Arc<RwLock<State>>,
+}
+
+impl ContactSensor {
+    async fn state(&self) -> RwLockReadGuard<State> {
+        self.state.read().await
+    }
+
+    async fn state_mut(&self) -> RwLockWriteGuard<State> {
+        self.state.write().await
+    }
 }
 
 #[async_trait]
 impl LuaDeviceCreate for ContactSensor {
-    type Config = ContactSensorConfig;
+    type Config = Config;
     type Error = DeviceConfigError;
 
     async fn create(config: Self::Config) -> Result<Self, Self::Error> {
         trace!(id = config.identifier, "Setting up ContactSensor");
 
+        let mut previous = Vec::new();
         // Make sure the devices implement the required traits
         if let Some(trigger) = &config.trigger {
-            for (device, _) in &trigger.devices {
+            for device in &trigger.devices {
                 {
                     let device = device.read().await;
                     let id = device.get_id().to_owned();
@@ -96,6 +98,7 @@ impl LuaDeviceCreate for ContactSensor {
                     }
                 }
             }
+            previous.resize(trigger.devices.len(), false);
         }
 
         config
@@ -103,12 +106,15 @@ impl LuaDeviceCreate for ContactSensor {
             .subscribe(&config.mqtt.topic, rumqttc::QoS::AtLeastOnce)
             .await?;
 
-        Ok(Self {
-            config: config.clone(),
+        let state = State {
             overall_presence: DEFAULT_PRESENCE,
             is_closed: true,
+            previous,
             handle: None,
-        })
+        };
+        let state = Arc::new(RwLock::new(state));
+
+        Ok(Self { config, state })
     }
 }
 
@@ -120,14 +126,14 @@ impl Device for ContactSensor {
 
 #[async_trait]
 impl OnPresence for ContactSensor {
-    async fn on_presence(&mut self, presence: bool) {
-        self.overall_presence = presence;
+    async fn on_presence(&self, presence: bool) {
+        self.state_mut().await.overall_presence = presence;
     }
 }
 
 #[async_trait]
 impl OnMqtt for ContactSensor {
-    async fn on_mqtt(&mut self, message: rumqttc::Publish) {
+    async fn on_mqtt(&self, message: rumqttc::Publish) {
         if !rumqttc::matches(&message.topic, &self.config.mqtt.topic) {
             return;
         }
@@ -135,24 +141,25 @@ impl OnMqtt for ContactSensor {
         let is_closed = match ContactMessage::try_from(message) {
             Ok(state) => state.is_closed(),
             Err(err) => {
-                error!(
-                    id = self.config.identifier,
-                    "Failed to parse message: {err}"
-                );
+                error!(id = self.get_id(), "Failed to parse message: {err}");
                 return;
             }
         };
 
-        if is_closed == self.is_closed {
+        if is_closed == self.state().await.is_closed {
             return;
         }
 
-        debug!(id = self.config.identifier, "Updating state to {is_closed}");
-        self.is_closed = is_closed;
+        debug!(id = self.get_id(), "Updating state to {is_closed}");
+        self.state_mut().await.is_closed = is_closed;
 
-        if let Some(trigger) = &mut self.config.trigger {
-            if !self.is_closed {
-                for (light, previous) in &mut trigger.devices {
+        if let Some(trigger) = &self.config.trigger {
+            if !is_closed {
+                for (light, previous) in trigger
+                    .devices
+                    .iter()
+                    .zip(self.state_mut().await.previous.iter_mut())
+                {
                     let mut light = light.write().await;
                     if let Some(light) = light.as_mut().cast_mut() as Option<&mut dyn OnOff> {
                         *previous = light.on().await.unwrap();
@@ -160,7 +167,11 @@ impl OnMqtt for ContactSensor {
                     }
                 }
             } else {
-                for (light, previous) in &trigger.devices {
+                for (light, previous) in trigger
+                    .devices
+                    .iter()
+                    .zip(self.state_mut().await.previous.iter())
+                {
                     let mut light = light.write().await;
                     if !previous {
                         // If the timeout is zero just turn the light off directly
@@ -183,20 +194,20 @@ impl OnMqtt for ContactSensor {
         // Check if this contact sensor works as a presence device
         // If not we are done here
         let presence = match &self.config.presence {
-            Some(presence) => presence,
+            Some(presence) => presence.clone(),
             None => return,
         };
 
         if !is_closed {
             // Activate presence and stop any timeout once we open the door
-            if let Some(handle) = self.handle.take() {
+            if let Some(handle) = self.state_mut().await.handle.take() {
                 handle.abort();
             }
 
             // Only use the door as an presence sensor if there the current presence is set false
             // This is to prevent the house from being marked as present for however long the
             // timeout is set when leaving the house
-            if !self.overall_presence {
+            if !self.state().await.overall_presence {
                 self.config
                     .client
                     .publish(
@@ -216,18 +227,25 @@ impl OnMqtt for ContactSensor {
             }
         } else {
             // Once the door is closed again we start a timeout for removing the presence
-            let client = self.config.client.clone();
-            let id = self.config.identifier.clone();
-            let timeout = presence.timeout;
-            let topic = presence.mqtt.topic.clone();
-            self.handle = Some(tokio::spawn(async move {
-                debug!(id, "Starting timeout ({timeout:?}) for contact sensor...");
-                tokio::time::sleep(timeout).await;
-                debug!(id, "Removing door device!");
-                client
-                    .publish(&topic, rumqttc::QoS::AtLeastOnce, false, "")
+            let device = self.clone();
+            self.state_mut().await.handle = Some(tokio::spawn(async move {
+                debug!(
+                    id = device.get_id(),
+                    "Starting timeout ({:?}) for contact sensor...", presence.timeout
+                );
+                tokio::time::sleep(presence.timeout).await;
+                debug!(id = device.get_id(), "Removing door device!");
+                device
+                    .config
+                    .client
+                    .publish(&presence.mqtt.topic, rumqttc::QoS::AtLeastOnce, false, "")
                     .await
-                    .map_err(|err| warn!("Failed to publish presence on {topic}: {err}"))
+                    .map_err(|err| {
+                        warn!(
+                            "Failed to publish presence on {}: {err}",
+                            presence.mqtt.topic
+                        )
+                    })
                     .ok();
             }));
         }

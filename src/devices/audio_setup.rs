@@ -12,7 +12,7 @@ use crate::messages::{RemoteAction, RemoteMessage};
 use crate::mqtt::WrappedAsyncClient;
 
 #[derive(Debug, Clone, LuaDeviceConfig)]
-pub struct AudioSetupConfig {
+pub struct Config {
     pub identifier: String,
     #[device_config(flatten)]
     pub mqtt: MqttDeviceConfig,
@@ -24,14 +24,14 @@ pub struct AudioSetupConfig {
     pub client: WrappedAsyncClient,
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct AudioSetup {
-    config: AudioSetupConfig,
+    config: Config,
 }
 
 #[async_trait]
 impl LuaDeviceCreate for AudioSetup {
-    type Config = AudioSetupConfig;
+    type Config = Config;
     type Error = DeviceConfigError;
 
     async fn create(config: Self::Config) -> Result<Self, Self::Error> {
@@ -68,7 +68,7 @@ impl Device for AudioSetup {
 
 #[async_trait]
 impl OnMqtt for AudioSetup {
-    async fn on_mqtt(&mut self, message: rumqttc::Publish) {
+    async fn on_mqtt(&self, message: rumqttc::Publish) {
         if !rumqttc::matches(&message.topic, &self.config.mqtt.topic) {
             return;
         }
@@ -76,10 +76,7 @@ impl OnMqtt for AudioSetup {
         let action = match RemoteMessage::try_from(message) {
             Ok(message) => message.action(),
             Err(err) => {
-                error!(
-                    id = self.config.identifier,
-                    "Failed to parse message: {err}"
-                );
+                error!(id = self.get_id(), "Failed to parse message: {err}");
                 return;
             }
         };
@@ -118,7 +115,7 @@ impl OnMqtt for AudioSetup {
 
 #[async_trait]
 impl OnPresence for AudioSetup {
-    async fn on_presence(&mut self, presence: bool) {
+    async fn on_presence(&self, presence: bool) {
         let mut mixer = self.config.mixer.write().await;
         let mut speakers = self.config.speakers.write().await;
 
@@ -128,7 +125,7 @@ impl OnPresence for AudioSetup {
         ) {
             // Turn off the audio setup when we leave the house
             if !presence {
-                debug!(id = self.config.identifier, "Turning devices off");
+                debug!(id = self.get_id(), "Turning devices off");
                 speakers.set_on(false).await.unwrap();
                 mixer.set_on(false).await.unwrap();
             }

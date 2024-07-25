@@ -111,8 +111,8 @@ impl Default for Notification {
     }
 }
 
-#[derive(Debug, LuaDeviceConfig)]
-pub struct NtfyConfig {
+#[derive(Debug, Clone, LuaDeviceConfig)]
+pub struct Config {
     #[device_config(default("https://ntfy.sh".into()))]
     pub url: String,
     pub topic: String,
@@ -120,14 +120,14 @@ pub struct NtfyConfig {
     pub tx: event::Sender,
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct Ntfy {
-    config: NtfyConfig,
+    config: Config,
 }
 
 #[async_trait]
 impl LuaDeviceCreate for Ntfy {
-    type Config = NtfyConfig;
+    type Config = Config;
     type Error = Infallible;
 
     async fn create(config: Self::Config) -> Result<Self, Self::Error> {
@@ -166,7 +166,7 @@ impl Ntfy {
 
 #[async_trait]
 impl OnPresence for Ntfy {
-    async fn on_presence(&mut self, presence: bool) {
+    async fn on_presence(&self, presence: bool) {
         // Setup extras for the broadcast
         let extras = HashMap::from([
             ("cmd".into(), "presence".into()),
@@ -202,7 +202,7 @@ impl OnPresence for Ntfy {
 
 #[async_trait]
 impl OnNotification for Ntfy {
-    async fn on_notification(&mut self, notification: Notification) {
+    async fn on_notification(&self, notification: Notification) {
         self.send(notification).await;
     }
 }

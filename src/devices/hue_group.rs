@@ -17,7 +17,7 @@ use crate::mqtt::WrappedAsyncClient;
 use crate::traits::Timeout;
 
 #[derive(Debug, Clone, LuaDeviceConfig)]
-pub struct HueGroupConfig {
+pub struct Config {
     pub identifier: String,
     #[device_config(rename("ip"), with(|ip| SocketAddr::new(ip, 80)))]
     pub addr: SocketAddr,
@@ -31,15 +31,15 @@ pub struct HueGroupConfig {
     pub client: WrappedAsyncClient,
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct HueGroup {
-    config: HueGroupConfig,
+    config: Config,
 }
 
 // Couple of helper function to get the correct urls
 #[async_trait]
 impl LuaDeviceCreate for HueGroup {
-    type Config = HueGroupConfig;
+    type Config = Config;
     type Error = rumqttc::ClientError;
 
     async fn create(config: Self::Config) -> Result<Self, Self::Error> {
@@ -85,7 +85,7 @@ impl Device for HueGroup {
 
 #[async_trait]
 impl OnMqtt for HueGroup {
-    async fn on_mqtt(&mut self, message: Publish) {
+    async fn on_mqtt(&self, message: Publish) {
         if !self
             .config
             .remotes
@@ -98,10 +98,7 @@ impl OnMqtt for HueGroup {
         let action = match RemoteMessage::try_from(message) {
             Ok(message) => message.action(),
             Err(err) => {
-                error!(
-                    id = self.config.identifier,
-                    "Failed to parse message: {err}"
-                );
+                error!(id = self.get_id(), "Failed to parse message: {err}");
                 return;
             }
         };
@@ -120,7 +117,7 @@ impl OnMqtt for HueGroup {
 
 #[async_trait]
 impl OnOff for HueGroup {
-    async fn set_on(&mut self, on: bool) -> Result<(), ErrorCode> {
+    async fn set_on(&self, on: bool) -> Result<(), ErrorCode> {
         // Abort any timer that is currently running
         self.stop_timeout().await.unwrap();
 
@@ -140,13 +137,10 @@ impl OnOff for HueGroup {
             Ok(res) => {
                 let status = res.status();
                 if !status.is_success() {
-                    warn!(
-                        id = self.config.identifier,
-                        "Status code is not success: {status}"
-                    );
+                    warn!(id = self.get_id(), "Status code is not success: {status}");
                 }
             }
-            Err(err) => error!(id = self.config.identifier, "Error: {err}"),
+            Err(err) => error!(id = self.get_id(), "Error: {err}"),
         }
 
         Ok(())
@@ -162,19 +156,13 @@ impl OnOff for HueGroup {
             Ok(res) => {
                 let status = res.status();
                 if !status.is_success() {
-                    warn!(
-                        id = self.config.identifier,
-                        "Status code is not success: {status}"
-                    );
+                    warn!(id = self.get_id(), "Status code is not success: {status}");
                 }
 
                 let on = match res.json::<message::Info>().await {
                     Ok(info) => info.any_on(),
                     Err(err) => {
-                        error!(
-                            id = self.config.identifier,
-                            "Failed to parse message: {err}"
-                        );
+                        error!(id = self.get_id(), "Failed to parse message: {err}");
                         // TODO: Error code
                         return Ok(false);
                     }
@@ -182,7 +170,7 @@ impl OnOff for HueGroup {
 
                 return Ok(on);
             }
-            Err(err) => error!(id = self.config.identifier, "Error: {err}"),
+            Err(err) => error!(id = self.get_id(), "Error: {err}"),
         }
 
         Ok(false)
@@ -191,7 +179,7 @@ impl OnOff for HueGroup {
 
 #[async_trait]
 impl Timeout for HueGroup {
-    async fn start_timeout(&mut self, timeout: Duration) -> Result<()> {
+    async fn start_timeout(&self, timeout: Duration) -> Result<()> {
         // Abort any timer that is currently running
         self.stop_timeout().await?;
 
@@ -214,7 +202,7 @@ impl Timeout for HueGroup {
         Ok(())
     }
 
-    async fn stop_timeout(&mut self) -> Result<()> {
+    async fn stop_timeout(&self) -> Result<()> {
         let message = message::Timeout::new(None);
         let res = reqwest::Client::new()
             .put(self.url_set_schedule())

@@ -16,20 +16,20 @@ use tracing::trace;
 use super::{Device, LuaDeviceCreate};
 
 #[derive(Debug, Clone, LuaDeviceConfig)]
-pub struct KasaOutletConfig {
+pub struct Config {
     pub identifier: String,
     #[device_config(rename("ip"), with(|ip| SocketAddr::new(ip, 9999)))]
     pub addr: SocketAddr,
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct KasaOutlet {
-    config: KasaOutletConfig,
+    config: Config,
 }
 
 #[async_trait]
 impl LuaDeviceCreate for KasaOutlet {
-    type Config = KasaOutletConfig;
+    type Config = Config;
     type Error = Infallible;
 
     async fn create(config: Self::Config) -> Result<Self, Self::Error> {
@@ -241,7 +241,7 @@ impl traits::OnOff for KasaOutlet {
             .or(Err(DeviceError::TransientError.into()))
     }
 
-    async fn set_on(&mut self, on: bool) -> Result<(), errors::ErrorCode> {
+    async fn set_on(&self, on: bool) -> Result<(), errors::ErrorCode> {
         let mut stream = TcpStream::connect(self.config.addr)
             .await
             .or::<DeviceError>(Err(DeviceError::DeviceOffline))?;

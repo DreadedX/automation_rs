@@ -1,6 +1,9 @@
+use std::sync::Arc;
+
 use async_trait::async_trait;
 use automation_macro::LuaDeviceConfig;
 use rumqttc::Publish;
+use tokio::sync::{RwLock, RwLockReadGuard, RwLockWriteGuard};
 use tracing::{debug, error, trace, warn};
 
 use super::ntfy::Priority;
@@ -11,7 +14,7 @@ use crate::messages::PowerMessage;
 use crate::mqtt::WrappedAsyncClient;
 
 #[derive(Debug, Clone, LuaDeviceConfig)]
-pub struct WasherConfig {
+pub struct Config {
     pub identifier: String,
     #[device_config(flatten)]
     pub mqtt: MqttDeviceConfig,
@@ -23,17 +26,31 @@ pub struct WasherConfig {
     pub client: WrappedAsyncClient,
 }
 
-// TODO: Add google home integration
 #[derive(Debug)]
-pub struct Washer {
-    config: WasherConfig,
-
+pub struct State {
     running: isize,
+}
+
+// TODO: Add google home integration
+#[derive(Debug, Clone)]
+pub struct Washer {
+    config: Config,
+    state: Arc<RwLock<State>>,
+}
+
+impl Washer {
+    async fn state(&self) -> RwLockReadGuard<State> {
+        self.state.read().await
+    }
+
+    async fn state_mut(&self) -> RwLockWriteGuard<State> {
+        self.state.write().await
+    }
 }
 
 #[async_trait]
 impl LuaDeviceCreate for Washer {
-    type Config = WasherConfig;
+    type Config = Config;
     type Error = rumqttc::ClientError;
 
     async fn create(config: Self::Config) -> Result<Self, Self::Error> {
@@ -44,7 +61,10 @@ impl LuaDeviceCreate for Washer {
             .subscribe(&config.mqtt.topic, rumqttc::QoS::AtLeastOnce)
             .await?;
 
-        Ok(Self { config, running: 0 })
+        let state = State { running: 0 };
+        let state = Arc::new(RwLock::new(state));
+
+        Ok(Self { config, state })
     }
 }
 
@@ -61,7 +81,7 @@ const HYSTERESIS: isize = 10;
 
 #[async_trait]
 impl OnMqtt for Washer {
-    async fn on_mqtt(&mut self, message: Publish) {
+    async fn on_mqtt(&self, message: Publish) {
         if !rumqttc::matches(&message.topic, &self.config.mqtt.topic) {
             return;
         }
@@ -79,7 +99,7 @@ impl OnMqtt for Washer {
 
         // debug!(id = self.identifier, power, "Washer state update");
 
-        if power < self.config.threshold && self.running >= HYSTERESIS {
+        if power < self.config.threshold && self.state().await.running >= HYSTERESIS {
             // The washer is done running
             debug!(
                 id = self.config.identifier,
@@ -88,7 +108,7 @@ impl OnMqtt for Washer {
                 "Washer is done"
             );
 
-            self.running = 0;
+            self.state_mut().await.running = 0;
             let notification = Notification::new()
                 .set_title("Laundy is done")
                 .set_message("Don't forget to hang it!")
@@ -106,8 +126,8 @@ impl OnMqtt for Washer {
             }
         } else if power < self.config.threshold {
             // Prevent false positives
-            self.running = 0;
-        } else if power >= self.config.threshold && self.running < HYSTERESIS {
+            self.state_mut().await.running = 0;
+        } else if power >= self.config.threshold && self.state().await.running < HYSTERESIS {
             // Washer could be starting
             debug!(
                 id = self.config.identifier,
@@ -116,7 +136,7 @@ impl OnMqtt for Washer {
                 "Washer is starting"
             );
 
-            self.running += 1;
+            self.state_mut().await.running += 1;
         }
     }
 }

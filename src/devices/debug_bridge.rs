@@ -12,7 +12,7 @@ use crate::messages::{DarknessMessage, PresenceMessage};
 use crate::mqtt::WrappedAsyncClient;
 
 #[derive(Debug, LuaDeviceConfig, Clone)]
-pub struct DebugBridgeConfig {
+pub struct Config {
     pub identifier: String,
     #[device_config(flatten)]
     pub mqtt: MqttDeviceConfig,
@@ -20,14 +20,14 @@ pub struct DebugBridgeConfig {
     pub client: WrappedAsyncClient,
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct DebugBridge {
-    config: DebugBridgeConfig,
+    config: Config,
 }
 
 #[async_trait]
 impl LuaDeviceCreate for DebugBridge {
-    type Config = DebugBridgeConfig;
+    type Config = Config;
     type Error = Infallible;
 
     async fn create(config: Self::Config) -> Result<Self, Self::Error> {
@@ -44,7 +44,7 @@ impl Device for DebugBridge {
 
 #[async_trait]
 impl OnPresence for DebugBridge {
-    async fn on_presence(&mut self, presence: bool) {
+    async fn on_presence(&self, presence: bool) {
         let message = PresenceMessage::new(presence);
         let topic = format!("{}/presence", self.config.mqtt.topic);
         self.config
@@ -68,7 +68,7 @@ impl OnPresence for DebugBridge {
 
 #[async_trait]
 impl OnDarkness for DebugBridge {
-    async fn on_darkness(&mut self, dark: bool) {
+    async fn on_darkness(&self, dark: bool) {
         let message = DarknessMessage::new(dark);
         let topic = format!("{}/darkness", self.config.mqtt.topic);
         self.config

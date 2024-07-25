@@ -36,20 +36,20 @@ impl mlua::UserData for EventChannel {}
 #[async_trait]
 pub trait OnMqtt: Sync + Send {
     // fn topics(&self) -> Vec<&str>;
-    async fn on_mqtt(&mut self, message: Publish);
+    async fn on_mqtt(&self, message: Publish);
 }
 
 #[async_trait]
 pub trait OnPresence: Sync + Send {
-    async fn on_presence(&mut self, presence: bool);
+    async fn on_presence(&self, presence: bool);
 }
 
 #[async_trait]
 pub trait OnDarkness: Sync + Send {
-    async fn on_darkness(&mut self, dark: bool);
+    async fn on_darkness(&self, dark: bool);
 }
 
 #[async_trait]
 pub trait OnNotification: Sync + Send {
-    async fn on_notification(&mut self, notification: Notification);
+    async fn on_notification(&self, notification: Notification);
 }

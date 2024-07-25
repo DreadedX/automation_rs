@@ -17,7 +17,7 @@ use crate::messages::ActivateMessage;
 use crate::mqtt::WrappedAsyncClient;
 
 #[derive(Debug, Clone, LuaDeviceConfig)]
-pub struct WakeOnLANConfig {
+pub struct Config {
     #[device_config(flatten)]
     pub info: InfoConfig,
     #[device_config(flatten)]
@@ -29,14 +29,14 @@ pub struct WakeOnLANConfig {
     pub client: WrappedAsyncClient,
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct WakeOnLAN {
-    config: WakeOnLANConfig,
+    config: Config,
 }
 
 #[async_trait]
 impl LuaDeviceCreate for WakeOnLAN {
-    type Config = WakeOnLANConfig;
+    type Config = Config;
     type Error = rumqttc::ClientError;
 
     async fn create(config: Self::Config) -> Result<Self, Self::Error> {
@@ -59,7 +59,7 @@ impl Device for WakeOnLAN {
 
 #[async_trait]
 impl OnMqtt for WakeOnLAN {
-    async fn on_mqtt(&mut self, message: Publish) {
+    async fn on_mqtt(&self, message: Publish) {
         if !rumqttc::matches(&message.topic, &self.config.mqtt.topic) {
             return;
         }
@@ -103,7 +103,7 @@ impl google_home::Device for WakeOnLAN {
 
 #[async_trait]
 impl traits::Scene for WakeOnLAN {
-    async fn set_active(&mut self, deactivate: bool) -> Result<(), ErrorCode> {
+    async fn set_active(&self, deactivate: bool) -> Result<(), ErrorCode> {
         if deactivate {
             debug!(
                 id = Device::get_id(self),

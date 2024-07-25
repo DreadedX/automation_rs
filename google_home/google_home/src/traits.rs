@@ -12,35 +12,35 @@ traits! {
         command_only_on_off: Option<bool>,
         query_only_on_off: Option<bool>,
         async fn on(&self) -> Result<bool, ErrorCode>,
-        "action.devices.commands.OnOff" => async fn set_on(&mut self, on: bool) -> Result<(), ErrorCode>,
+        "action.devices.commands.OnOff" => async fn set_on(&self, on: bool) -> Result<(), ErrorCode>,
     },
     "action.devices.traits.Scene" => trait Scene {
         scene_reversible: Option<bool>,
 
-        "action.devices.commands.ActivateScene" => async fn set_active(&mut self, deactivate: bool) -> Result<(), ErrorCode>,
+        "action.devices.commands.ActivateScene" => async fn set_active(&self, deactivate: bool) -> Result<(), ErrorCode>,
     },
     "action.devices.traits.FanSpeed" => trait FanSpeed {
         reversible: Option<bool>,
         command_only_fan_speed: Option<bool>,
         available_fan_speeds: AvailableSpeeds,
 
-        fn current_fan_speed_setting(&self) -> Result<String, ErrorCode>,
+        async fn current_fan_speed_setting(&self) -> Result<String, ErrorCode>,
 
         // TODO: Figure out some syntax for optional command?
         // Probably better to just force the user to always implement commands?
-        "action.devices.commands.SetFanSpeed" => async fn set_fan_speed(&mut self, fan_speed: String) -> Result<(), ErrorCode>,
+        "action.devices.commands.SetFanSpeed" => async fn set_fan_speed(&self, fan_speed: String) -> Result<(), ErrorCode>,
     },
     "action.devices.traits.HumiditySetting" => trait HumiditySetting {
         query_only_humidity_setting: Option<bool>,
 
-        fn humidity_ambient_percent(&self) -> Result<isize, ErrorCode>,
+        async fn humidity_ambient_percent(&self) -> Result<isize, ErrorCode>,
     },
     "action.devices.traits.TemperatureControl" => trait TemperatureSetting {
         query_only_temperature_control: Option<bool>,
         // TODO: Add rename
         temperatureUnitForUX: TemperatureUnit,
 
-        fn temperature_ambient_celsius(&self) -> f32,
+        async fn temperature_ambient_celsius(&self) -> f32,
     }
 }
 

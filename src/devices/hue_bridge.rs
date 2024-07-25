@@ -23,7 +23,7 @@ pub struct FlagIDs {
 }
 
 #[derive(Debug, LuaDeviceConfig, Clone)]
-pub struct HueBridgeConfig {
+pub struct Config {
     pub identifier: String,
     #[device_config(rename("ip"), with(|ip| SocketAddr::new(ip, 80)))]
     pub addr: SocketAddr,
@@ -31,9 +31,9 @@ pub struct HueBridgeConfig {
     pub flags: FlagIDs,
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct HueBridge {
-    config: HueBridgeConfig,
+    config: Config,
 }
 
 #[derive(Debug, Serialize)]
@@ -43,7 +43,7 @@ struct FlagMessage {
 
 #[async_trait]
 impl LuaDeviceCreate for HueBridge {
-    type Config = HueBridgeConfig;
+    type Config = Config;
     type Error = Infallible;
 
     async fn create(config: Self::Config) -> Result<Self, Infallible> {
@@ -93,7 +93,7 @@ impl Device for HueBridge {
 
 #[async_trait]
 impl OnPresence for HueBridge {
-    async fn on_presence(&mut self, presence: bool) {
+    async fn on_presence(&self, presence: bool) {
         trace!("Bridging presence to hue");
         self.set_flag(Flag::Presence, presence).await;
     }
@@ -101,7 +101,7 @@ impl OnPresence for HueBridge {
 
 #[async_trait]
 impl OnDarkness for HueBridge {
-    async fn on_darkness(&mut self, dark: bool) {
+    async fn on_darkness(&self, dark: bool) {
         trace!("Bridging darkness to hue");
         self.set_flag(Flag::Darkness, dark).await;
     }

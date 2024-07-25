@@ -1,3 +1,4 @@
+use std::sync::Arc;
 use std::time::Duration;
 
 use anyhow::Result;
@@ -9,6 +10,7 @@ use google_home::traits::{self, OnOff};
 use google_home::types::Type;
 use rumqttc::{matches, Publish, SubscribeFilter};
 use serde::Deserialize;
+use tokio::sync::{RwLock, RwLockReadGuard, RwLockWriteGuard};
 use tokio::task::JoinHandle;
 use tracing::{debug, error, trace, warn};
 
@@ -29,7 +31,7 @@ pub enum OutletType {
 }
 
 #[derive(Debug, Clone, LuaDeviceConfig)]
-pub struct IkeaOutletConfig {
+pub struct Config {
     #[device_config(flatten)]
     pub info: InfoConfig,
     #[device_config(flatten)]
@@ -46,33 +48,31 @@ pub struct IkeaOutletConfig {
 }
 
 #[derive(Debug)]
-pub struct IkeaOutlet {
-    config: IkeaOutletConfig,
-
+pub struct State {
     last_known_state: bool,
     handle: Option<JoinHandle<()>>,
 }
 
-async fn set_on(client: WrappedAsyncClient, topic: &str, on: bool) {
-    let message = OnOffMessage::new(on);
+#[derive(Debug, Clone)]
+pub struct IkeaOutlet {
+    config: Config,
 
-    let topic = format!("{}/set", topic);
-    // TODO: Handle potential errors here
-    client
-        .publish(
-            &topic,
-            rumqttc::QoS::AtLeastOnce,
-            false,
-            serde_json::to_string(&message).unwrap(),
-        )
-        .await
-        .map_err(|err| warn!("Failed to update state on {topic}: {err}"))
-        .ok();
+    state: Arc<RwLock<State>>,
+}
+
+impl IkeaOutlet {
+    async fn state(&self) -> RwLockReadGuard<State> {
+        self.state.read().await
+    }
+
+    async fn state_mut(&self) -> RwLockWriteGuard<State> {
+        self.state.write().await
+    }
 }
 
 #[async_trait]
 impl LuaDeviceCreate for IkeaOutlet {
-    type Config = IkeaOutletConfig;
+    type Config = Config;
     type Error = rumqttc::ClientError;
 
     async fn create(config: Self::Config) -> Result<Self, Self::Error> {
@@ -93,11 +93,13 @@ impl LuaDeviceCreate for IkeaOutlet {
             .subscribe(&config.mqtt.topic, rumqttc::QoS::AtLeastOnce)
             .await?;
 
-        Ok(Self {
-            config,
+        let state = State {
             last_known_state: false,
             handle: None,
-        })
+        };
+        let state = Arc::new(RwLock::new(state));
+
+        Ok(Self { config, state })
     }
 }
 
@@ -109,7 +111,7 @@ impl Device for IkeaOutlet {
 
 #[async_trait]
 impl OnMqtt for IkeaOutlet {
-    async fn on_mqtt(&mut self, message: Publish) {
+    async fn on_mqtt(&self, message: Publish) {
         // Check if the message is from the deviec itself or from a remote
         if matches(&message.topic, &self.config.mqtt.topic) {
             // Update the internal state based on what the device has reported
@@ -122,7 +124,7 @@ impl OnMqtt for IkeaOutlet {
             };
 
             // No need to do anything if the state has not changed
-            if state == self.last_known_state {
+            if state == self.state().await.last_known_state {
                 return;
             }
 
@@ -130,7 +132,7 @@ impl OnMqtt for IkeaOutlet {
             self.stop_timeout().await.unwrap();
 
             debug!(id = Device::get_id(self), "Updating state to {state}");
-            self.last_known_state = state;
+            self.state_mut().await.last_known_state = state;
 
             // If this is a kettle start a timeout for turning it of again
             if state && let Some(timeout) = self.config.timeout {
@@ -162,7 +164,7 @@ impl OnMqtt for IkeaOutlet {
 
 #[async_trait]
 impl OnPresence for IkeaOutlet {
-    async fn on_presence(&mut self, presence: bool) {
+    async fn on_presence(&self, presence: bool) {
         // Turn off the outlet when we leave the house (Not if it is a battery charger)
         if !presence && self.config.outlet_type != OutletType::Charger {
             debug!(id = Device::get_id(self), "Turning device off");
@@ -206,11 +208,25 @@ impl google_home::Device for IkeaOutlet {
 #[async_trait]
 impl traits::OnOff for IkeaOutlet {
     async fn on(&self) -> Result<bool, ErrorCode> {
-        Ok(self.last_known_state)
+        Ok(self.state().await.last_known_state)
     }
 
-    async fn set_on(&mut self, on: bool) -> Result<(), ErrorCode> {
-        set_on(self.config.client.clone(), &self.config.mqtt.topic, on).await;
+    async fn set_on(&self, on: bool) -> Result<(), ErrorCode> {
+        let message = OnOffMessage::new(on);
+
+        let topic = format!("{}/set", self.config.mqtt.topic);
+        // TODO: Handle potential errors here
+        self.config
+            .client
+            .publish(
+                &topic,
+                rumqttc::QoS::AtLeastOnce,
+                false,
+                serde_json::to_string(&message).unwrap(),
+            )
+            .await
+            .map_err(|err| warn!("Failed to update state on {topic}: {err}"))
+            .ok();
 
         Ok(())
     }
@@ -218,31 +234,23 @@ impl traits::OnOff for IkeaOutlet {
 
 #[async_trait]
 impl crate::traits::Timeout for IkeaOutlet {
-    async fn start_timeout(&mut self, timeout: Duration) -> Result<()> {
+    async fn start_timeout(&self, timeout: Duration) -> Result<()> {
         // Abort any timer that is currently running
         self.stop_timeout().await?;
 
-        // Turn the kettle of after the specified timeout
-        // TODO: Impl Drop for IkeaOutlet that will abort the handle if the IkeaOutlet
-        // get dropped
-        let client = self.config.client.clone();
-        let topic = self.config.mqtt.topic.clone();
-        let id = Device::get_id(self).clone();
-        self.handle = Some(tokio::spawn(async move {
-            debug!(id, "Starting timeout ({timeout:?})...");
+        let device = self.clone();
+        self.state_mut().await.handle = Some(tokio::spawn(async move {
+            debug!(id = device.get_id(), "Starting timeout ({timeout:?})...");
             tokio::time::sleep(timeout).await;
-            debug!(id, "Turning outlet off!");
-            // TODO: Idealy we would call self.set_on(false), however since we want to do
-            // it after a timeout we have to put it in a separate task.
-            // I don't think we can really get around calling outside function
-            set_on(client, &topic, false).await;
+            debug!(id = device.get_id(), "Turning outlet off!");
+            device.set_on(false).await.unwrap();
         }));
 
         Ok(())
     }
 
-    async fn stop_timeout(&mut self) -> Result<()> {
-        if let Some(handle) = self.handle.take() {
+    async fn stop_timeout(&self) -> Result<()> {
+        if let Some(handle) = self.state_mut().await.handle.take() {
             handle.abort();
         }
 

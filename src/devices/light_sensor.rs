@@ -1,6 +1,9 @@
+use std::sync::Arc;
+
 use async_trait::async_trait;
 use automation_macro::LuaDeviceConfig;
 use rumqttc::Publish;
+use tokio::sync::{RwLock, RwLockReadGuard, RwLockWriteGuard};
 use tracing::{debug, trace, warn};
 
 use super::LuaDeviceCreate;
@@ -11,7 +14,7 @@ use crate::messages::BrightnessMessage;
 use crate::mqtt::WrappedAsyncClient;
 
 #[derive(Debug, Clone, LuaDeviceConfig)]
-pub struct LightSensorConfig {
+pub struct Config {
     pub identifier: String,
     #[device_config(flatten)]
     pub mqtt: MqttDeviceConfig,
@@ -26,15 +29,29 @@ pub struct LightSensorConfig {
 const DEFAULT: bool = false;
 
 #[derive(Debug)]
-pub struct LightSensor {
-    config: LightSensorConfig,
-
+pub struct State {
     is_dark: bool,
+}
+
+#[derive(Debug, Clone)]
+pub struct LightSensor {
+    config: Config,
+    state: Arc<RwLock<State>>,
+}
+
+impl LightSensor {
+    async fn state(&self) -> RwLockReadGuard<State> {
+        self.state.read().await
+    }
+
+    async fn state_mut(&self) -> RwLockWriteGuard<State> {
+        self.state.write().await
+    }
 }
 
 #[async_trait]
 impl LuaDeviceCreate for LightSensor {
-    type Config = LightSensorConfig;
+    type Config = Config;
     type Error = rumqttc::ClientError;
 
     async fn create(config: Self::Config) -> Result<Self, Self::Error> {
@@ -45,10 +62,10 @@ impl LuaDeviceCreate for LightSensor {
             .subscribe(&config.mqtt.topic, rumqttc::QoS::AtLeastOnce)
             .await?;
 
-        Ok(Self {
-            config,
-            is_dark: DEFAULT,
-        })
+        let state = State { is_dark: DEFAULT };
+        let state = Arc::new(RwLock::new(state));
+
+        Ok(Self { config, state })
     }
 }
 
@@ -60,7 +77,7 @@ impl Device for LightSensor {
 
 #[async_trait]
 impl OnMqtt for LightSensor {
-    async fn on_mqtt(&mut self, message: Publish) {
+    async fn on_mqtt(&self, message: Publish) {
         if !rumqttc::matches(&message.topic, &self.config.mqtt.topic) {
             return;
         }
@@ -81,18 +98,19 @@ impl OnMqtt for LightSensor {
             trace!("It is light");
             false
         } else {
+            let is_dark = self.state().await.is_dark;
             trace!(
                 "In between min ({}) and max ({}) value, keeping current state: {}",
                 self.config.min,
                 self.config.max,
-                self.is_dark
+                is_dark
             );
-            self.is_dark
+            is_dark
         };
 
-        if is_dark != self.is_dark {
+        if is_dark != self.state().await.is_dark {
             debug!("Dark state has changed: {is_dark}");
-            self.is_dark = is_dark;
+            self.state_mut().await.is_dark = is_dark;
 
             if self.config.tx.send(Event::Darkness(is_dark)).await.is_err() {
                 warn!("There are no receivers on the event channel");
