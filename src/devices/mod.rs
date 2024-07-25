@@ -46,6 +46,13 @@ pub trait LuaDeviceCreate {
 
 macro_rules! register_device {
     ($lua:expr, $device:ty) => {
+        $lua.globals()
+            .set(stringify!($device), $lua.create_proxy::<$device>()?)?;
+    };
+}
+
+macro_rules! impl_device {
+    ($lua:expr, $device:ty) => {
         impl mlua::UserData for $device {
             fn add_methods<'lua, M: mlua::UserDataMethods<'lua, Self>>(methods: &mut M) {
                 methods.add_async_function("new", |lua, config: mlua::Value| async {
@@ -60,11 +67,22 @@ macro_rules! register_device {
                 });
             }
         }
-
-        $lua.globals()
-            .set(stringify!($device), $lua.create_proxy::<$device>()?)?;
     };
 }
+
+impl_device!(lua, AirFilter);
+impl_device!(lua, AudioSetup);
+impl_device!(lua, ContactSensor);
+impl_device!(lua, DebugBridge);
+impl_device!(lua, HueBridge);
+impl_device!(lua, HueGroup);
+impl_device!(lua, IkeaOutlet);
+impl_device!(lua, KasaOutlet);
+impl_device!(lua, LightSensor);
+impl_device!(lua, Ntfy);
+impl_device!(lua, Presence);
+impl_device!(lua, WakeOnLAN);
+impl_device!(lua, Washer);
 
 pub fn register_with_lua(lua: &mlua::Lua) -> mlua::Result<()> {
     register_device!(lua, AirFilter);

@@ -1,4 +1,3 @@
-#![feature(async_closure)]
 use std::path::Path;
 use std::process;
 
@@ -9,13 +8,12 @@ use automation::device_manager::DeviceManager;
 use automation::error::ApiError;
 use automation::mqtt::{self, WrappedAsyncClient};
 use automation::{devices, LUA};
-use axum::extract::FromRef;
+use axum::extract::{FromRef, State};
 use axum::http::StatusCode;
-use axum::response::IntoResponse;
 use axum::routing::post;
 use axum::{Json, Router};
 use dotenvy::dotenv;
-use google_home::{GoogleHome, Request};
+use google_home::{GoogleHome, Request, Response};
 use mlua::LuaSerdeExt;
 use rumqttc::AsyncClient;
 use tracing::{debug, error, info, warn};
@@ -23,6 +21,7 @@ use tracing::{debug, error, info, warn};
 #[derive(Clone)]
 struct AppState {
     pub openid_url: String,
+    pub device_manager: DeviceManager,
 }
 
 impl FromRef<AppState> for String {
@@ -42,6 +41,24 @@ async fn main() {
         }
         process::exit(1);
     }
+}
+
+async fn fulfillment(
+    State(state): State<AppState>,
+    user: User,
+    Json(payload): Json<Request>,
+) -> Result<Json<Response>, ApiError> {
+    debug!(username = user.preferred_username, "{payload:#?}");
+    let gc = GoogleHome::new(&user.preferred_username);
+    let devices = state.device_manager.devices().await;
+    let result = gc
+        .handle_request(payload, &devices)
+        .await
+        .map_err(|err| ApiError::new(StatusCode::INTERNAL_SERVER_ERROR, err.into()))?;
+
+    debug!(username = user.preferred_username, "{result:#?}");
+
+    Ok(Json(result))
 }
 
 async fn app() -> anyhow::Result<()> {
@@ -119,31 +136,14 @@ async fn app() -> anyhow::Result<()> {
     };
 
     // Create google home fulfillment route
-    let fulfillment = Router::new().route(
-        "/google_home",
-        post(async move |user: User, Json(payload): Json<Request>| {
-            debug!(username = user.preferred_username, "{payload:#?}");
-            let gc = GoogleHome::new(&user.preferred_username);
-            let devices = device_manager.devices().await;
-            let result = match gc.handle_request(payload, &devices).await {
-                Ok(result) => result,
-                Err(err) => {
-                    return ApiError::new(StatusCode::INTERNAL_SERVER_ERROR, err.into())
-                        .into_response()
-                }
-            };
-
-            debug!(username = user.preferred_username, "{result:#?}");
-
-            (StatusCode::OK, Json(result)).into_response()
-        }),
-    );
+    let fulfillment = Router::new().route("/google_home", post(fulfillment));
 
     // Combine together all the routes
     let app = Router::new()
         .nest("/fulfillment", fulfillment)
         .with_state(AppState {
             openid_url: fulfillment_config.openid_url.clone(),
+            device_manager,
         });
 
     // Start the web server
