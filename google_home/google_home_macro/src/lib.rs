@@ -501,7 +501,7 @@ pub fn traits(item: TokenStream) -> TokenStream {
 
                 Some(quote! {
                     Command::#command_name {#(#parameters,)*} => {
-                        if let Some(t) = self.cast_mut() as Option<&mut dyn #ident> {
+                        if let Some(t) = self.cast() as Option<&dyn #ident> {
                             t.#f_name(#(#parameters,)*) #asyncness #errors;
                             serde_json::to_value(t.get_state().await?)?
                         } else {
@@ -528,7 +528,7 @@ pub fn traits(item: TokenStream) -> TokenStream {
 		pub trait #fulfillment: Sync + Send {
 			async fn sync(&self) -> Result<(Vec<Trait>, serde_json::Value), Box<dyn ::std::error::Error>>;
 			async fn query(&self) -> Result<serde_json::Value, Box<dyn ::std::error::Error>>;
-            async fn execute(&mut self, command: Command) -> Result<serde_json::Value, Box<dyn std::error::Error>>;
+            async fn execute(&self, command: Command) -> Result<serde_json::Value, Box<dyn std::error::Error>>;
 		}
 
 		#(#structs)*
@@ -556,7 +556,7 @@ pub fn traits(item: TokenStream) -> TokenStream {
 				Ok(state)
 			}
 
-            async fn execute(&mut self, command: Command) -> Result<serde_json::Value, Box<dyn std::error::Error>> {
+            async fn execute(&self, command: Command) -> Result<serde_json::Value, Box<dyn std::error::Error>> {
                 let value = match command {
                     #(#execute)*
                 };

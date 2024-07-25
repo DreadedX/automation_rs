@@ -81,11 +81,11 @@ impl OnMqtt for AudioSetup {
             }
         };
 
-        let mut mixer = self.config.mixer.write().await;
-        let mut speakers = self.config.speakers.write().await;
+        let mixer = self.config.mixer.write().await;
+        let speakers = self.config.speakers.write().await;
         if let (Some(mixer), Some(speakers)) = (
-            mixer.as_mut().cast_mut() as Option<&mut dyn OnOff>,
-            speakers.as_mut().cast_mut() as Option<&mut dyn OnOff>,
+            mixer.as_ref().cast() as Option<&dyn OnOff>,
+            speakers.as_ref().cast() as Option<&dyn OnOff>,
         ) {
             match action {
 				RemoteAction::On => {
@@ -116,12 +116,12 @@ impl OnMqtt for AudioSetup {
 #[async_trait]
 impl OnPresence for AudioSetup {
     async fn on_presence(&self, presence: bool) {
-        let mut mixer = self.config.mixer.write().await;
-        let mut speakers = self.config.speakers.write().await;
+        let mixer = self.config.mixer.write().await;
+        let speakers = self.config.speakers.write().await;
 
         if let (Some(mixer), Some(speakers)) = (
-            mixer.as_mut().cast_mut() as Option<&mut dyn OnOff>,
-            speakers.as_mut().cast_mut() as Option<&mut dyn OnOff>,
+            mixer.as_ref().cast() as Option<&dyn OnOff>,
+            speakers.as_ref().cast() as Option<&dyn OnOff>,
         ) {
             // Turn off the audio setup when we leave the house
             if !presence {

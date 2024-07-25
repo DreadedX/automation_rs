@@ -45,10 +45,10 @@ impl mlua::UserData for WrappedDevice {
         });
 
         methods.add_async_method("set_on", |_lua, this, on: bool| async move {
-            let mut device = this.0.write().await;
-            let device = device.as_mut();
+            let device = this.0.write().await;
+            let device = device.as_ref();
 
-            if let Some(device) = device.cast_mut() as Option<&mut dyn OnOff> {
+            if let Some(device) = device.cast() as Option<&dyn OnOff> {
                 device.set_on(on).await.unwrap()
             };
 
@@ -127,8 +127,8 @@ impl DeviceManager {
                 let iter = devices.iter().map(|(id, device)| {
                     let message = message.clone();
                     async move {
-                        let mut device = device.write().await;
-                        let device: Option<&mut dyn OnMqtt> = device.as_mut().cast_mut();
+                        let device = device.write().await;
+                        let device: Option<&dyn OnMqtt> = device.as_ref().cast();
                         if let Some(device) = device {
                             // let subscribed = device
                             //     .topics()
@@ -149,8 +149,8 @@ impl DeviceManager {
             Event::Darkness(dark) => {
                 let devices = self.devices.read().await;
                 let iter = devices.iter().map(|(id, device)| async move {
-                    let mut device = device.write().await;
-                    let device: Option<&mut dyn OnDarkness> = device.as_mut().cast_mut();
+                    let device = device.write().await;
+                    let device: Option<&dyn OnDarkness> = device.as_ref().cast();
                     if let Some(device) = device {
                         trace!(id, "Handling");
                         device.on_darkness(dark).await;
@@ -163,8 +163,8 @@ impl DeviceManager {
             Event::Presence(presence) => {
                 let devices = self.devices.read().await;
                 let iter = devices.iter().map(|(id, device)| async move {
-                    let mut device = device.write().await;
-                    let device: Option<&mut dyn OnPresence> = device.as_mut().cast_mut();
+                    let device = device.write().await;
+                    let device: Option<&dyn OnPresence> = device.as_ref().cast();
                     if let Some(device) = device {
                         trace!(id, "Handling");
                         device.on_presence(presence).await;
@@ -179,8 +179,8 @@ impl DeviceManager {
                 let iter = devices.iter().map(|(id, device)| {
                     let notification = notification.clone();
                     async move {
-                        let mut device = device.write().await;
-                        let device: Option<&mut dyn OnNotification> = device.as_mut().cast_mut();
+                        let device = device.write().await;
+                        let device: Option<&dyn OnNotification> = device.as_ref().cast();
                         if let Some(device) = device {
                             trace!(id, "Handling");
                             device.on_notification(notification).await;

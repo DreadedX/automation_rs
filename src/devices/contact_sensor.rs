@@ -160,8 +160,8 @@ impl OnMqtt for ContactSensor {
                     .iter()
                     .zip(self.state_mut().await.previous.iter_mut())
                 {
-                    let mut light = light.write().await;
-                    if let Some(light) = light.as_mut().cast_mut() as Option<&mut dyn OnOff> {
+                    let light = light.write().await;
+                    if let Some(light) = light.as_ref().cast() as Option<&dyn OnOff> {
                         *previous = light.on().await.unwrap();
                         light.set_on(true).await.ok();
                     }
@@ -172,16 +172,15 @@ impl OnMqtt for ContactSensor {
                     .iter()
                     .zip(self.state_mut().await.previous.iter())
                 {
-                    let mut light = light.write().await;
+                    let light = light.write().await;
                     if !previous {
                         // If the timeout is zero just turn the light off directly
                         if trigger.timeout.is_none()
-                            && let Some(light) = light.as_mut().cast_mut() as Option<&mut dyn OnOff>
+                            && let Some(light) = light.as_ref().cast() as Option<&dyn OnOff>
                         {
                             light.set_on(false).await.ok();
                         } else if let Some(timeout) = trigger.timeout
-                            && let Some(light) =
-                                light.as_mut().cast_mut() as Option<&mut dyn Timeout>
+                            && let Some(light) = light.as_ref().cast() as Option<&dyn Timeout>
                         {
                             light.start_timeout(timeout).await.unwrap();
                         }

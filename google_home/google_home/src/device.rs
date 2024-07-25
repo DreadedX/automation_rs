@@ -56,7 +56,7 @@ pub trait Device: DeviceFulfillment {
         device
     }
 
-    async fn execute(&mut self, command: Command) -> Result<(), ErrorCode> {
+    async fn execute(&self, command: Command) -> Result<(), ErrorCode> {
         DeviceFulfillment::execute(self, command.clone())
             .await
             .unwrap();

@@ -138,7 +138,7 @@ impl GoogleHome {
                         let execution = command.execution.clone();
                         async move {
                             if let Some(device) = devices.get(id.as_str())
-                                && let Some(device) = device.write().await.as_mut().cast_mut()
+                                && let Some(device) = device.write().await.as_ref().cast()
                             {
                                 if !device.is_online() {
                                     return (id, Ok(false));
