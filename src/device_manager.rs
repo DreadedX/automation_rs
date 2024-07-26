@@ -1,5 +1,5 @@
 use std::collections::HashMap;
-use std::ops::{Deref, DerefMut};
+use std::ops::Deref;
 use std::pin::Pin;
 use std::sync::Arc;
 
@@ -30,12 +30,6 @@ impl Deref for WrappedDevice {
 
     fn deref(&self) -> &Self::Target {
         &self.0
-    }
-}
-
-impl DerefMut for WrappedDevice {
-    fn deref_mut(&mut self) -> &mut Self::Target {
-        &mut self.0
     }
 }
 
