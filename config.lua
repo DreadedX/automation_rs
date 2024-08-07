@@ -79,9 +79,9 @@ automation.device_manager:add(WakeOnLAN.new({
 	broadcast_ip = "10.0.0.255",
 }))
 
-local living_mixer = KasaOutlet.new({ identifier = "living_mixer", ip = "10.0.0.49" })
+local living_mixer = KasaOutlet.new({ identifier = "living_mixer", ip = "10.0.0.84" })
 automation.device_manager:add(living_mixer)
-local living_speakers = KasaOutlet.new({ identifier = "living_speakers", ip = "10.0.0.182" })
+local living_speakers = KasaOutlet.new({ identifier = "living_speakers", ip = "10.0.0.127" })
 automation.device_manager:add(living_speakers)
 
 automation.device_manager:add(AudioSetup.new({
