@@ -48,7 +48,7 @@ automation.device_manager:add(DebugBridge.new({
 	client = mqtt_client,
 }))
 
-local hue_ip = "10.0.0.146"
+local hue_ip = "10.0.0.136"
 local hue_token = automation.util.get_env("HUE_TOKEN")
 
 automation.device_manager:add(HueBridge.new({
