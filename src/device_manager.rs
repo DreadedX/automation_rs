@@ -1,12 +1,9 @@
 use std::collections::HashMap;
-use std::ops::Deref;
 use std::pin::Pin;
 use std::sync::Arc;
 
 use futures::future::join_all;
 use futures::Future;
-use google_home::traits::OnOff;
-use mlua::FromLua;
 use tokio::sync::{RwLock, RwLockReadGuard};
 use tokio_cron_scheduler::{Job, JobScheduler};
 use tokio_util::task::LocalPoolHandle;
@@ -15,37 +12,6 @@ use tracing::{debug, instrument, trace};
 use crate::devices::Device;
 use crate::event::{Event, EventChannel, OnDarkness, OnMqtt, OnNotification, OnPresence};
 use crate::LUA;
-
-#[derive(Debug, FromLua, Clone)]
-pub struct WrappedDevice(Box<dyn Device>);
-
-impl WrappedDevice {
-    pub fn new(device: impl Device + 'static) -> Self {
-        Self(Box::new(device))
-    }
-}
-
-impl Deref for WrappedDevice {
-    type Target = Box<dyn Device>;
-
-    fn deref(&self) -> &Self::Target {
-        &self.0
-    }
-}
-
-impl mlua::UserData for WrappedDevice {
-    fn add_methods<'lua, M: mlua::prelude::LuaUserDataMethods<'lua, Self>>(methods: &mut M) {
-        methods.add_async_method("get_id", |_lua, this, _: ()| async { Ok(this.get_id()) });
-
-        methods.add_async_method("set_on", |_lua, this, on: bool| async move {
-            if let Some(device) = this.cast() as Option<&dyn OnOff> {
-                device.set_on(on).await.unwrap()
-            };
-
-            Ok(())
-        });
-    }
-}
 
 pub type DeviceMap = HashMap<String, Box<dyn Device>>;
 
@@ -195,8 +161,8 @@ fn run_schedule(
 
 impl mlua::UserData for DeviceManager {
     fn add_methods<'lua, M: mlua::UserDataMethods<'lua, Self>>(methods: &mut M) {
-        methods.add_async_method("add", |_lua, this, device: WrappedDevice| async move {
-            this.add(device.0).await;
+        methods.add_async_method("add", |_lua, this, device: Box<dyn Device>| async move {
+            this.add(device).await;
 
             Ok(())
         });

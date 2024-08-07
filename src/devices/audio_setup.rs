@@ -5,7 +5,6 @@ use tracing::{debug, error, trace, warn};
 
 use super::{Device, LuaDeviceCreate};
 use crate::config::MqttDeviceConfig;
-use crate::device_manager::WrappedDevice;
 use crate::error::DeviceConfigError;
 use crate::event::{OnMqtt, OnPresence};
 use crate::messages::{RemoteAction, RemoteMessage};
@@ -17,9 +16,9 @@ pub struct Config {
     #[device_config(flatten)]
     pub mqtt: MqttDeviceConfig,
     #[device_config(from_lua)]
-    pub mixer: WrappedDevice,
+    pub mixer: Box<dyn Device>,
     #[device_config(from_lua)]
-    pub speakers: WrappedDevice,
+    pub speakers: Box<dyn Device>,
     #[device_config(from_lua)]
     pub client: WrappedAsyncClient,
 }

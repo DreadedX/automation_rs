@@ -10,7 +10,6 @@ use tracing::{debug, error, trace, warn};
 
 use super::{Device, LuaDeviceCreate};
 use crate::config::MqttDeviceConfig;
-use crate::device_manager::WrappedDevice;
 use crate::devices::DEFAULT_PRESENCE;
 use crate::error::DeviceConfigError;
 use crate::event::{OnMqtt, OnPresence};
@@ -30,7 +29,7 @@ pub struct PresenceDeviceConfig {
 #[derive(Debug, Clone, LuaDeviceConfig)]
 pub struct TriggerConfig {
     #[device_config(from_lua)]
-    pub devices: Vec<WrappedDevice>,
+    pub devices: Vec<Box<dyn Device>>,
     #[device_config(default, with(|t: Option<_>| t.map(Duration::from_secs)))]
     pub timeout: Option<Duration>,
 }

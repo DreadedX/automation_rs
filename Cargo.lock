@@ -106,6 +106,7 @@ dependencies = [
  "futures",
  "google_home",
  "hostname",
+ "impls",
  "indexmap 2.2.6",
  "mlua",
  "once_cell",
@@ -876,6 +877,12 @@ dependencies = [
  "unicode-bidi",
  "unicode-normalization",
 ]
+
+[[package]]
+name = "impls"
+version = "1.0.3"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "7a46645bbd70538861a90d0f26c31537cdf1e44aae99a794fb75a664b70951bc"
 
 [[package]]
 name = "indexmap"

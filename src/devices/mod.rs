@@ -18,6 +18,7 @@ use async_trait::async_trait;
 use automation_cast::Cast;
 use dyn_clone::DynClone;
 use google_home::traits::OnOff;
+use mlua::AnyUserDataExt;
 
 pub use self::air_filter::AirFilter;
 pub use self::audio_setup::AudioSetup;
@@ -53,37 +54,61 @@ macro_rules! register_device {
 }
 
 macro_rules! impl_device {
-    ($lua:expr, $device:ty) => {
+    ($device:ty) => {
         impl mlua::UserData for $device {
             fn add_methods<'lua, M: mlua::UserDataMethods<'lua, Self>>(methods: &mut M) {
-                methods.add_async_function("new", |lua, config: mlua::Value| async {
-                    let config = mlua::FromLua::from_lua(config, lua)?;
-
-                    // TODO: Using crate:: could cause issues
+                methods.add_async_function("new", |_lua, config| async {
                     let device: $device = crate::devices::LuaDeviceCreate::create(config)
                         .await
                         .map_err(mlua::ExternalError::into_lua_err)?;
 
-                    Ok(crate::device_manager::WrappedDevice::new(device))
+                    Ok(device)
                 });
+
+                methods.add_method("__box", |_lua, this, _: ()| {
+                    let b: Box<dyn Device> = Box::new(this.clone());
+                    Ok(b)
+                });
+
+                methods.add_async_method("get_id", |_lua, this, _: ()| async { Ok(this.get_id()) });
+
+                if impls::impls!($device: OnOff) {
+                    methods.add_async_method("set_on", |_lua, this, on: bool| async move {
+                        (this.cast() as Option<&dyn OnOff>)
+                            .unwrap()
+                            .set_on(on)
+                            .await
+                            .unwrap();
+
+                        Ok(())
+                    });
+
+                    methods.add_async_method("is_on", |_lua, this, _: ()| async move {
+                        Ok((this.cast() as Option<&dyn OnOff>)
+                            .unwrap()
+                            .on()
+                            .await
+                            .unwrap())
+                    });
+                }
             }
         }
     };
 }
 
-impl_device!(lua, AirFilter);
-impl_device!(lua, AudioSetup);
-impl_device!(lua, ContactSensor);
-impl_device!(lua, DebugBridge);
-impl_device!(lua, HueBridge);
-impl_device!(lua, HueGroup);
-impl_device!(lua, IkeaOutlet);
-impl_device!(lua, KasaOutlet);
-impl_device!(lua, LightSensor);
-impl_device!(lua, Ntfy);
-impl_device!(lua, Presence);
-impl_device!(lua, WakeOnLAN);
-impl_device!(lua, Washer);
+impl_device!(AirFilter);
+impl_device!(AudioSetup);
+impl_device!(ContactSensor);
+impl_device!(DebugBridge);
+impl_device!(HueBridge);
+impl_device!(HueGroup);
+impl_device!(IkeaOutlet);
+impl_device!(KasaOutlet);
+impl_device!(LightSensor);
+impl_device!(Ntfy);
+impl_device!(Presence);
+impl_device!(WakeOnLAN);
+impl_device!(Washer);
 
 pub fn register_with_lua(lua: &mlua::Lua) -> mlua::Result<()> {
     register_device!(lua, AirFilter);
@@ -119,5 +144,24 @@ pub trait Device:
 {
     fn get_id(&self) -> String;
 }
+
+impl<'lua> mlua::FromLua<'lua> for Box<dyn Device> {
+    fn from_lua(value: mlua::Value<'lua>, _lua: &'lua mlua::Lua) -> mlua::Result<Self> {
+        match value {
+            mlua::Value::UserData(ud) => {
+                let ud = if ud.is::<Box<dyn Device>>() {
+                    ud
+                } else {
+                    ud.call_method::<_, mlua::AnyUserData>("__box", ())?
+                };
+
+                let b = ud.borrow::<Self>()?.clone();
+                Ok(b)
+            }
+            _ => Err(mlua::Error::RuntimeError("Expected user data".into())),
+        }
+    }
+}
+impl mlua::UserData for Box<dyn Device> {}
 
 dyn_clone::clone_trait_object!(Device);
