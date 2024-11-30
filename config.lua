@@ -216,6 +216,14 @@ automation.device_manager:add(ContactSensor.new({
 	},
 }))
 
+automation.device_manager:add(IkeaOutlet.new({
+	outlet_type = "Light",
+	name = "Light",
+	room = "Guest",
+	topic = mqtt_z2m("guest/light"),
+	client = mqtt_client,
+}))
+
 local bedroom_air_filter = AirFilter.new({
 	name = "Air Filter",
 	room = "Bedroom",
