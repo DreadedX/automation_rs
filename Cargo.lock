@@ -109,7 +109,6 @@ dependencies = [
  "impls",
  "indexmap 2.2.6",
  "mlua",
- "once_cell",
  "paste",
  "pollster",
  "regex",

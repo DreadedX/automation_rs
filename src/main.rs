@@ -5,9 +5,9 @@ use anyhow::anyhow;
 use automation::auth::User;
 use automation::config::{FulfillmentConfig, MqttConfig};
 use automation::device_manager::DeviceManager;
+use automation::devices;
 use automation::error::ApiError;
 use automation::mqtt::{self, WrappedAsyncClient};
-use automation::{devices, LUA};
 use axum::extract::{FromRef, State};
 use axum::http::StatusCode;
 use axum::routing::post;
@@ -73,7 +73,7 @@ async fn app() -> anyhow::Result<()> {
     let device_manager = DeviceManager::new().await;
 
     let fulfillment_config = {
-        let lua = LUA.lock().await;
+        let lua = mlua::Lua::new();
 
         lua.set_warning_function(|_lua, text, _cont| {
             warn!("{text}");
