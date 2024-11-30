@@ -173,8 +173,8 @@ automation.device_manager:add(IkeaOutlet.new({
 	client = mqtt_client,
 }))
 
-local hallway_lights = HueGroup.new({
-	identifier = "hallway_lights",
+local hallway_bottom_lights = HueGroup.new({
+	identifier = "hallway_bottom_lights",
 	ip = hue_ip,
 	login = hue_token,
 	group_id = 81,
@@ -182,14 +182,41 @@ local hallway_lights = HueGroup.new({
 	timer_id = 1,
 	client = mqtt_client,
 })
-automation.device_manager:add(hallway_lights)
+automation.device_manager:add(hallway_bottom_lights)
 automation.device_manager:add(IkeaRemote.new({
 	name = "Remote",
 	room = "Hallway",
 	client = mqtt_client,
 	topic = mqtt_z2m("hallway/remote"),
 	callback = function(on)
-		hallway_lights:set_on(on)
+		hallway_bottom_lights:set_on(on)
+	end,
+}))
+
+local hallway_top_light = HueGroup.new({
+	identifier = "hallway_top_light",
+	ip = hue_ip,
+	login = hue_token,
+	group_id = 83,
+	scene_id = "QeufkFDICEHWeKJ7",
+	client = mqtt_client,
+})
+automation.device_manager:add(HueSwitch.new({
+	name = "SwitchBottom",
+	room = "Hallway",
+	client = mqtt_client,
+	topic = mqtt_z2m("hallway/switchbottom"),
+	left_callback = function()
+		hallway_top_light:set_on(not hallway_top_light:is_on())
+	end,
+}))
+automation.device_manager:add(HueSwitch.new({
+	name = "SwitchTop",
+	room = "Hallway",
+	client = mqtt_client,
+	topic = mqtt_z2m("hallway/switchtop"),
+	left_callback = function()
+		hallway_top_light:set_on(not hallway_top_light:is_on())
 	end,
 }))
 
@@ -202,7 +229,7 @@ automation.device_manager:add(ContactSensor.new({
 		timeout = debug and 10 or 15 * 60,
 	},
 	trigger = {
-		devices = { hallway_lights },
+		devices = { hallway_bottom_lights },
 		timeout = debug and 10 or 2 * 60,
 	},
 }))
@@ -212,7 +239,7 @@ automation.device_manager:add(ContactSensor.new({
 	topic = mqtt_z2m("hallway/trash"),
 	client = mqtt_client,
 	trigger = {
-		devices = { hallway_lights },
+		devices = { hallway_bottom_lights },
 	},
 }))
 

@@ -19,7 +19,8 @@ pub struct Config {
     pub addr: SocketAddr,
     pub login: String,
     pub group_id: isize,
-    pub timer_id: isize,
+    #[device_config(default)]
+    pub timer_id: Option<isize>,
     pub scene_id: String,
     #[device_config(from_lua)]
     pub client: WrappedAsyncClient,
@@ -48,8 +49,9 @@ impl HueGroup {
         format!("http://{}/api/{}", self.config.addr, self.config.login)
     }
 
-    fn url_set_schedule(&self) -> String {
-        format!("{}/schedules/{}", self.url_base(), self.config.timer_id)
+    fn url_set_schedule(&self) -> Option<String> {
+        let timer_id = self.config.timer_id?;
+        Some(format!("{}/schedules/{}", self.url_base(), timer_id))
     }
 
     fn url_set_action(&self) -> String {
@@ -137,8 +139,11 @@ impl Timeout for HueGroup {
 
         // NOTE: This uses an existing timer, as we are unable to cancel it on the hub otherwise
         let message = message::Timeout::new(Some(timeout));
+        let Some(url) = self.url_set_schedule() else {
+            return Ok(());
+        };
         let res = reqwest::Client::new()
-            .put(self.url_set_schedule())
+            .put(url)
             .json(&message)
             .send()
             .await
@@ -156,8 +161,11 @@ impl Timeout for HueGroup {
 
     async fn stop_timeout(&self) -> Result<()> {
         let message = message::Timeout::new(None);
+        let Some(url) = self.url_set_schedule() else {
+            return Ok(());
+        };
         let res = reqwest::Client::new()
-            .put(self.url_set_schedule())
+            .put(url)
             .json(&message)
             .send()
             .await

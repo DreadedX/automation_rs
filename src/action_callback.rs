@@ -3,9 +3,14 @@ use std::marker::PhantomData;
 use mlua::{FromLua, IntoLua};
 
 #[derive(Debug, Clone)]
-pub struct ActionCallback<T> {
+struct Internal {
     uuid: uuid::Uuid,
     lua: mlua::Lua,
+}
+
+#[derive(Debug, Clone, Default)]
+pub struct ActionCallback<T> {
+    internal: Option<Internal>,
     phantom: PhantomData<T>,
 }
 
@@ -15,8 +20,10 @@ impl<T> FromLua for ActionCallback<T> {
         lua.set_named_registry_value(&uuid.to_string(), value)?;
 
         Ok(ActionCallback {
-            uuid,
-            lua: lua.clone(),
+            internal: Some(Internal {
+                uuid,
+                lua: lua.clone(),
+            }),
             phantom: PhantomData::<T>,
         })
     }
@@ -28,9 +35,14 @@ where
     T: IntoLua + Sync + Send + Clone + Copy + 'static,
 {
     pub async fn call(&self, state: T) {
-        let uuid = self.uuid;
+        let Some(internal) = self.internal.as_ref() else {
+            return;
+        };
 
-        let callback: mlua::Value = self.lua.named_registry_value(&uuid.to_string()).unwrap();
+        let callback: mlua::Value = internal
+            .lua
+            .named_registry_value(&internal.uuid.to_string())
+            .unwrap();
         match callback {
             mlua::Value::Function(f) => f.call_async::<()>(state).await.unwrap(),
             _ => todo!("Only functions are currently supported"),

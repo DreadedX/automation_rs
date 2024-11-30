@@ -127,6 +127,7 @@ dependencies = [
  "tracing-subscriber",
  "uuid",
  "wakey",
+ "zigbee2mqtt-types",
 ]
 
 [[package]]
@@ -2617,4 +2618,14 @@ dependencies = [
  "proc-macro2",
  "quote",
  "syn 2.0.60",
+]
+
+[[package]]
+name = "zigbee2mqtt-types"
+version = "0.2.2"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "b0ebe51c23f1de3efd64cca1a2176a060e8c90e72070e9ce9f0c023e514e08ac"
+dependencies = [
+ "serde",
+ "serde_json",
 ]
