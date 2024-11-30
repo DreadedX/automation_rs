@@ -1,3 +1,4 @@
+print(package.path)
 print("Hello from lua")
 
 local host = automation.util.get_hostname()
@@ -8,13 +9,7 @@ if debug and value ~= "true" then
 	debug = false
 end
 
-local function mqtt_z2m(topic)
-	return "zigbee2mqtt/" .. topic
-end
-
-local function mqtt_automation(topic)
-	return "automation/" .. topic
-end
+local h = require("helper")
 
 automation.fulfillment = {
 	openid_url = "https://login.huizinga.dev/api/oidc",
@@ -37,14 +32,14 @@ automation.device_manager:add(Ntfy.new({
 }))
 
 automation.device_manager:add(Presence.new({
-	topic = mqtt_automation("presence/+/#"),
+	topic = h.mqtt_automation("presence/+/#"),
 	client = mqtt_client,
 	event_channel = automation.device_manager:event_channel(),
 }))
 
 automation.device_manager:add(DebugBridge.new({
 	identifier = "debug_bridge",
-	topic = mqtt_automation("debug"),
+	topic = h.mqtt_automation("debug"),
 	client = mqtt_client,
 }))
 
@@ -63,7 +58,7 @@ automation.device_manager:add(HueBridge.new({
 
 automation.device_manager:add(LightSensor.new({
 	identifier = "living_light_sensor",
-	topic = mqtt_z2m("living/light"),
+	topic = h.mqtt_z2m("living/light"),
 	client = mqtt_client,
 	min = 22000,
 	max = 23500,
@@ -73,7 +68,7 @@ automation.device_manager:add(LightSensor.new({
 automation.device_manager:add(WakeOnLAN.new({
 	name = "Zeus",
 	room = "Living Room",
-	topic = mqtt_automation("appliance/living_room/zeus"),
+	topic = h.mqtt_automation("appliance/living_room/zeus"),
 	client = mqtt_client,
 	mac_address = "30:9c:23:60:9c:13",
 	broadcast_ip = "10.0.0.255",
@@ -88,7 +83,7 @@ automation.device_manager:add(IkeaRemote.new({
 	name = "Remote",
 	room = "Living",
 	client = mqtt_client,
-	topic = mqtt_z2m("living/remote"),
+	topic = h.mqtt_z2m("living/remote"),
 	single_button = true,
 	callback = function(on)
 		if on then
@@ -109,49 +104,20 @@ automation.device_manager:add(IkeaRemote.new({
 	end,
 }))
 
-local kettle = IkeaOutlet.new({
-	outlet_type = "Kettle",
-	name = "Kettle",
-	room = "Kitchen",
-	topic = mqtt_z2m("kitchen/kettle"),
-	client = mqtt_client,
-	timeout = debug and 5 or 300,
-})
-automation.device_manager:add(kettle)
-function set_kettle(on)
-	kettle:set_on(on)
-end
-
-automation.device_manager:add(IkeaRemote.new({
-	name = "Remote",
-	room = "Bedroom",
-	client = mqtt_client,
-	topic = mqtt_z2m("bedroom/remote"),
-	single_button = true,
-	callback = set_kettle,
-}))
-
-automation.device_manager:add(IkeaRemote.new({
-	name = "Remote",
-	room = "Kitchen",
-	client = mqtt_client,
-	topic = mqtt_z2m("kitchen/remote"),
-	single_button = true,
-	callback = set_kettle,
-}))
+require("kettle")(mqtt_client, debug)
 
 automation.device_manager:add(IkeaOutlet.new({
 	outlet_type = "Light",
 	name = "Light",
 	room = "Bathroom",
-	topic = mqtt_z2m("bathroom/light"),
+	topic = h.mqtt_z2m("bathroom/light"),
 	client = mqtt_client,
 	timeout = debug and 60 or 45 * 60,
 }))
 
 automation.device_manager:add(Washer.new({
 	identifier = "bathroom_washer",
-	topic = mqtt_z2m("bathroom/washer"),
+	topic = h.mqtt_z2m("bathroom/washer"),
 	client = mqtt_client,
 	threshold = 1,
 	event_channel = automation.device_manager:event_channel(),
@@ -161,7 +127,7 @@ automation.device_manager:add(IkeaOutlet.new({
 	outlet_type = "Charger",
 	name = "Charger",
 	room = "Workbench",
-	topic = mqtt_z2m("workbench/charger"),
+	topic = h.mqtt_z2m("workbench/charger"),
 	client = mqtt_client,
 	timeout = debug and 5 or 20 * 3600,
 }))
@@ -169,7 +135,7 @@ automation.device_manager:add(IkeaOutlet.new({
 automation.device_manager:add(IkeaOutlet.new({
 	name = "Outlet",
 	room = "Workbench",
-	topic = mqtt_z2m("workbench/outlet"),
+	topic = h.mqtt_z2m("workbench/outlet"),
 	client = mqtt_client,
 }))
 
@@ -187,7 +153,7 @@ automation.device_manager:add(IkeaRemote.new({
 	name = "Remote",
 	room = "Hallway",
 	client = mqtt_client,
-	topic = mqtt_z2m("hallway/remote"),
+	topic = h.mqtt_z2m("hallway/remote"),
 	callback = function(on)
 		hallway_lights:set_on(on)
 	end,
@@ -195,10 +161,10 @@ automation.device_manager:add(IkeaRemote.new({
 
 automation.device_manager:add(ContactSensor.new({
 	identifier = "hallway_frontdoor",
-	topic = mqtt_z2m("hallway/frontdoor"),
+	topic = h.mqtt_z2m("hallway/frontdoor"),
 	client = mqtt_client,
 	presence = {
-		topic = mqtt_automation("presence/contact/frontdoor"),
+		topic = h.mqtt_automation("presence/contact/frontdoor"),
 		timeout = debug and 10 or 15 * 60,
 	},
 	trigger = {
@@ -209,7 +175,7 @@ automation.device_manager:add(ContactSensor.new({
 
 automation.device_manager:add(ContactSensor.new({
 	identifier = "hallway_trash",
-	topic = mqtt_z2m("hallway/trash"),
+	topic = h.mqtt_z2m("hallway/trash"),
 	client = mqtt_client,
 	trigger = {
 		devices = { hallway_lights },

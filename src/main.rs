@@ -113,10 +113,15 @@ async fn app() -> anyhow::Result<()> {
 
         devices::register_with_lua(&lua)?;
 
-        // TODO: Make this not hardcoded
-        let config_filename = std::env::var("AUTOMATION_CONFIG").unwrap_or("./config.lua".into());
-        let config_path = Path::new(&config_filename);
-        match lua.load(config_path).exec_async().await {
+        let config_dir = std::env::var("AUTOMATION_CONFIG").unwrap_or("./config".into());
+        let config_main = Path::new(&config_dir).join("main.lua");
+        lua.globals()
+            .get::<mlua::Table>("package")
+            .unwrap()
+            .set("path", format!("{}/?.lua;", config_dir))
+            .unwrap();
+
+        match lua.load(config_main).exec_async().await {
             Err(error) => {
                 println!("{error}");
                 Err(error)
