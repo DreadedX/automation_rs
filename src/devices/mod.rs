@@ -13,6 +13,7 @@ mod wake_on_lan;
 mod washer;
 
 use std::fmt::Debug;
+use std::ops::Deref;
 
 use async_trait::async_trait;
 use automation_cast::Cast;
@@ -74,8 +75,8 @@ macro_rules! impl_device {
 
                 if impls::impls!($device: OnOff) {
                     methods.add_async_method("set_on", |_lua, this, on: bool| async move {
-                        (this.cast() as Option<&dyn OnOff>)
-                            .unwrap()
+                        (this.deref().cast() as Option<&dyn OnOff>)
+                            .expect("Cast should be valid")
                             .set_on(on)
                             .await
                             .unwrap();
@@ -84,8 +85,8 @@ macro_rules! impl_device {
                     });
 
                     methods.add_async_method("is_on", |_lua, this, _: ()| async move {
-                        Ok((this.cast() as Option<&dyn OnOff>)
-                            .unwrap()
+                        Ok((this.deref().cast() as Option<&dyn OnOff>)
+                            .expect("Cast should be valid")
                             .on()
                             .await
                             .unwrap())
