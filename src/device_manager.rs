@@ -152,7 +152,7 @@ fn run_schedule(
         pool.spawn_pinned(move || async move {
             let lua = LUA.lock().await;
             let f: mlua::Function = lua.named_registry_value(uuid.to_string().as_str()).unwrap();
-            f.call_async::<_, ()>(()).await.unwrap();
+            f.call_async::<()>(()).await.unwrap();
         })
         .await
         .unwrap();
@@ -160,7 +160,7 @@ fn run_schedule(
 }
 
 impl mlua::UserData for DeviceManager {
-    fn add_methods<'lua, M: mlua::UserDataMethods<'lua, Self>>(methods: &mut M) {
+    fn add_methods<M: mlua::UserDataMethods<Self>>(methods: &mut M) {
         methods.add_async_method("add", |_lua, this, device: Box<dyn Device>| async move {
             this.add(device).await;
 

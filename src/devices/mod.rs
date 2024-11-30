@@ -18,7 +18,7 @@ use async_trait::async_trait;
 use automation_cast::Cast;
 use dyn_clone::DynClone;
 use google_home::traits::OnOff;
-use mlua::AnyUserDataExt;
+use mlua::ObjectLike;
 
 pub use self::air_filter::AirFilter;
 pub use self::audio_setup::AudioSetup;
@@ -56,7 +56,7 @@ macro_rules! register_device {
 macro_rules! impl_device {
     ($device:ty) => {
         impl mlua::UserData for $device {
-            fn add_methods<'lua, M: mlua::UserDataMethods<'lua, Self>>(methods: &mut M) {
+            fn add_methods<M: mlua::UserDataMethods<Self>>(methods: &mut M) {
                 methods.add_async_function("new", |_lua, config| async {
                     let device: $device = crate::devices::LuaDeviceCreate::create(config)
                         .await
@@ -70,7 +70,7 @@ macro_rules! impl_device {
                     Ok(b)
                 });
 
-                methods.add_async_method("get_id", |_lua, this, _: ()| async { Ok(this.get_id()) });
+                methods.add_async_method("get_id", |_lua, this, _: ()| async move { Ok(this.get_id()) });
 
                 if impls::impls!($device: OnOff) {
                     methods.add_async_method("set_on", |_lua, this, on: bool| async move {
@@ -145,14 +145,14 @@ pub trait Device:
     fn get_id(&self) -> String;
 }
 
-impl<'lua> mlua::FromLua<'lua> for Box<dyn Device> {
-    fn from_lua(value: mlua::Value<'lua>, _lua: &'lua mlua::Lua) -> mlua::Result<Self> {
+impl mlua::FromLua for Box<dyn Device> {
+    fn from_lua(value: mlua::Value, _lua: &mlua::Lua) -> mlua::Result<Self> {
         match value {
             mlua::Value::UserData(ud) => {
                 let ud = if ud.is::<Box<dyn Device>>() {
                     ud
                 } else {
-                    ud.call_method::<_, mlua::AnyUserData>("__box", ())?
+                    ud.call_method::<_>("__box", ())?
                 };
 
                 let b = ud.borrow::<Self>()?.clone();
