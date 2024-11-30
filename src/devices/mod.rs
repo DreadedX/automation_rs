@@ -1,5 +1,4 @@
 mod air_filter;
-mod audio_setup;
 mod contact_sensor;
 mod debug_bridge;
 mod hue_bridge;
@@ -23,7 +22,6 @@ use google_home::traits::OnOff;
 use mlua::ObjectLike;
 
 pub use self::air_filter::AirFilter;
-pub use self::audio_setup::AudioSetup;
 pub use self::contact_sensor::ContactSensor;
 pub use self::debug_bridge::DebugBridge;
 pub use self::hue_bridge::HueBridge;
@@ -100,7 +98,6 @@ macro_rules! impl_device {
 }
 
 impl_device!(AirFilter);
-impl_device!(AudioSetup);
 impl_device!(ContactSensor);
 impl_device!(DebugBridge);
 impl_device!(HueBridge);
@@ -116,7 +113,6 @@ impl_device!(Washer);
 
 pub fn register_with_lua(lua: &mlua::Lua) -> mlua::Result<()> {
     register_device!(lua, AirFilter);
-    register_device!(lua, AudioSetup);
     register_device!(lua, ContactSensor);
     register_device!(lua, DebugBridge);
     register_device!(lua, HueBridge);

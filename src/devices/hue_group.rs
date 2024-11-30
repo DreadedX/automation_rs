@@ -6,13 +6,9 @@ use async_trait::async_trait;
 use automation_macro::LuaDeviceConfig;
 use google_home::errors::ErrorCode;
 use google_home::traits::OnOff;
-use rumqttc::{Publish, SubscribeFilter};
-use tracing::{debug, error, trace, warn};
+use tracing::{error, trace, warn};
 
 use super::{Device, LuaDeviceCreate};
-use crate::config::MqttDeviceConfig;
-use crate::event::OnMqtt;
-use crate::messages::{RemoteAction, RemoteMessage};
 use crate::mqtt::WrappedAsyncClient;
 use crate::traits::Timeout;
 
@@ -25,8 +21,6 @@ pub struct Config {
     pub group_id: isize,
     pub timer_id: isize,
     pub scene_id: String,
-    #[device_config(default)]
-    pub remotes: Vec<MqttDeviceConfig>,
     #[device_config(from_lua)]
     pub client: WrappedAsyncClient,
 }
@@ -44,16 +38,6 @@ impl LuaDeviceCreate for HueGroup {
 
     async fn create(config: Self::Config) -> Result<Self, Self::Error> {
         trace!(id = config.identifier, "Setting up AudioSetup");
-
-        if !config.remotes.is_empty() {
-            config
-                .client
-                .subscribe_many(config.remotes.iter().map(|remote| SubscribeFilter {
-                    path: remote.topic.clone(),
-                    qos: rumqttc::QoS::AtLeastOnce,
-                }))
-                .await?;
-        }
 
         Ok(Self { config })
     }
@@ -80,38 +64,6 @@ impl HueGroup {
 impl Device for HueGroup {
     fn get_id(&self) -> String {
         self.config.identifier.clone()
-    }
-}
-
-#[async_trait]
-impl OnMqtt for HueGroup {
-    async fn on_mqtt(&self, message: Publish) {
-        if !self
-            .config
-            .remotes
-            .iter()
-            .any(|remote| rumqttc::matches(&message.topic, &remote.topic))
-        {
-            return;
-        }
-
-        let action = match RemoteMessage::try_from(message) {
-            Ok(message) => message.action(),
-            Err(err) => {
-                error!(id = self.get_id(), "Failed to parse message: {err}");
-                return;
-            }
-        };
-
-        debug!("Action: {action:#?}");
-
-        match action {
-            RemoteAction::On | RemoteAction::BrightnessMoveUp => self.set_on(true).await.unwrap(),
-            RemoteAction::Off | RemoteAction::BrightnessMoveDown => {
-                self.set_on(false).await.unwrap()
-            }
-            RemoteAction::BrightnessStop => { /* Ignore this action */ }
-        };
     }
 }
 

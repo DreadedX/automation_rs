@@ -84,25 +84,60 @@ automation.device_manager:add(living_mixer)
 local living_speakers = KasaOutlet.new({ identifier = "living_speakers", ip = "10.0.0.127" })
 automation.device_manager:add(living_speakers)
 
-automation.device_manager:add(AudioSetup.new({
-	identifier = "living_audio",
-	topic = mqtt_z2m("living/remote"),
+automation.device_manager:add(IkeaRemote.new({
+	name = "Remote",
+	room = "Living",
 	client = mqtt_client,
-	mixer = living_mixer,
-	speakers = living_speakers,
+	topic = mqtt_z2m("living/remote"),
+	single_button = true,
+	callback = function(on)
+		if on then
+			if living_mixer:is_on() then
+				living_mixer:set_on(false)
+				living_speakers:set_on(false)
+			else
+				living_mixer:set_on(true)
+				living_speakers:set_on(true)
+			end
+		else
+			if not living_mixer:is_on() then
+				living_mixer:set_on(true)
+			else
+				living_speakers:set_on(not living_speakers:is_on())
+			end
+		end
+	end,
 }))
 
-automation.device_manager:add(IkeaOutlet.new({
+local kettle = IkeaOutlet.new({
 	outlet_type = "Kettle",
 	name = "Kettle",
 	room = "Kitchen",
 	topic = mqtt_z2m("kitchen/kettle"),
 	client = mqtt_client,
 	timeout = debug and 5 or 300,
-	remotes = {
-		{ topic = mqtt_z2m("bedroom/remote") },
-		{ topic = mqtt_z2m("kitchen/remote") },
-	},
+})
+automation.device_manager:add(kettle)
+function set_kettle(on)
+	kettle:set_on(on)
+end
+
+automation.device_manager:add(IkeaRemote.new({
+	name = "Remote",
+	room = "Bedroom",
+	client = mqtt_client,
+	topic = mqtt_z2m("bedroom/remote"),
+	single_button = true,
+	callback = set_kettle,
+}))
+
+automation.device_manager:add(IkeaRemote.new({
+	name = "Remote",
+	room = "Kitchen",
+	client = mqtt_client,
+	topic = mqtt_z2m("kitchen/remote"),
+	single_button = true,
+	callback = set_kettle,
 }))
 
 automation.device_manager:add(IkeaOutlet.new({
@@ -145,12 +180,18 @@ local hallway_lights = HueGroup.new({
 	group_id = 81,
 	scene_id = "3qWKxGVadXFFG4o",
 	timer_id = 1,
-	remotes = {
-		{ topic = mqtt_z2m("hallway/remote") },
-	},
 	client = mqtt_client,
 })
 automation.device_manager:add(hallway_lights)
+automation.device_manager:add(IkeaRemote.new({
+	name = "Remote",
+	room = "Hallway",
+	client = mqtt_client,
+	topic = mqtt_z2m("hallway/remote"),
+	callback = function(on)
+		hallway_lights:set_on(on)
+	end,
+}))
 
 automation.device_manager:add(ContactSensor.new({
 	identifier = "hallway_frontdoor",

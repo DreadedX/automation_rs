@@ -8,7 +8,7 @@ use google_home::device;
 use google_home::errors::ErrorCode;
 use google_home::traits::{self, OnOff};
 use google_home::types::Type;
-use rumqttc::{matches, Publish, SubscribeFilter};
+use rumqttc::{matches, Publish};
 use serde::Deserialize;
 use tokio::sync::{RwLock, RwLockReadGuard, RwLockWriteGuard};
 use tokio::task::JoinHandle;
@@ -18,7 +18,7 @@ use super::LuaDeviceCreate;
 use crate::config::{InfoConfig, MqttDeviceConfig};
 use crate::devices::Device;
 use crate::event::{OnMqtt, OnPresence};
-use crate::messages::{OnOffMessage, RemoteAction, RemoteMessage};
+use crate::messages::OnOffMessage;
 use crate::mqtt::WrappedAsyncClient;
 use crate::traits::Timeout;
 
@@ -40,8 +40,6 @@ pub struct Config {
     pub outlet_type: OutletType,
     #[device_config(default, with(|t: Option<_>| t.map(Duration::from_secs)))]
     pub timeout: Option<Duration>,
-    #[device_config(default)]
-    pub remotes: Vec<MqttDeviceConfig>,
 
     #[device_config(from_lua)]
     pub client: WrappedAsyncClient,
@@ -77,16 +75,6 @@ impl LuaDeviceCreate for IkeaOutlet {
 
     async fn create(config: Self::Config) -> Result<Self, Self::Error> {
         trace!(id = config.info.identifier(), "Setting up IkeaOutlet");
-
-        if !config.remotes.is_empty() {
-            config
-                .client
-                .subscribe_many(config.remotes.iter().map(|remote| SubscribeFilter {
-                    path: remote.topic.clone(),
-                    qos: rumqttc::QoS::AtLeastOnce,
-                }))
-                .await?;
-        }
 
         config
             .client
@@ -138,26 +126,6 @@ impl OnMqtt for IkeaOutlet {
             if state && let Some(timeout) = self.config.timeout {
                 self.start_timeout(timeout).await.unwrap();
             }
-        } else if self
-            .config
-            .remotes
-            .iter()
-            .any(|remote| rumqttc::matches(&message.topic, &remote.topic))
-        {
-            let action = match RemoteMessage::try_from(message) {
-                Ok(message) => message.action(),
-                Err(err) => {
-                    error!(id = Device::get_id(self), "Failed to parse message: {err}");
-                    return;
-                }
-            };
-
-            match action {
-				RemoteAction::On => self.set_on(true).await.unwrap(),
-				RemoteAction::BrightnessMoveUp => self.set_on(false).await.unwrap(),
-				RemoteAction::BrightnessStop => { /* Ignore this action */ },
-				_ => warn!("Expected ikea shortcut button which only supports 'on' and 'brightness_move_up', got: {action:?}")
-			}
         }
     }
 }

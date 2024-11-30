@@ -6,14 +6,15 @@ use async_trait::async_trait;
 use automation_macro::LuaDeviceConfig;
 use bytes::{Buf, BufMut};
 use google_home::errors::{self, DeviceError};
-use google_home::traits;
+use google_home::traits::OnOff;
 use serde::{Deserialize, Serialize};
 use thiserror::Error;
 use tokio::io::{AsyncReadExt, AsyncWriteExt};
 use tokio::net::TcpStream;
-use tracing::trace;
+use tracing::{debug, trace};
 
 use super::{Device, LuaDeviceCreate};
+use crate::event::OnPresence;
 
 #[derive(Debug, Clone, LuaDeviceConfig)]
 pub struct Config {
@@ -206,7 +207,7 @@ impl Response {
 }
 
 #[async_trait]
-impl traits::OnOff for KasaOutlet {
+impl OnOff for KasaOutlet {
     async fn on(&self) -> Result<bool, errors::ErrorCode> {
         let mut stream = TcpStream::connect(self.config.addr)
             .await
@@ -273,5 +274,15 @@ impl traits::OnOff for KasaOutlet {
 
         resp.check_set_relay_success()
             .or(Err(DeviceError::TransientError.into()))
+    }
+}
+
+#[async_trait]
+impl OnPresence for KasaOutlet {
+    async fn on_presence(&self, presence: bool) {
+        if !presence {
+            debug!(id = Device::get_id(self), "Turning device off");
+            self.set_on(false).await.ok();
+        }
     }
 }
