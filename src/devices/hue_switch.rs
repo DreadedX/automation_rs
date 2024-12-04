@@ -22,12 +22,11 @@ pub struct Config {
     #[device_config(from_lua)]
     pub client: WrappedAsyncClient,
 
-    // TODO: IntoLua is not implemented for unit type ()
     #[device_config(from_lua, default)]
-    pub left_callback: ActionCallback<bool>,
+    pub left_callback: ActionCallback<()>,
 
     #[device_config(from_lua, default)]
-    pub right_callback: ActionCallback<bool>,
+    pub right_callback: ActionCallback<()>,
 }
 
 #[derive(Debug, Clone)]
@@ -75,10 +74,10 @@ impl OnMqtt for HueSwitch {
 
             match action {
                 zigbee2mqtt_types::vendors::philips::Zigbee929003017102Action::Leftpress => {
-                    self.config.left_callback.call(true).await
+                    self.config.left_callback.call(()).await
                 }
                 zigbee2mqtt_types::vendors::philips::Zigbee929003017102Action::Rightpress => {
-                    self.config.right_callback.call(true).await
+                    self.config.right_callback.call(()).await
                 }
                 _ => {}
             }

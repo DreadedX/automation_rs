@@ -1,6 +1,6 @@
 use std::marker::PhantomData;
 
-use mlua::{FromLua, IntoLua};
+use mlua::{FromLua, IntoLuaMulti};
 
 #[derive(Debug, Clone)]
 struct Internal {
@@ -8,10 +8,19 @@ struct Internal {
     lua: mlua::Lua,
 }
 
-#[derive(Debug, Clone, Default)]
+#[derive(Debug, Clone)]
 pub struct ActionCallback<T> {
     internal: Option<Internal>,
     phantom: PhantomData<T>,
+}
+
+impl<T> Default for ActionCallback<T> {
+    fn default() -> Self {
+        Self {
+            internal: None,
+            phantom: PhantomData::<T>,
+        }
+    }
 }
 
 impl<T> FromLua for ActionCallback<T> {
@@ -32,7 +41,7 @@ impl<T> FromLua for ActionCallback<T> {
 // TODO: Return proper error here
 impl<T> ActionCallback<T>
 where
-    T: IntoLua + Sync + Send + Clone + Copy + 'static,
+    T: IntoLuaMulti + Sync + Send + Clone + 'static,
 {
     pub async fn call(&self, state: T) {
         let Some(internal) = self.internal.as_ref() else {
