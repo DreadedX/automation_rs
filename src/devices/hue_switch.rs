@@ -61,7 +61,6 @@ impl LuaDeviceCreate for HueSwitch {
 impl OnMqtt for HueSwitch {
     async fn on_mqtt(&self, message: Publish) {
         // Check if the message is from the deviec itself or from a remote
-        debug!(id = Device::get_id(self), "Mqtt message received");
         if matches(&message.topic, &self.config.mqtt.topic) {
             let action = match serde_json::from_slice::<Zigbee929003017102>(&message.payload) {
                 Ok(message) => message.action,

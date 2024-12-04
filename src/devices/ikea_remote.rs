@@ -61,7 +61,6 @@ impl LuaDeviceCreate for IkeaRemote {
 impl OnMqtt for IkeaRemote {
     async fn on_mqtt(&self, message: Publish) {
         // Check if the message is from the deviec itself or from a remote
-        debug!(id = Device::get_id(self), "Mqtt message received");
         if matches(&message.topic, &self.config.mqtt.topic) {
             let action = match RemoteMessage::try_from(message) {
                 Ok(message) => message.action(),
