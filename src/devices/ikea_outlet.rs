@@ -1,5 +1,4 @@
 use std::sync::Arc;
-use std::time::Duration;
 
 use anyhow::Result;
 use async_trait::async_trait;
@@ -11,16 +10,15 @@ use google_home::types::Type;
 use rumqttc::{matches, Publish};
 use serde::Deserialize;
 use tokio::sync::{RwLock, RwLockReadGuard, RwLockWriteGuard};
-use tokio::task::JoinHandle;
 use tracing::{debug, error, trace, warn};
 
 use super::LuaDeviceCreate;
+use crate::action_callback::ActionCallback;
 use crate::config::{InfoConfig, MqttDeviceConfig};
 use crate::devices::Device;
 use crate::event::{OnMqtt, OnPresence};
 use crate::messages::OnOffMessage;
 use crate::mqtt::WrappedAsyncClient;
-use crate::traits::Timeout;
 
 #[derive(Debug, Clone, Deserialize, PartialEq, Eq, Copy)]
 pub enum OutletType {
@@ -38,17 +36,17 @@ pub struct Config {
     pub mqtt: MqttDeviceConfig,
     #[device_config(default(OutletType::Outlet))]
     pub outlet_type: OutletType,
-    #[device_config(default, with(|t: Option<_>| t.map(Duration::from_secs)))]
-    pub timeout: Option<Duration>,
+
+    #[device_config(from_lua, default)]
+    pub callback: ActionCallback<(IkeaOutlet, bool)>,
 
     #[device_config(from_lua)]
     pub client: WrappedAsyncClient,
 }
 
-#[derive(Debug)]
+#[derive(Debug, Default)]
 pub struct State {
     last_known_state: bool,
-    handle: Option<JoinHandle<()>>,
 }
 
 #[derive(Debug, Clone)]
@@ -81,13 +79,10 @@ impl LuaDeviceCreate for IkeaOutlet {
             .subscribe(&config.mqtt.topic, rumqttc::QoS::AtLeastOnce)
             .await?;
 
-        let state = State {
-            last_known_state: false,
-            handle: None,
-        };
-        let state = Arc::new(RwLock::new(state));
-
-        Ok(Self { config, state })
+        Ok(Self {
+            config,
+            state: Default::default(),
+        })
     }
 }
 
@@ -116,16 +111,10 @@ impl OnMqtt for IkeaOutlet {
                 return;
             }
 
-            // Abort any timer that is currently running
-            self.stop_timeout().await.unwrap();
+            self.config.callback.call((self.clone(), state)).await;
 
             debug!(id = Device::get_id(self), "Updating state to {state}");
             self.state_mut().await.last_known_state = state;
-
-            // If this is a kettle start a timeout for turning it of again
-            if state && let Some(timeout) = self.config.timeout {
-                self.start_timeout(timeout).await.unwrap();
-            }
         }
     }
 }
@@ -195,32 +184,6 @@ impl traits::OnOff for IkeaOutlet {
             .await
             .map_err(|err| warn!("Failed to update state on {topic}: {err}"))
             .ok();
-
-        Ok(())
-    }
-}
-
-#[async_trait]
-impl crate::traits::Timeout for IkeaOutlet {
-    async fn start_timeout(&self, timeout: Duration) -> Result<()> {
-        // Abort any timer that is currently running
-        self.stop_timeout().await?;
-
-        let device = self.clone();
-        self.state_mut().await.handle = Some(tokio::spawn(async move {
-            debug!(id = device.get_id(), "Starting timeout ({timeout:?})...");
-            tokio::time::sleep(timeout).await;
-            debug!(id = device.get_id(), "Turning outlet off!");
-            device.set_on(false).await.unwrap();
-        }));
-
-        Ok(())
-    }
-
-    async fn stop_timeout(&self) -> Result<()> {
-        if let Some(handle) = self.state_mut().await.handle.take() {
-            handle.abort();
-        }
 
         Ok(())
     }

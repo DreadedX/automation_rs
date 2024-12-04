@@ -9,6 +9,7 @@ pub mod device_manager;
 pub mod devices;
 pub mod error;
 pub mod event;
+pub mod helpers;
 pub mod messages;
 pub mod mqtt;
 pub mod schedule;

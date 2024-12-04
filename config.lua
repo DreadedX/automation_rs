@@ -109,16 +109,31 @@ automation.device_manager:add(IkeaRemote.new({
 	end,
 }))
 
+local function off_timeout(duration)
+	local timeout = Timeout.new()
+
+	return function(this, on)
+		if on then
+			timeout:start(duration, function()
+				this:set_on(false)
+			end)
+		else
+			timeout:cancel()
+		end
+	end
+end
+
 local kettle = IkeaOutlet.new({
 	outlet_type = "Kettle",
 	name = "Kettle",
 	room = "Kitchen",
 	topic = mqtt_z2m("kitchen/kettle"),
 	client = mqtt_client,
-	timeout = debug and 5 or 300,
+	callback = off_timeout(debug and 5 or 300),
 })
 automation.device_manager:add(kettle)
-function set_kettle(on)
+
+local function set_kettle(on)
 	kettle:set_on(on)
 end
 
@@ -146,7 +161,7 @@ automation.device_manager:add(IkeaOutlet.new({
 	room = "Bathroom",
 	topic = mqtt_z2m("bathroom/light"),
 	client = mqtt_client,
-	timeout = debug and 60 or 45 * 60,
+	callback = off_timeout(debug and 60 or 45 * 60),
 }))
 
 automation.device_manager:add(Washer.new({
@@ -163,7 +178,7 @@ automation.device_manager:add(IkeaOutlet.new({
 	room = "Workbench",
 	topic = mqtt_z2m("workbench/charger"),
 	client = mqtt_client,
-	timeout = debug and 5 or 20 * 3600,
+	callback = off_timeout(debug and 5 or 20 * 3600),
 }))
 
 automation.device_manager:add(IkeaOutlet.new({

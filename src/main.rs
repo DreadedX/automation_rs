@@ -5,9 +5,9 @@ use anyhow::anyhow;
 use automation::auth::User;
 use automation::config::{FulfillmentConfig, MqttConfig};
 use automation::device_manager::DeviceManager;
-use automation::devices;
 use automation::error::ApiError;
 use automation::mqtt::{self, WrappedAsyncClient};
+use automation::{devices, helpers};
 use axum::extract::{FromRef, State};
 use axum::http::StatusCode;
 use axum::routing::post;
@@ -112,6 +112,7 @@ async fn app() -> anyhow::Result<()> {
         lua.globals().set("automation", automation)?;
 
         devices::register_with_lua(&lua)?;
+        helpers::register_with_lua(&lua)?;
 
         // TODO: Make this not hardcoded
         let config_filename = std::env::var("AUTOMATION_CONFIG").unwrap_or("./config.lua".into());
