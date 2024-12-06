@@ -37,7 +37,6 @@ pub use self::presence::{Presence, DEFAULT_PRESENCE};
 pub use self::wake_on_lan::WakeOnLAN;
 pub use self::washer::Washer;
 use crate::event::{OnDarkness, OnMqtt, OnNotification, OnPresence};
-use crate::traits::Timeout;
 
 #[async_trait]
 pub trait LuaDeviceCreate {
@@ -145,7 +144,6 @@ pub trait Device:
     + Cast<dyn OnDarkness>
     + Cast<dyn OnNotification>
     + Cast<dyn OnOff>
-    + Cast<dyn Timeout>
 {
     fn get_id(&self) -> String;
 }

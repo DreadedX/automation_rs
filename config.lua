@@ -112,10 +112,10 @@ automation.device_manager:add(IkeaRemote.new({
 local function off_timeout(duration)
 	local timeout = Timeout.new()
 
-	return function(this, on)
+	return function(self, on)
 		if on then
 			timeout:start(duration, function()
-				this:set_on(false)
+				self:set_on(false)
 			end)
 		else
 			timeout:cancel()
@@ -188,26 +188,6 @@ automation.device_manager:add(IkeaOutlet.new({
 	client = mqtt_client,
 }))
 
-local hallway_bottom_lights = HueGroup.new({
-	identifier = "hallway_bottom_lights",
-	ip = hue_ip,
-	login = hue_token,
-	group_id = 81,
-	scene_id = "3qWKxGVadXFFG4o",
-	timer_id = 1,
-	client = mqtt_client,
-})
-automation.device_manager:add(hallway_bottom_lights)
-automation.device_manager:add(IkeaRemote.new({
-	name = "Remote",
-	room = "Hallway",
-	client = mqtt_client,
-	topic = mqtt_z2m("hallway/remote"),
-	callback = function(on)
-		hallway_bottom_lights:set_on(on)
-	end,
-}))
-
 local hallway_top_light = HueGroup.new({
 	identifier = "hallway_top_light",
 	ip = hue_ip,
@@ -235,6 +215,64 @@ automation.device_manager:add(HueSwitch.new({
 	end,
 }))
 
+local hallway_bottom_lights = HueGroup.new({
+	identifier = "hallway_bottom_lights",
+	ip = hue_ip,
+	login = hue_token,
+	group_id = 81,
+	scene_id = "3qWKxGVadXFFG4o",
+	client = mqtt_client,
+})
+automation.device_manager:add(hallway_bottom_lights)
+
+local hallway_light_automation = {
+	group = hallway_bottom_lights,
+	timeout = Timeout.new(),
+	state = {
+		door_open = false,
+		trash_open = false,
+		forced = false,
+	},
+	switch_callback = function(self, on)
+		self.timeout:cancel()
+		self.group:set_on(on)
+		self.state.forced = on
+	end,
+	door_callback = function(self, open)
+		self.state.door_open = open
+		if open then
+			self.timeout:cancel()
+
+			self.group:set_on(true)
+		elseif not self.state.forced then
+			self.timeout:start(debug and 10 or 60, function()
+				if not self.state.trash_open then
+					self.group:set_on(false)
+				end
+			end)
+		end
+	end,
+	trash_callback = function(self, open)
+		self.state.trash_open = open
+		if open then
+			self.group:set_on(true)
+		else
+			if not self.timeout:is_waiting() and not self.state.door_open and not self.state.forced then
+				self.group:set_on(false)
+			end
+		end
+	end,
+}
+
+automation.device_manager:add(IkeaRemote.new({
+	name = "Remote",
+	room = "Hallway",
+	client = mqtt_client,
+	topic = mqtt_z2m("hallway/remote"),
+	callback = function(on)
+		hallway_light_automation:switch_callback(on)
+	end,
+}))
 automation.device_manager:add(ContactSensor.new({
 	identifier = "hallway_frontdoor",
 	topic = mqtt_z2m("hallway/frontdoor"),
@@ -243,19 +281,17 @@ automation.device_manager:add(ContactSensor.new({
 		topic = mqtt_automation("presence/contact/frontdoor"),
 		timeout = debug and 10 or 15 * 60,
 	},
-	trigger = {
-		devices = { hallway_bottom_lights },
-		timeout = debug and 10 or 2 * 60,
-	},
+	callback = function(open)
+		hallway_light_automation:door_callback(open)
+	end,
 }))
-
 automation.device_manager:add(ContactSensor.new({
 	identifier = "hallway_trash",
 	topic = mqtt_z2m("hallway/trash"),
 	client = mqtt_client,
-	trigger = {
-		devices = { hallway_bottom_lights },
-	},
+	callback = function(open)
+		hallway_light_automation:trash_callback(open)
+	end,
 }))
 
 automation.device_manager:add(IkeaOutlet.new({

@@ -1,7 +1,6 @@
 use std::net::SocketAddr;
-use std::time::Duration;
 
-use anyhow::{anyhow, Context, Result};
+use anyhow::Result;
 use async_trait::async_trait;
 use automation_macro::LuaDeviceConfig;
 use google_home::errors::ErrorCode;
@@ -10,7 +9,6 @@ use tracing::{error, trace, warn};
 
 use super::{Device, LuaDeviceCreate};
 use crate::mqtt::WrappedAsyncClient;
-use crate::traits::Timeout;
 
 #[derive(Debug, Clone, LuaDeviceConfig)]
 pub struct Config {
@@ -19,8 +17,6 @@ pub struct Config {
     pub addr: SocketAddr,
     pub login: String,
     pub group_id: isize,
-    #[device_config(default)]
-    pub timer_id: Option<isize>,
     pub scene_id: String,
     #[device_config(from_lua)]
     pub client: WrappedAsyncClient,
@@ -49,11 +45,6 @@ impl HueGroup {
         format!("http://{}/api/{}", self.config.addr, self.config.login)
     }
 
-    fn url_set_schedule(&self) -> Option<String> {
-        let timer_id = self.config.timer_id?;
-        Some(format!("{}/schedules/{}", self.url_base(), timer_id))
-    }
-
     fn url_set_action(&self) -> String {
         format!("{}/groups/{}/action", self.url_base(), self.config.group_id)
     }
@@ -72,9 +63,6 @@ impl Device for HueGroup {
 #[async_trait]
 impl OnOff for HueGroup {
     async fn set_on(&self, on: bool) -> Result<(), ErrorCode> {
-        // Abort any timer that is currently running
-        self.stop_timeout().await.unwrap();
-
         let message = if on {
             message::Action::scene(self.config.scene_id.clone())
         } else {
@@ -128,57 +116,6 @@ impl OnOff for HueGroup {
         }
 
         Ok(false)
-    }
-}
-
-#[async_trait]
-impl Timeout for HueGroup {
-    async fn start_timeout(&self, timeout: Duration) -> Result<()> {
-        // Abort any timer that is currently running
-        self.stop_timeout().await?;
-
-        // NOTE: This uses an existing timer, as we are unable to cancel it on the hub otherwise
-        let message = message::Timeout::new(Some(timeout));
-        let Some(url) = self.url_set_schedule() else {
-            return Ok(());
-        };
-        let res = reqwest::Client::new()
-            .put(url)
-            .json(&message)
-            .send()
-            .await
-            .context("Failed to start timeout")?;
-
-        let status = res.status();
-        if !status.is_success() {
-            return Err(anyhow!(
-                "Hue bridge returned unsuccessful status '{status}'"
-            ));
-        }
-
-        Ok(())
-    }
-
-    async fn stop_timeout(&self) -> Result<()> {
-        let message = message::Timeout::new(None);
-        let Some(url) = self.url_set_schedule() else {
-            return Ok(());
-        };
-        let res = reqwest::Client::new()
-            .put(url)
-            .json(&message)
-            .send()
-            .await
-            .context("Failed to stop timeout")?;
-
-        let status = res.status();
-        if !status.is_success() {
-            return Err(anyhow!(
-                "Hue bridge returned unsuccessful status '{status}'"
-            ));
-        }
-
-        Ok(())
     }
 }
 

@@ -59,5 +59,18 @@ impl mlua::UserData for Timeout {
 
             Ok(())
         });
+
+        methods.add_async_method("is_waiting", |_lua, this, ()| async move {
+            debug!("Canceling timeout callback");
+
+            if let Some(handle) = this.state.read().await.handle.as_ref() {
+                debug!("Join handle: {}", handle.is_finished());
+                return Ok(!handle.is_finished());
+            }
+
+            debug!("Join handle: None");
+
+            Ok(false)
+        });
     }
 }

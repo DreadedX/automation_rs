@@ -13,4 +13,3 @@ pub mod helpers;
 pub mod messages;
 pub mod mqtt;
 pub mod schedule;
-pub mod traits;

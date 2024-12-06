@@ -3,19 +3,18 @@ use std::time::Duration;
 
 use async_trait::async_trait;
 use automation_macro::LuaDeviceConfig;
-use google_home::traits::OnOff;
 use tokio::sync::{RwLock, RwLockReadGuard, RwLockWriteGuard};
 use tokio::task::JoinHandle;
 use tracing::{debug, error, trace, warn};
 
 use super::{Device, LuaDeviceCreate};
+use crate::action_callback::ActionCallback;
 use crate::config::MqttDeviceConfig;
 use crate::devices::DEFAULT_PRESENCE;
 use crate::error::DeviceConfigError;
 use crate::event::{OnMqtt, OnPresence};
 use crate::messages::{ContactMessage, PresenceMessage};
 use crate::mqtt::WrappedAsyncClient;
-use crate::traits::Timeout;
 
 // NOTE: If we add more presence devices we might need to move this out of here
 #[derive(Debug, Clone, LuaDeviceConfig)]
@@ -27,22 +26,14 @@ pub struct PresenceDeviceConfig {
 }
 
 #[derive(Debug, Clone, LuaDeviceConfig)]
-pub struct TriggerConfig {
-    #[device_config(from_lua)]
-    pub devices: Vec<Box<dyn Device>>,
-    #[device_config(default, with(|t: Option<_>| t.map(Duration::from_secs)))]
-    pub timeout: Option<Duration>,
-}
-
-#[derive(Debug, Clone, LuaDeviceConfig)]
 pub struct Config {
     pub identifier: String,
     #[device_config(flatten)]
     pub mqtt: MqttDeviceConfig,
     #[device_config(from_lua, default)]
     pub presence: Option<PresenceDeviceConfig>,
-    #[device_config(from_lua)]
-    pub trigger: Option<TriggerConfig>,
+    #[device_config(from_lua, default)]
+    pub callback: ActionCallback<bool>,
     #[device_config(from_lua)]
     pub client: WrappedAsyncClient,
 }
@@ -51,7 +42,6 @@ pub struct Config {
 struct State {
     overall_presence: bool,
     is_closed: bool,
-    previous: Vec<bool>,
     handle: Option<JoinHandle<()>>,
 }
 
@@ -79,26 +69,6 @@ impl LuaDeviceCreate for ContactSensor {
     async fn create(config: Self::Config) -> Result<Self, Self::Error> {
         trace!(id = config.identifier, "Setting up ContactSensor");
 
-        let mut previous = Vec::new();
-        // Make sure the devices implement the required traits
-        if let Some(trigger) = &config.trigger {
-            for device in &trigger.devices {
-                {
-                    let id = device.get_id().to_owned();
-                    if (device.cast() as Option<&dyn OnOff>).is_none() {
-                        return Err(DeviceConfigError::MissingTrait(id, "OnOff".into()));
-                    }
-
-                    if trigger.timeout.is_none()
-                        && (device.cast() as Option<&dyn Timeout>).is_none()
-                    {
-                        return Err(DeviceConfigError::MissingTrait(id, "Timeout".into()));
-                    }
-                }
-            }
-            previous.resize(trigger.devices.len(), false);
-        }
-
         config
             .client
             .subscribe(&config.mqtt.topic, rumqttc::QoS::AtLeastOnce)
@@ -107,7 +77,6 @@ impl LuaDeviceCreate for ContactSensor {
         let state = State {
             overall_presence: DEFAULT_PRESENCE,
             is_closed: true,
-            previous,
             handle: None,
         };
         let state = Arc::new(RwLock::new(state));
@@ -148,43 +117,10 @@ impl OnMqtt for ContactSensor {
             return;
         }
 
+        self.config.callback.call(!is_closed).await;
+
         debug!(id = self.get_id(), "Updating state to {is_closed}");
         self.state_mut().await.is_closed = is_closed;
-
-        if let Some(trigger) = &self.config.trigger {
-            if !is_closed {
-                for (light, previous) in trigger
-                    .devices
-                    .iter()
-                    .zip(self.state_mut().await.previous.iter_mut())
-                {
-                    if let Some(light) = light.cast() as Option<&dyn OnOff> {
-                        *previous = light.on().await.unwrap();
-                        light.set_on(true).await.ok();
-                    }
-                }
-            } else {
-                for (light, previous) in trigger
-                    .devices
-                    .iter()
-                    .zip(self.state_mut().await.previous.iter())
-                {
-                    if !previous {
-                        // If the timeout is zero just turn the light off directly
-                        if trigger.timeout.is_none()
-                            && let Some(light) = light.cast() as Option<&dyn OnOff>
-                        {
-                            light.set_on(false).await.ok();
-                        } else if let Some(timeout) = trigger.timeout
-                            && let Some(light) = light.cast() as Option<&dyn Timeout>
-                        {
-                            light.start_timeout(timeout).await.unwrap();
-                        }
-                        // TODO: Put a warning/error on creation if either of this has to option to fail
-                    }
-                }
-            }
-        }
 
         // Check if this contact sensor works as a presence device
         // If not we are done here
