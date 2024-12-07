@@ -120,9 +120,6 @@ impl OnOff for HueGroup {
 }
 
 mod message {
-    use std::time::Duration;
-
-    use serde::ser::SerializeStruct;
     use serde::{Deserialize, Serialize};
 
     #[derive(Debug, Serialize, Deserialize)]
@@ -163,47 +160,6 @@ mod message {
     impl Info {
         pub fn any_on(&self) -> bool {
             self.state.any_on
-        }
-
-        // pub fn all_on(&self) -> bool {
-        // 	self.state.all_on
-        // }
-    }
-
-    #[derive(Debug)]
-    pub struct Timeout {
-        timeout: Option<Duration>,
-    }
-
-    impl Timeout {
-        pub fn new(timeout: Option<Duration>) -> Self {
-            Self { timeout }
-        }
-    }
-
-    impl Serialize for Timeout {
-        fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
-        where
-            S: serde::Serializer,
-        {
-            let len = if self.timeout.is_some() { 2 } else { 1 };
-            let mut state = serializer.serialize_struct("TimerMessage", len)?;
-            if self.timeout.is_some() {
-                state.serialize_field("status", "enabled")?;
-            } else {
-                state.serialize_field("status", "disabled")?;
-            }
-
-            if let Some(timeout) = self.timeout {
-                let seconds = timeout.as_secs() % 60;
-                let minutes = (timeout.as_secs() / 60) % 60;
-                let hours = timeout.as_secs() / 3600;
-
-                let time = format!("PT{hours:<02}:{minutes:<02}:{seconds:<02}");
-                state.serialize_field("localtime", &time)?;
-            };
-
-            state.end()
         }
     }
 }
