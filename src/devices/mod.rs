@@ -139,7 +139,6 @@ pub trait Device:
     + Send
     + Cast<dyn google_home::Device>
     + Cast<dyn OnMqtt>
-    + Cast<dyn OnMqtt>
     + Cast<dyn OnPresence>
     + Cast<dyn OnDarkness>
     + Cast<dyn OnNotification>
