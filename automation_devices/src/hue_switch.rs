@@ -1,15 +1,13 @@
+use async_trait::async_trait;
+use automation_lib::action_callback::ActionCallback;
+use automation_lib::config::{InfoConfig, MqttDeviceConfig};
+use automation_lib::device::{Device, LuaDeviceCreate};
+use automation_lib::event::OnMqtt;
+use automation_lib::mqtt::WrappedAsyncClient;
 use automation_macro::LuaDeviceConfig;
-use axum::async_trait;
 use rumqttc::{matches, Publish};
 use tracing::{debug, trace, warn};
 use zigbee2mqtt_types::vendors::philips::Zigbee929003017102;
-
-use super::LuaDeviceCreate;
-use crate::action_callback::ActionCallback;
-use crate::config::{InfoConfig, MqttDeviceConfig};
-use crate::devices::Device;
-use crate::event::OnMqtt;
-use crate::mqtt::WrappedAsyncClient;
 
 #[derive(Debug, Clone, LuaDeviceConfig)]
 pub struct Config {

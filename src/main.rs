@@ -1,13 +1,15 @@
+mod web;
+
 use std::path::Path;
 use std::process;
 
 use anyhow::anyhow;
-use automation::auth::User;
-use automation::config::{FulfillmentConfig, MqttConfig};
-use automation::device_manager::DeviceManager;
-use automation::error::ApiError;
-use automation::mqtt::{self, WrappedAsyncClient};
-use automation::{devices, helpers};
+use automation_lib::config::{FulfillmentConfig, MqttConfig};
+use automation_lib::device_manager::DeviceManager;
+use automation_lib::helpers;
+use automation_lib::mqtt::{self, WrappedAsyncClient};
+use automation_lib::ntfy::Ntfy;
+use automation_lib::presence::Presence;
 use axum::extract::{FromRef, State};
 use axum::http::StatusCode;
 use axum::routing::post;
@@ -17,6 +19,7 @@ use google_home::{GoogleHome, Request, Response};
 use mlua::LuaSerdeExt;
 use rumqttc::AsyncClient;
 use tracing::{debug, error, info, warn};
+use web::{ApiError, User};
 
 #[derive(Clone)]
 struct AppState {
@@ -111,8 +114,11 @@ async fn app() -> anyhow::Result<()> {
 
         lua.globals().set("automation", automation)?;
 
-        devices::register_with_lua(&lua)?;
+        automation_devices::register_with_lua(&lua)?;
         helpers::register_with_lua(&lua)?;
+        lua.globals().set("Ntfy", lua.create_proxy::<Ntfy>()?)?;
+        lua.globals()
+            .set("Presence", lua.create_proxy::<Presence>()?)?;
 
         // TODO: Make this not hardcoded
         let config_filename = std::env::var("AUTOMATION_CONFIG").unwrap_or("./config.lua".into());

@@ -3,6 +3,8 @@ use std::net::SocketAddr;
 use std::str::Utf8Error;
 
 use async_trait::async_trait;
+use automation_lib::device::{Device, LuaDeviceCreate};
+use automation_lib::event::OnPresence;
 use automation_macro::LuaDeviceConfig;
 use bytes::{Buf, BufMut};
 use google_home::errors::{self, DeviceError};
@@ -12,9 +14,6 @@ use thiserror::Error;
 use tokio::io::{AsyncReadExt, AsyncWriteExt};
 use tokio::net::TcpStream;
 use tracing::{debug, trace};
-
-use super::{Device, LuaDeviceCreate};
-use crate::event::OnPresence;
 
 #[derive(Debug, Clone, LuaDeviceConfig)]
 pub struct Config {

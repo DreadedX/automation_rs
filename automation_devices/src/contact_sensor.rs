@@ -2,19 +2,18 @@ use std::sync::Arc;
 use std::time::Duration;
 
 use async_trait::async_trait;
+use automation_lib::action_callback::ActionCallback;
+use automation_lib::config::MqttDeviceConfig;
+use automation_lib::device::{Device, LuaDeviceCreate};
+use automation_lib::error::DeviceConfigError;
+use automation_lib::event::{OnMqtt, OnPresence};
+use automation_lib::messages::{ContactMessage, PresenceMessage};
+use automation_lib::mqtt::WrappedAsyncClient;
+use automation_lib::presence::DEFAULT_PRESENCE;
 use automation_macro::LuaDeviceConfig;
 use tokio::sync::{RwLock, RwLockReadGuard, RwLockWriteGuard};
 use tokio::task::JoinHandle;
 use tracing::{debug, error, trace, warn};
-
-use super::{Device, LuaDeviceCreate};
-use crate::action_callback::ActionCallback;
-use crate::config::MqttDeviceConfig;
-use crate::devices::DEFAULT_PRESENCE;
-use crate::error::DeviceConfigError;
-use crate::event::{OnMqtt, OnPresence};
-use crate::messages::{ContactMessage, PresenceMessage};
-use crate::mqtt::WrappedAsyncClient;
 
 // NOTE: If we add more presence devices we might need to move this out of here
 #[derive(Debug, Clone, LuaDeviceConfig)]

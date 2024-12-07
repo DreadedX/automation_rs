@@ -7,14 +7,7 @@ edition = "2021"
 proc-macro = true
 
 [dependencies]
-automation_cast = { path = "../automation_cast" }
-async-trait = "0.1.80"
-itertools = "0.12.1"
-proc-macro2 = "1.0.81"
-quote = "1.0.36"
-serde = { version = "1.0.202", features = ["derive"] }
-syn = { version = "2.0.60", features = ["extra-traits", "full"] }
-serde_json = "1.0.118"
-
-[dev-dependencies]
-serde = { version = "1.0.202", features = ["derive"] }
+itertools = { workspace = true }
+proc-macro2 = { workspace = true }
+quote = { workspace = true }
+syn = { workspace = true }

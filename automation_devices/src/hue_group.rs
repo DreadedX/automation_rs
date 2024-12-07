@@ -2,13 +2,13 @@ use std::net::SocketAddr;
 
 use anyhow::Result;
 use async_trait::async_trait;
+use automation_lib::mqtt::WrappedAsyncClient;
 use automation_macro::LuaDeviceConfig;
 use google_home::errors::ErrorCode;
 use google_home::traits::OnOff;
 use tracing::{error, trace, warn};
 
 use super::{Device, LuaDeviceCreate};
-use crate::mqtt::WrappedAsyncClient;
 
 #[derive(Debug, Clone, LuaDeviceConfig)]
 pub struct Config {

@@ -1,15 +1,13 @@
 use std::convert::Infallible;
 
 use async_trait::async_trait;
+use automation_lib::config::MqttDeviceConfig;
+use automation_lib::device::{Device, LuaDeviceCreate};
+use automation_lib::event::{OnDarkness, OnPresence};
+use automation_lib::messages::{DarknessMessage, PresenceMessage};
+use automation_lib::mqtt::WrappedAsyncClient;
 use automation_macro::LuaDeviceConfig;
 use tracing::{trace, warn};
-
-use super::LuaDeviceCreate;
-use crate::config::MqttDeviceConfig;
-use crate::devices::Device;
-use crate::event::{OnDarkness, OnPresence};
-use crate::messages::{DarknessMessage, PresenceMessage};
-use crate::mqtt::WrappedAsyncClient;
 
 #[derive(Debug, LuaDeviceConfig, Clone)]
 pub struct Config {

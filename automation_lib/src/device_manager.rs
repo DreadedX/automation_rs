@@ -8,7 +8,7 @@ use tokio::sync::{RwLock, RwLockReadGuard};
 use tokio_cron_scheduler::{Job, JobScheduler};
 use tracing::{debug, instrument, trace};
 
-use crate::devices::Device;
+use crate::device::Device;
 use crate::event::{Event, EventChannel, OnDarkness, OnMqtt, OnNotification, OnPresence};
 
 pub type DeviceMap = HashMap<String, Box<dyn Device>>;

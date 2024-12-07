@@ -3,7 +3,7 @@ use mlua::FromLua;
 use rumqttc::Publish;
 use tokio::sync::mpsc;
 
-use crate::devices::Notification;
+use crate::ntfy::Notification;
 
 #[derive(Debug, Clone)]
 pub enum Event {

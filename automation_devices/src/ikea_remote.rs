@@ -1,15 +1,13 @@
+use automation_lib::action_callback::ActionCallback;
+use automation_lib::config::{InfoConfig, MqttDeviceConfig};
+use automation_lib::device::{Device, LuaDeviceCreate};
+use automation_lib::event::OnMqtt;
+use automation_lib::messages::{RemoteAction, RemoteMessage};
+use automation_lib::mqtt::WrappedAsyncClient;
 use automation_macro::LuaDeviceConfig;
 use axum::async_trait;
 use rumqttc::{matches, Publish};
 use tracing::{debug, error, trace};
-
-use super::LuaDeviceCreate;
-use crate::action_callback::ActionCallback;
-use crate::config::{InfoConfig, MqttDeviceConfig};
-use crate::devices::Device;
-use crate::event::OnMqtt;
-use crate::messages::RemoteMessage;
-use crate::mqtt::WrappedAsyncClient;
 
 #[derive(Debug, Clone, LuaDeviceConfig)]
 pub struct Config {
@@ -73,14 +71,14 @@ impl OnMqtt for IkeaRemote {
 
             let on = if self.config.single_button {
                 match action {
-                    crate::messages::RemoteAction::On => Some(true),
-                    crate::messages::RemoteAction::BrightnessMoveUp => Some(false),
+                    RemoteAction::On => Some(true),
+                    RemoteAction::BrightnessMoveUp => Some(false),
                     _ => None,
                 }
             } else {
                 match action {
-                    crate::messages::RemoteAction::On => Some(true),
-                    crate::messages::RemoteAction::Off => Some(false),
+                    RemoteAction::On => Some(true),
+                    RemoteAction::Off => Some(false),
                     _ => None,
                 }
             };

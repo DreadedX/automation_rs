@@ -1,0 +1,28 @@
+[package]
+name = "automation_lib"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+automation_macro = { workspace = true }
+automation_cast = { workspace = true }
+google_home = { workspace = true }
+rumqttc = { workspace = true }
+serde = { workspace = true }
+serde_json = { workspace = true }
+tokio = { workspace = true }
+reqwest = { workspace = true }
+serde_repr = { workspace = true }
+tracing = { workspace = true }
+bytes = { workspace = true }
+pollster = { workspace = true }
+async-trait = { workspace = true }
+futures = { workspace = true }
+thiserror = { workspace = true }
+indexmap = { workspace = true }
+tokio-cron-scheduler = { workspace = true }
+mlua = { workspace = true }
+tokio-util = { workspace = true }
+uuid = { workspace = true }
+dyn-clone = { workspace = true }
+impls = { workspace = true }

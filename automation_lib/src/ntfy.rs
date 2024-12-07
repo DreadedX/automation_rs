@@ -1,14 +1,15 @@
 use std::collections::HashMap;
 use std::convert::Infallible;
+use std::ops::Deref;
 
 use async_trait::async_trait;
+use automation_cast::Cast;
 use automation_macro::LuaDeviceConfig;
 use serde::Serialize;
 use serde_repr::*;
 use tracing::{error, trace, warn};
 
-use super::LuaDeviceCreate;
-use crate::devices::Device;
+use crate::device::{impl_device, Device, LuaDeviceCreate};
 use crate::event::{self, Event, EventChannel, OnNotification, OnPresence};
 
 #[derive(Debug, Serialize_repr, Clone, Copy)]
@@ -124,6 +125,8 @@ pub struct Config {
 pub struct Ntfy {
     config: Config,
 }
+
+impl_device!(Ntfy);
 
 #[async_trait]
 impl LuaDeviceCreate for Ntfy {

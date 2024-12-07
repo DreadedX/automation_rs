@@ -2,13 +2,11 @@ use std::convert::Infallible;
 use std::net::SocketAddr;
 
 use async_trait::async_trait;
+use automation_lib::device::{Device, LuaDeviceCreate};
+use automation_lib::event::{OnDarkness, OnPresence};
 use automation_macro::LuaDeviceConfig;
 use serde::{Deserialize, Serialize};
 use tracing::{error, trace, warn};
-
-use super::LuaDeviceCreate;
-use crate::devices::Device;
-use crate::event::{OnDarkness, OnPresence};
 
 #[derive(Debug)]
 pub enum Flag {
