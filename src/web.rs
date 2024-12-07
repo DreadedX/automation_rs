@@ -93,6 +93,8 @@ where
 
         // Create a request to the auth server
         // TODO: Do some discovery to find the correct url for this instead of assuming
+        // TODO: I think we can also just run Authlia in front of the endpoint instead
+        // This would then give us a header containing the logged in user info?
         let mut req = reqwest::Client::new().get(format!("{}/userinfo", openid_url));
 
         // Add auth header to the request if it exists

@@ -7,7 +7,7 @@ use automation_lib::mqtt::WrappedAsyncClient;
 use automation_macro::LuaDeviceConfig;
 use rumqttc::{matches, Publish};
 use tracing::{debug, trace, warn};
-use zigbee2mqtt_types::vendors::philips::Zigbee929003017102;
+use zigbee2mqtt_types::philips::{Zigbee929003017102, Zigbee929003017102Action};
 
 #[derive(Debug, Clone, LuaDeviceConfig)]
 pub struct Config {
@@ -70,12 +70,8 @@ impl OnMqtt for HueSwitch {
             debug!(id = Device::get_id(self), "Remote action = {:?}", action);
 
             match action {
-                zigbee2mqtt_types::vendors::philips::Zigbee929003017102Action::Leftpress => {
-                    self.config.left_callback.call(()).await
-                }
-                zigbee2mqtt_types::vendors::philips::Zigbee929003017102Action::Rightpress => {
-                    self.config.right_callback.call(()).await
-                }
+                Zigbee929003017102Action::LeftPress => self.config.left_callback.call(()).await,
+                Zigbee929003017102Action::RightPress => self.config.right_callback.call(()).await,
                 _ => {}
             }
         }

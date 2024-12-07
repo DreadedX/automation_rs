@@ -1,5 +1,6 @@
 mod web;
 
+use std::net::SocketAddr;
 use std::path::Path;
 use std::process;
 
@@ -18,6 +19,7 @@ use dotenvy::dotenv;
 use google_home::{GoogleHome, Request, Response};
 use mlua::LuaSerdeExt;
 use rumqttc::AsyncClient;
+use tokio::net::TcpListener;
 use tracing::{debug, error, info, warn};
 use web::{ApiError, User};
 
@@ -154,11 +156,10 @@ async fn app() -> anyhow::Result<()> {
         });
 
     // Start the web server
-    let addr = fulfillment_config.into();
+    let addr: SocketAddr = fulfillment_config.into();
     info!("Server started on http://{addr}");
-    axum::Server::try_bind(&addr)?
-        .serve(app.into_make_service())
-        .await?;
+    let listener = TcpListener::bind(addr).await?;
+    axum::serve(listener, app).await?;
 
     Ok(())
 }
