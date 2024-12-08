@@ -68,7 +68,7 @@ macro_rules! impl_device {
                         Ok(())
                     });
 
-                    methods.add_async_method("is_on", |_lua, this, _: ()| async move {
+                    methods.add_async_method("on", |_lua, this, _: ()| async move {
                         Ok((this.deref().cast() as Option<&dyn google_home::traits::OnOff>)
                             .expect("Cast should be valid")
                             .on()

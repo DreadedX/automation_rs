@@ -92,7 +92,7 @@ automation.device_manager:add(IkeaRemote.new({
 	single_button = true,
 	callback = function(_, on)
 		if on then
-			if living_mixer:is_on() then
+			if living_mixer:on() then
 				living_mixer:set_on(false)
 				living_speakers:set_on(false)
 			else
@@ -100,10 +100,10 @@ automation.device_manager:add(IkeaRemote.new({
 				living_speakers:set_on(true)
 			end
 		else
-			if not living_mixer:is_on() then
+			if not living_mixer:on() then
 				living_mixer:set_on(true)
 			else
-				living_speakers:set_on(not living_speakers:is_on())
+				living_speakers:set_on(not living_speakers:on())
 			end
 		end
 	end,
@@ -201,7 +201,7 @@ automation.device_manager:add(HueSwitch.new({
 	client = mqtt_client,
 	topic = mqtt_z2m("hallway/switchbottom"),
 	left_callback = function()
-		hallway_top_light:set_on(not hallway_top_light:is_on())
+		hallway_top_light:set_on(not hallway_top_light:on())
 	end,
 }))
 automation.device_manager:add(HueSwitch.new({
@@ -210,7 +210,7 @@ automation.device_manager:add(HueSwitch.new({
 	client = mqtt_client,
 	topic = mqtt_z2m("hallway/switchtop"),
 	left_callback = function()
-		hallway_top_light:set_on(not hallway_top_light:is_on())
+		hallway_top_light:set_on(not hallway_top_light:on())
 	end,
 }))
 
