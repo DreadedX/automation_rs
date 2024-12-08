@@ -10,11 +10,13 @@ mod kasa_outlet;
 mod light_sensor;
 mod wake_on_lan;
 mod washer;
+mod zigbee;
 
 use std::ops::Deref;
 
 use automation_cast::Cast;
 use automation_lib::device::{Device, LuaDeviceCreate};
+use zigbee::light::{LightBrightness, LightOnOff};
 
 pub use self::air_filter::AirFilter;
 pub use self::contact_sensor::ContactSensor;
@@ -99,6 +101,8 @@ macro_rules! impl_device {
     };
 }
 
+impl_device!(LightOnOff);
+impl_device!(LightBrightness);
 impl_device!(AirFilter);
 impl_device!(ContactSensor);
 impl_device!(DebugBridge);
@@ -113,6 +117,8 @@ impl_device!(WakeOnLAN);
 impl_device!(Washer);
 
 pub fn register_with_lua(lua: &mlua::Lua) -> mlua::Result<()> {
+    register_device!(lua, LightOnOff);
+    register_device!(lua, LightBrightness);
     register_device!(lua, AirFilter);
     register_device!(lua, ContactSensor);
     register_device!(lua, DebugBridge);

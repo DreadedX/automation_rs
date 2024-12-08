@@ -155,8 +155,7 @@ automation.device_manager:add(IkeaRemote.new({
 	callback = set_kettle,
 }))
 
-automation.device_manager:add(IkeaOutlet.new({
-	outlet_type = "Light",
+automation.device_manager:add(LightOnOff.new({
 	name = "Light",
 	room = "Bathroom",
 	topic = mqtt_z2m("bathroom/light"),
@@ -215,6 +214,65 @@ automation.device_manager:add(HueSwitch.new({
 	end,
 }))
 
+local hallway_light_automation = {
+	timeout = Timeout.new(),
+	state = {
+		door_open = false,
+		trash_open = false,
+		forced = false,
+	},
+	switch_callback = function(self, on)
+		self.timeout:cancel()
+		self.group.set_on(on)
+		self.state.forced = on
+	end,
+	door_callback = function(self, open)
+		self.state.door_open = open
+		if open then
+			self.timeout:cancel()
+
+			self.group.set_on(true)
+		elseif not self.state.forced then
+			self.timeout:start(debug and 10 or 60, function()
+				if not self.state.trash_open then
+					self.group.set_on(false)
+				end
+			end)
+		end
+	end,
+	trash_callback = function(self, open)
+		self.state.trash_open = open
+		if open then
+			self.group.set_on(true)
+		else
+			if not self.timeout:is_waiting() and not self.state.door_open and not self.state.forced then
+				self.group.set_on(false)
+			end
+		end
+	end,
+	light_callback = function(self, on)
+		if on and not self.state.trash_open and not self.state.door_open then
+			-- If the door and trash are not open, that means the light got turned on manually
+			self.timeout:cancel()
+			self.state.forced = true
+		elseif not on then
+			-- The light is never forced when it is off
+			self.state.forced = false
+		end
+	end,
+}
+
+local hallway_storage = LightBrightness.new({
+	name = "Storage",
+	room = "Hallway",
+	topic = mqtt_z2m("hallway/storage"),
+	client = mqtt_client,
+	callback = function(_, state)
+		hallway_light_automation:light_callback(state.state)
+	end,
+})
+automation.device_manager:add(hallway_storage)
+
 local hallway_bottom_lights = HueGroup.new({
 	identifier = "hallway_bottom_lights",
 	ip = hue_ip,
@@ -225,42 +283,14 @@ local hallway_bottom_lights = HueGroup.new({
 })
 automation.device_manager:add(hallway_bottom_lights)
 
-local hallway_light_automation = {
-	group = hallway_bottom_lights,
-	timeout = Timeout.new(),
-	state = {
-		door_open = false,
-		trash_open = false,
-		forced = false,
-	},
-	switch_callback = function(self, on)
-		self.timeout:cancel()
-		self.group:set_on(on)
-		self.state.forced = on
-	end,
-	door_callback = function(self, open)
-		self.state.door_open = open
-		if open then
-			self.timeout:cancel()
-
-			self.group:set_on(true)
-		elseif not self.state.forced then
-			self.timeout:start(debug and 10 or 60, function()
-				if not self.state.trash_open then
-					self.group:set_on(false)
-				end
-			end)
-		end
-	end,
-	trash_callback = function(self, open)
-		self.state.trash_open = open
-		if open then
-			self.group:set_on(true)
+hallway_light_automation.group = {
+	set_on = function(on)
+		if on then
+			hallway_storage:set_brightness(80)
 		else
-			if not self.timeout:is_waiting() and not self.state.door_open and not self.state.forced then
-				self.group:set_on(false)
-			end
+			hallway_storage:set_on(false)
 		end
+		hallway_bottom_lights:set_on(on)
 	end,
 }
 
@@ -294,8 +324,7 @@ automation.device_manager:add(ContactSensor.new({
 	end,
 }))
 
-automation.device_manager:add(IkeaOutlet.new({
-	outlet_type = "Light",
+automation.device_manager:add(LightOnOff.new({
 	name = "Light",
 	room = "Guest",
 	topic = mqtt_z2m("guest/light"),

@@ -23,7 +23,6 @@ pub enum OutletType {
     Outlet,
     Kettle,
     Charger,
-    Light,
 }
 
 #[derive(Debug, Clone, LuaDeviceConfig)]
@@ -133,7 +132,6 @@ impl google_home::Device for IkeaOutlet {
         match self.config.outlet_type {
             OutletType::Outlet => Type::Outlet,
             OutletType::Kettle => Type::Kettle,
-            OutletType::Light => Type::Light, // Find a better device type for this, ideally would like to use charger, but that needs more work
             OutletType::Charger => Type::Outlet, // Find a better device type for this, ideally would like to use charger, but that needs more work
         }
     }

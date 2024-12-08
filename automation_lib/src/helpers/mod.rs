@@ -1,3 +1,4 @@
+pub mod serialization;
 mod timeout;
 
 pub use timeout::Timeout;
