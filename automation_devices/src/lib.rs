@@ -74,6 +74,26 @@ macro_rules! impl_device {
                             .unwrap())
                     });
                 }
+
+                if impls::impls!($device: google_home::traits::Brightness) {
+                    methods.add_async_method("set_brightness", |_lua, this, brightness: u8| async move {
+                        (this.deref().cast() as Option<&dyn google_home::traits::Brightness>)
+                            .expect("Cast should be valid")
+                            .set_brightness(brightness)
+                            .await
+                            .unwrap();
+
+                        Ok(())
+                    });
+
+                    methods.add_async_method("brightness", |_lua, this, _: ()| async move {
+                        Ok((this.deref().cast() as Option<&dyn google_home::traits::Brightness>)
+                            .expect("Cast should be valid")
+                            .brightness()
+                            .await
+                            .unwrap())
+                    });
+                }
             }
         }
     };

@@ -14,6 +14,11 @@ traits! {
         async fn on(&self) -> Result<bool, ErrorCode>,
         "action.devices.commands.OnOff" => async fn set_on(&self, on: bool) -> Result<(), ErrorCode>,
     },
+    "action.devices.traits.Brightness" => trait Brightness {
+        command_only_brightness: Option<bool>,
+        async fn brightness(&self) -> Result<u8, ErrorCode>,
+        "action.devices.commands.BrightnessAbsolute" => async fn set_brightness(&self, brightness: u8) -> Result<(), ErrorCode>,
+    },
     "action.devices.traits.Scene" => trait Scene {
         scene_reversible: Option<bool>,
 
