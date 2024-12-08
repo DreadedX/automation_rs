@@ -260,8 +260,9 @@ pub fn impl_lua_device_config_macro(ast: &DeriveInput) -> TokenStream {
         })
         .collect();
 
+    let (impl_generics, type_generics, where_clause) = ast.generics.split_for_impl();
     let impl_from_lua = quote! {
-        impl mlua::FromLua for #name {
+        impl #impl_generics mlua::FromLua for #name #type_generics #where_clause {
             fn from_lua(value: mlua::Value, lua: &mlua::Lua) -> mlua::Result<Self> {
                 if !value.is_table() {
                     panic!("Expected table");
