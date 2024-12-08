@@ -36,7 +36,7 @@ pub struct Config {
     pub outlet_type: OutletType,
 
     #[device_config(from_lua, default)]
-    pub callback: ActionCallback<(IkeaOutlet, bool)>,
+    pub callback: ActionCallback<IkeaOutlet, bool>,
 
     #[device_config(from_lua)]
     pub client: WrappedAsyncClient,
@@ -109,7 +109,7 @@ impl OnMqtt for IkeaOutlet {
                 return;
             }
 
-            self.config.callback.call((self.clone(), state)).await;
+            self.config.callback.call(self, &state).await;
 
             debug!(id = Device::get_id(self), "Updating state to {state}");
             self.state_mut().await.last_known_state = state;

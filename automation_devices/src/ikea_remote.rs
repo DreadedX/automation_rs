@@ -24,7 +24,7 @@ pub struct Config {
     pub client: WrappedAsyncClient,
 
     #[device_config(from_lua)]
-    pub callback: ActionCallback<bool>,
+    pub callback: ActionCallback<IkeaRemote, bool>,
 }
 
 #[derive(Debug, Clone)]
@@ -84,7 +84,7 @@ impl OnMqtt for IkeaRemote {
             };
 
             if let Some(on) = on {
-                self.config.callback.call(on).await;
+                self.config.callback.call(self, &on).await;
             }
         }
     }

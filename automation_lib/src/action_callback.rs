@@ -1,6 +1,7 @@
 use std::marker::PhantomData;
 
-use mlua::{FromLua, IntoLuaMulti};
+use mlua::{FromLua, IntoLua, LuaSerdeExt};
+use serde::Serialize;
 
 #[derive(Debug, Clone)]
 struct Internal {
@@ -9,21 +10,23 @@ struct Internal {
 }
 
 #[derive(Debug, Clone)]
-pub struct ActionCallback<T> {
+pub struct ActionCallback<T, S> {
     internal: Option<Internal>,
-    phantom: PhantomData<T>,
+    _this: PhantomData<T>,
+    _state: PhantomData<S>,
 }
 
-impl<T> Default for ActionCallback<T> {
+impl<T, S> Default for ActionCallback<T, S> {
     fn default() -> Self {
         Self {
             internal: None,
-            phantom: PhantomData::<T>,
+            _this: PhantomData::<T>,
+            _state: PhantomData::<S>,
         }
     }
 }
 
-impl<T> FromLua for ActionCallback<T> {
+impl<T, S> FromLua for ActionCallback<T, S> {
     fn from_lua(value: mlua::Value, lua: &mlua::Lua) -> mlua::Result<Self> {
         let uuid = uuid::Uuid::new_v4();
         lua.set_named_registry_value(&uuid.to_string(), value)?;
@@ -33,27 +36,31 @@ impl<T> FromLua for ActionCallback<T> {
                 uuid,
                 lua: lua.clone(),
             }),
-            phantom: PhantomData::<T>,
+            _this: PhantomData::<T>,
+            _state: PhantomData::<S>,
         })
     }
 }
 
 // TODO: Return proper error here
-impl<T> ActionCallback<T>
+impl<T, S> ActionCallback<T, S>
 where
-    T: IntoLuaMulti + Sync + Send + Clone + 'static,
+    T: IntoLua + Sync + Send + Clone + 'static,
+    S: Serialize,
 {
-    pub async fn call(&self, state: T) {
+    pub async fn call(&self, this: &T, state: &S) {
         let Some(internal) = self.internal.as_ref() else {
             return;
         };
+
+        let state = internal.lua.to_value(state).unwrap();
 
         let callback: mlua::Value = internal
             .lua
             .named_registry_value(&internal.uuid.to_string())
             .unwrap();
         match callback {
-            mlua::Value::Function(f) => f.call_async::<()>(state).await.unwrap(),
+            mlua::Value::Function(f) => f.call_async::<()>((this.clone(), state)).await.unwrap(),
             _ => todo!("Only functions are currently supported"),
         }
     }

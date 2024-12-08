@@ -21,10 +21,10 @@ pub struct Config {
     pub client: WrappedAsyncClient,
 
     #[device_config(from_lua, default)]
-    pub left_callback: ActionCallback<()>,
+    pub left_callback: ActionCallback<HueSwitch, ()>,
 
     #[device_config(from_lua, default)]
-    pub right_callback: ActionCallback<()>,
+    pub right_callback: ActionCallback<HueSwitch, ()>,
 }
 
 #[derive(Debug, Clone)]
@@ -58,7 +58,7 @@ impl LuaDeviceCreate for HueSwitch {
 #[async_trait]
 impl OnMqtt for HueSwitch {
     async fn on_mqtt(&self, message: Publish) {
-        // Check if the message is from the deviec itself or from a remote
+        // Check if the message is from the device itself or from a remote
         if matches(&message.topic, &self.config.mqtt.topic) {
             let action = match serde_json::from_slice::<Zigbee929003017102>(&message.payload) {
                 Ok(message) => message.action,
@@ -70,8 +70,12 @@ impl OnMqtt for HueSwitch {
             debug!(id = Device::get_id(self), "Remote action = {:?}", action);
 
             match action {
-                Zigbee929003017102Action::LeftPress => self.config.left_callback.call(()).await,
-                Zigbee929003017102Action::RightPress => self.config.right_callback.call(()).await,
+                Zigbee929003017102Action::LeftPress => {
+                    self.config.left_callback.call(self, &()).await
+                }
+                Zigbee929003017102Action::RightPress => {
+                    self.config.right_callback.call(self, &()).await
+                }
                 _ => {}
             }
         }

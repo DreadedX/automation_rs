@@ -90,7 +90,7 @@ automation.device_manager:add(IkeaRemote.new({
 	client = mqtt_client,
 	topic = mqtt_z2m("living/remote"),
 	single_button = true,
-	callback = function(on)
+	callback = function(_, on)
 		if on then
 			if living_mixer:is_on() then
 				living_mixer:set_on(false)
@@ -133,7 +133,7 @@ local kettle = IkeaOutlet.new({
 })
 automation.device_manager:add(kettle)
 
-local function set_kettle(on)
+local function set_kettle(_, on)
 	kettle:set_on(on)
 end
 
@@ -269,7 +269,7 @@ automation.device_manager:add(IkeaRemote.new({
 	room = "Hallway",
 	client = mqtt_client,
 	topic = mqtt_z2m("hallway/remote"),
-	callback = function(on)
+	callback = function(_, on)
 		hallway_light_automation:switch_callback(on)
 	end,
 }))
@@ -281,7 +281,7 @@ automation.device_manager:add(ContactSensor.new({
 		topic = mqtt_automation("presence/contact/frontdoor"),
 		timeout = debug and 10 or 15 * 60,
 	},
-	callback = function(open)
+	callback = function(_, open)
 		hallway_light_automation:door_callback(open)
 	end,
 }))
@@ -289,7 +289,7 @@ automation.device_manager:add(ContactSensor.new({
 	identifier = "hallway_trash",
 	topic = mqtt_z2m("hallway/trash"),
 	client = mqtt_client,
-	callback = function(open)
+	callback = function(_, open)
 		hallway_light_automation:trash_callback(open)
 	end,
 }))

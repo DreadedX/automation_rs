@@ -32,7 +32,7 @@ pub struct Config {
     #[device_config(from_lua, default)]
     pub presence: Option<PresenceDeviceConfig>,
     #[device_config(from_lua, default)]
-    pub callback: ActionCallback<bool>,
+    pub callback: ActionCallback<ContactSensor, bool>,
     #[device_config(from_lua)]
     pub client: WrappedAsyncClient,
 }
@@ -116,7 +116,7 @@ impl OnMqtt for ContactSensor {
             return;
         }
 
-        self.config.callback.call(!is_closed).await;
+        self.config.callback.call(self, &!is_closed).await;
 
         debug!(id = self.get_id(), "Updating state to {is_closed}");
         self.state_mut().await.is_closed = is_closed;
