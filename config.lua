@@ -233,7 +233,7 @@ local hallway_light_automation = {
 
 			self.group.set_on(true)
 		elseif not self.state.forced then
-			self.timeout:start(debug and 10 or 60, function()
+			self.timeout:start(debug and 10 or 2 * 60, function()
 				if not self.state.trash_open then
 					self.group.set_on(false)
 				end
