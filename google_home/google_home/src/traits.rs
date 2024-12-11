@@ -14,6 +14,13 @@ traits! {
         async fn on(&self) -> Result<bool, ErrorCode>,
         "action.devices.commands.OnOff" => async fn set_on(&self, on: bool) -> Result<(), ErrorCode>,
     },
+    "action.devices.traits.OpenClose" => trait OpenClose {
+        discrete_only_open_close: Option<bool>,
+        command_only_open_close: Option<bool>,
+        query_only_open_close: Option<bool>,
+        async fn open_percent(&self) -> Result<u8, ErrorCode>,
+        "action.devices.commands.OpenClose" => async fn set_open_percent(&self, open_percent: u8) -> Result<(), ErrorCode>,
+    },
     "action.devices.traits.Brightness" => trait Brightness {
         command_only_brightness: Option<bool>,
         async fn brightness(&self) -> Result<u8, ErrorCode>,

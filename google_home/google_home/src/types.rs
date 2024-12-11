@@ -12,4 +12,10 @@ pub enum Type {
     Scene,
     #[serde(rename = "action.devices.types.AIRPURIFIER")]
     AirPurifier,
+    #[serde(rename = "action.devices.types.DOOR")]
+    Door,
+    #[serde(rename = "action.devices.types.WINDOW")]
+    Window,
+    #[serde(rename = "action.devices.types.DRAWER")]
+    Drawer,
 }

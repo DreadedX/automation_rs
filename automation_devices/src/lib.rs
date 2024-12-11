@@ -96,6 +96,28 @@ macro_rules! impl_device {
                             .unwrap())
                     });
                 }
+
+                if impls::impls!($device: google_home::traits::OpenClose) {
+					// TODO: Make discrete_only_open_close and query_only_open_close static, that way we can
+					// add only the supported functions and drop _percet if discrete is true
+					methods.add_async_method("set_open_percent", |_lua, this, open_percent: u8| async move {
+						(this.deref().cast() as Option<&dyn google_home::traits::OpenClose>)
+							.expect("Cast should be valid")
+							.set_open_percent(open_percent)
+							.await
+							.unwrap();
+
+						Ok(())
+					});
+
+                    methods.add_async_method("open_percent", |_lua, this, _: ()| async move {
+                        Ok((this.deref().cast() as Option<&dyn google_home::traits::OpenClose>)
+                            .expect("Cast should be valid")
+                            .open_percent()
+                            .await
+                            .unwrap())
+                    });
+                }
             }
         }
     };
