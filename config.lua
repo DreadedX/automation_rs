@@ -86,7 +86,7 @@ automation.device_manager:add(living_speakers)
 
 automation.device_manager:add(IkeaRemote.new({
 	name = "Remote",
-	room = "Living",
+	room = "Living Room",
 	client = mqtt_client,
 	topic = mqtt_z2m("living/remote"),
 	single_button = true,
@@ -216,48 +216,42 @@ automation.device_manager:add(HueSwitch.new({
 
 local hallway_light_automation = {
 	timeout = Timeout.new(),
-	state = {
-		door_open = false,
-		trash_open = false,
-		forced = false,
-	},
+	forced = false,
 	switch_callback = function(self, on)
 		self.timeout:cancel()
 		self.group.set_on(on)
-		self.state.forced = on
+		self.forced = on
 	end,
 	door_callback = function(self, open)
-		self.state.door_open = open
 		if open then
 			self.timeout:cancel()
 
 			self.group.set_on(true)
-		elseif not self.state.forced then
+		elseif not self.forced then
 			self.timeout:start(debug and 10 or 2 * 60, function()
-				if not self.state.trash_open then
+				if self.trash:open_percent() == 0 then
 					self.group.set_on(false)
 				end
 			end)
 		end
 	end,
 	trash_callback = function(self, open)
-		self.state.trash_open = open
 		if open then
 			self.group.set_on(true)
 		else
-			if not self.timeout:is_waiting() and not self.state.door_open and not self.state.forced then
+			if not self.timeout:is_waiting() and self.door:open_percent() == 0 and not self.forced then
 				self.group.set_on(false)
 			end
 		end
 	end,
 	light_callback = function(self, on)
-		if on and not self.state.trash_open and not self.state.door_open then
+		if on and self.trash:open_percent() == 0 and self.door:open_percent() == 0 then
 			-- If the door and trash are not open, that means the light got turned on manually
 			self.timeout:cancel()
-			self.state.forced = true
+			self.forced = true
 		elseif not on then
 			-- The light is never forced when it is off
-			self.state.forced = false
+			self.forced = false
 		end
 	end,
 }
@@ -303,8 +297,10 @@ automation.device_manager:add(IkeaRemote.new({
 		hallway_light_automation:switch_callback(on)
 	end,
 }))
-automation.device_manager:add(ContactSensor.new({
-	identifier = "hallway_frontdoor",
+local hallway_frontdoor = ContactSensor.new({
+	name = "Frontdoor",
+	room = "Hallway",
+	sensor_type = "Door",
 	topic = mqtt_z2m("hallway/frontdoor"),
 	client = mqtt_client,
 	presence = {
@@ -314,19 +310,26 @@ automation.device_manager:add(ContactSensor.new({
 	callback = function(_, open)
 		hallway_light_automation:door_callback(open)
 	end,
-}))
-automation.device_manager:add(ContactSensor.new({
-	identifier = "hallway_trash",
+})
+automation.device_manager:add(hallway_frontdoor)
+hallway_light_automation.door = hallway_frontdoor
+
+local hallway_trash = ContactSensor.new({
+	name = "Trash",
+	room = "Hallway",
+	sensor_type = "Drawer",
 	topic = mqtt_z2m("hallway/trash"),
 	client = mqtt_client,
 	callback = function(_, open)
 		hallway_light_automation:trash_callback(open)
 	end,
-}))
+})
+automation.device_manager:add(hallway_trash)
+hallway_light_automation.trash = hallway_trash
 
 automation.device_manager:add(LightOnOff.new({
 	name = "Light",
-	room = "Guest",
+	room = "Guest Room",
 	topic = mqtt_z2m("guest/light"),
 	client = mqtt_client,
 }))
@@ -338,6 +341,32 @@ local bedroom_air_filter = AirFilter.new({
 	client = mqtt_client,
 })
 automation.device_manager:add(bedroom_air_filter)
+
+automation.device_manager:add(ContactSensor.new({
+	name = "Balcony",
+	room = "Living Room",
+	sensor_type = "Door",
+	topic = mqtt_z2m("living/balcony"),
+	client = mqtt_client,
+}))
+automation.device_manager:add(ContactSensor.new({
+	name = "Window",
+	room = "Living Room",
+	topic = mqtt_z2m("living/window"),
+	client = mqtt_client,
+}))
+automation.device_manager:add(ContactSensor.new({
+	name = "Window",
+	room = "Bedroom",
+	topic = mqtt_z2m("bedroom/window"),
+	client = mqtt_client,
+}))
+automation.device_manager:add(ContactSensor.new({
+	name = "Window",
+	room = "Guest Room",
+	topic = mqtt_z2m("guest/window"),
+	client = mqtt_client,
+}))
 
 automation.device_manager:schedule("0 0 19 * * *", function()
 	bedroom_air_filter:set_on(true)
