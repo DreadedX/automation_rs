@@ -368,6 +368,29 @@ automation.device_manager:add(ContactSensor.new({
 	client = mqtt_client,
 }))
 
+local storage_light = LightBrightness.new({
+	name = "Light",
+	room = "Storage",
+	topic = mqtt_z2m("storage/light"),
+	client = mqtt_client,
+})
+automation.device_manager:add(storage_light)
+
+automation.device_manager:add(ContactSensor.new({
+	name = "Door",
+	room = "Storage",
+	sensor_type = "Door",
+	topic = mqtt_z2m("storage/door"),
+	client = mqtt_client,
+	callback = function(_, open)
+		if open then
+			storage_light:set_brightness(100)
+		else
+			storage_light:set_on(false)
+		end
+	end,
+}))
+
 automation.device_manager:schedule("0 0 19 * * *", function()
 	bedroom_air_filter:set_on(true)
 end)
