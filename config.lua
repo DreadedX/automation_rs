@@ -187,6 +187,24 @@ automation.device_manager:add(IkeaOutlet.new({
 	client = mqtt_client,
 }))
 
+local workbench_light = LightBrightness.new({
+	name = "Light",
+	room = "Workbench",
+	topic = mqtt_z2m("workbench/light"),
+	client = mqtt_client,
+})
+automation.device_manager:add(workbench_light)
+
+automation.device_manager:add(IkeaRemote.new({
+	name = "Remote",
+	room = "Workbench",
+	client = mqtt_client,
+	topic = mqtt_z2m("workbench/remote"),
+	callback = function(_, on)
+		workbench_light:set_on(on)
+	end,
+}))
+
 local hallway_top_light = HueGroup.new({
 	identifier = "hallway_top_light",
 	ip = hue_ip,
