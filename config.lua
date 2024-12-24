@@ -21,9 +21,7 @@ automation.fulfillment = {
 }
 
 local mqtt_client = automation.new_mqtt_client({
-	host = (host == "zeus" and "olympus.lan.huizinga.dev")
-		or (host == "hephaestus" and "olympus.vpn.huizinga.dev")
-		or "mosquitto",
+	host = ((host == "zeus" or host == "hephaestus") and "olympus.lan.huizinga.dev") or "mosquitto",
 	port = 8883,
 	client_name = "automation-" .. host,
 	username = "mqtt",
@@ -48,7 +46,7 @@ automation.device_manager:add(DebugBridge.new({
 	client = mqtt_client,
 }))
 
-local hue_ip = "10.0.0.136"
+local hue_ip = "10.0.0.102"
 local hue_token = automation.util.get_env("HUE_TOKEN")
 
 automation.device_manager:add(HueBridge.new({
@@ -76,12 +74,13 @@ automation.device_manager:add(WakeOnLAN.new({
 	topic = mqtt_automation("appliance/living_room/zeus"),
 	client = mqtt_client,
 	mac_address = "30:9c:23:60:9c:13",
-	broadcast_ip = "10.0.0.255",
+	broadcast_ip = "10.0.3.255",
 }))
 
-local living_mixer = KasaOutlet.new({ identifier = "living_mixer", ip = "10.0.0.84" })
+-- TODO: Update this to 10.0.0.101 when DHCP want to finally work
+local living_mixer = KasaOutlet.new({ identifier = "living_mixer", ip = "10.0.0.101" })
 automation.device_manager:add(living_mixer)
-local living_speakers = KasaOutlet.new({ identifier = "living_speakers", ip = "10.0.0.127" })
+local living_speakers = KasaOutlet.new({ identifier = "living_speakers", ip = "10.0.0.100" })
 automation.device_manager:add(living_speakers)
 
 automation.device_manager:add(IkeaRemote.new({
