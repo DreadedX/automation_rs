@@ -78,9 +78,19 @@ automation.device_manager:add(WakeOnLAN.new({
 }))
 
 -- TODO: Update this to 10.0.0.101 when DHCP want to finally work
-local living_mixer = KasaOutlet.new({ identifier = "living_mixer", ip = "10.0.0.101" })
+local living_mixer = IkeaOutlet.new({
+	name = "Mixer",
+	room = "Living Room",
+	topic = mqtt_z2m("living/mixer"),
+	client = mqtt_client,
+})
 automation.device_manager:add(living_mixer)
-local living_speakers = KasaOutlet.new({ identifier = "living_speakers", ip = "10.0.0.100" })
+local living_speakers = IkeaOutlet.new({
+	name = "Speakers",
+	room = "Living Room",
+	topic = mqtt_z2m("living/speakers"),
+	client = mqtt_client,
+})
 automation.device_manager:add(living_speakers)
 
 automation.device_manager:add(IkeaRemote.new({
