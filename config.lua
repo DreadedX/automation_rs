@@ -364,7 +364,7 @@ automation.device_manager:add(LightOnOff.new({
 local bedroom_air_filter = AirFilter.new({
 	name = "Air Filter",
 	room = "Bedroom",
-	url = "http://airfilter.lan.huizinga.dev",
+	url = "http://10.0.1.245",
 })
 automation.device_manager:add(bedroom_air_filter)
 
