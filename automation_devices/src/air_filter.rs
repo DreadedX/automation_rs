@@ -1,11 +1,6 @@
-use std::sync::Arc;
-
 use async_trait::async_trait;
-use automation_lib::config::{InfoConfig, MqttDeviceConfig};
+use automation_lib::config::InfoConfig;
 use automation_lib::device::{Device, LuaDeviceCreate};
-use automation_lib::event::OnMqtt;
-use automation_lib::messages::{AirFilterFanState, AirFilterState, SetAirFilterFanState};
-use automation_lib::mqtt::WrappedAsyncClient;
 use automation_macro::LuaDeviceConfig;
 use google_home::device::Name;
 use google_home::errors::ErrorCode;
@@ -14,51 +9,57 @@ use google_home::traits::{
     TemperatureUnit,
 };
 use google_home::types::Type;
-use rumqttc::Publish;
-use tokio::sync::{RwLock, RwLockReadGuard, RwLockWriteGuard};
-use tracing::{debug, error, trace, warn};
+use thiserror::Error;
+use tracing::{debug, trace};
 
 #[derive(Debug, Clone, LuaDeviceConfig)]
 pub struct Config {
     #[device_config(flatten)]
     pub info: InfoConfig,
-    #[device_config(flatten)]
-    pub mqtt: MqttDeviceConfig,
-    #[device_config(from_lua)]
-    pub client: WrappedAsyncClient,
+    pub url: String,
 }
 
 #[derive(Debug, Clone)]
 pub struct AirFilter {
     config: Config,
-    state: Arc<RwLock<AirFilterState>>,
 }
 
+#[derive(Debug, Error)]
+pub enum Error {
+    #[error("Connection error")]
+    ReqwestError(#[from] reqwest::Error),
+}
+
+impl From<Error> for google_home::errors::ErrorCode {
+    fn from(value: Error) -> Self {
+        match value {
+            // Assume that if we encounter a ReqwestError the device is offline
+            Error::ReqwestError(_) => {
+                Self::DeviceError(google_home::errors::DeviceError::DeviceOffline)
+            }
+        }
+    }
+}
+
+// TODO: Handle error properly
 impl AirFilter {
-    async fn set_speed(&self, state: AirFilterFanState) {
-        let message = SetAirFilterFanState::new(state);
+    async fn set_fan_speed(&self, speed: air_filter_types::FanSpeed) -> Result<(), Error> {
+        let message = air_filter_types::SetFanSpeed::new(speed);
+        let url = format!("{}/state/fan", self.config.url);
+        let client = reqwest::Client::new();
+        client.put(url).json(&message).send().await?;
 
-        let topic = format!("{}/set", self.config.mqtt.topic);
-        // TODO: Handle potential errors here
-        self.config
-            .client
-            .publish(
-                &topic,
-                rumqttc::QoS::AtLeastOnce,
-                false,
-                serde_json::to_string(&message).unwrap(),
-            )
-            .await
-            .map_err(|err| warn!("Failed to update state on {topic}: {err}"))
-            .ok();
+        Ok(())
     }
 
-    async fn state(&self) -> RwLockReadGuard<AirFilterState> {
-        self.state.read().await
+    async fn get_fan_state(&self) -> Result<air_filter_types::FanState, Error> {
+        let url = format!("{}/state/fan", self.config.url);
+        Ok(reqwest::get(url).await?.json().await?)
     }
 
-    async fn state_mut(&self) -> RwLockWriteGuard<AirFilterState> {
-        self.state.write().await
+    async fn get_sensor_data(&self) -> Result<air_filter_types::SensorData, Error> {
+        let url = format!("{}/state/sensor", self.config.url);
+        Ok(reqwest::get(url).await?.json().await?)
     }
 }
 
@@ -70,19 +71,7 @@ impl LuaDeviceCreate for AirFilter {
     async fn create(config: Self::Config) -> Result<Self, Self::Error> {
         trace!(id = config.info.identifier(), "Setting up AirFilter");
 
-        config
-            .client
-            .subscribe(&config.mqtt.topic, rumqttc::QoS::AtLeastOnce)
-            .await?;
-
-        let state = AirFilterState {
-            state: AirFilterFanState::Off,
-            humidity: 0.0,
-            temperature: 0.0,
-        };
-        let state = Arc::new(RwLock::new(state));
-
-        Ok(Self { config, state })
+        Ok(Self { config })
     }
 }
 
@@ -93,30 +82,6 @@ impl Device for AirFilter {
 }
 
 #[async_trait]
-impl OnMqtt for AirFilter {
-    async fn on_mqtt(&self, message: Publish) {
-        if !rumqttc::matches(&message.topic, &self.config.mqtt.topic) {
-            return;
-        }
-
-        let state = match AirFilterState::try_from(message) {
-            Ok(state) => state,
-            Err(err) => {
-                error!(id = Device::get_id(self), "Failed to parse message: {err}");
-                return;
-            }
-        };
-
-        if state == *self.state().await {
-            return;
-        }
-
-        debug!(id = Device::get_id(self), "Updating state to {state:?}");
-
-        *self.state_mut().await = state;
-    }
-}
-
 impl google_home::Device for AirFilter {
     fn get_device_type(&self) -> Type {
         Type::AirPurifier
@@ -130,8 +95,8 @@ impl google_home::Device for AirFilter {
         Device::get_id(self)
     }
 
-    fn is_online(&self) -> bool {
-        true
+    async fn is_online(&self) -> bool {
+        self.get_sensor_data().await.is_ok()
     }
 
     fn get_room_hint(&self) -> Option<&str> {
@@ -146,16 +111,16 @@ impl google_home::Device for AirFilter {
 #[async_trait]
 impl OnOff for AirFilter {
     async fn on(&self) -> Result<bool, ErrorCode> {
-        Ok(self.state().await.state != AirFilterFanState::Off)
+        Ok(self.get_fan_state().await?.speed != air_filter_types::FanSpeed::Off)
     }
 
     async fn set_on(&self, on: bool) -> Result<(), ErrorCode> {
         debug!("Turning on air filter: {on}");
 
         if on {
-            self.set_speed(AirFilterFanState::High).await;
+            self.set_fan_speed(air_filter_types::FanSpeed::High).await?;
         } else {
-            self.set_speed(AirFilterFanState::Off).await;
+            self.set_fan_speed(air_filter_types::FanSpeed::Off).await?;
         }
 
         Ok(())
@@ -201,11 +166,12 @@ impl FanSpeed for AirFilter {
     }
 
     async fn current_fan_speed_setting(&self) -> Result<String, ErrorCode> {
-        let speed = match self.state().await.state {
-            AirFilterFanState::Off => "off",
-            AirFilterFanState::Low => "low",
-            AirFilterFanState::Medium => "medium",
-            AirFilterFanState::High => "high",
+        let speed = self.get_fan_state().await?.speed;
+        let speed = match speed {
+            air_filter_types::FanSpeed::Off => "off",
+            air_filter_types::FanSpeed::Low => "low",
+            air_filter_types::FanSpeed::Medium => "medium",
+            air_filter_types::FanSpeed::High => "high",
         };
 
         Ok(speed.into())
@@ -213,19 +179,19 @@ impl FanSpeed for AirFilter {
 
     async fn set_fan_speed(&self, fan_speed: String) -> Result<(), ErrorCode> {
         let fan_speed = fan_speed.as_str();
-        let state = if fan_speed == "off" {
-            AirFilterFanState::Off
+        let speed = if fan_speed == "off" {
+            air_filter_types::FanSpeed::Off
         } else if fan_speed == "low" {
-            AirFilterFanState::Low
+            air_filter_types::FanSpeed::Low
         } else if fan_speed == "medium" {
-            AirFilterFanState::Medium
+            air_filter_types::FanSpeed::Medium
         } else if fan_speed == "high" {
-            AirFilterFanState::High
+            air_filter_types::FanSpeed::High
         } else {
             return Err(google_home::errors::DeviceError::TransientError.into());
         };
 
-        self.set_speed(state).await;
+        self.set_fan_speed(speed).await?;
 
         Ok(())
     }
@@ -238,7 +204,7 @@ impl HumiditySetting for AirFilter {
     }
 
     async fn humidity_ambient_percent(&self) -> Result<isize, ErrorCode> {
-        Ok(self.state().await.humidity.round() as isize)
+        Ok(self.get_sensor_data().await?.humidity().round() as isize)
     }
 }
 
@@ -253,8 +219,8 @@ impl TemperatureSetting for AirFilter {
         TemperatureUnit::Celsius
     }
 
-    async fn temperature_ambient_celsius(&self) -> f32 {
+    async fn temperature_ambient_celsius(&self) -> Result<f32, ErrorCode> {
         // HACK: Round to one decimal place
-        (10.0 * self.state().await.temperature).round() / 10.0
+        Ok((10.0 * self.get_sensor_data().await?.temperature()).round() / 10.0)
     }
 }

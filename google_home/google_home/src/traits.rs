@@ -52,7 +52,7 @@ traits! {
         // TODO: Add rename
         temperatureUnitForUX: TemperatureUnit,
 
-        async fn temperature_ambient_celsius(&self) -> f32,
+        async fn temperature_ambient_celsius(&self) -> Result<f32, ErrorCode>,
     }
 }
 

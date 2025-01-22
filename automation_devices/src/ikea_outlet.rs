@@ -127,6 +127,7 @@ impl OnPresence for IkeaOutlet {
     }
 }
 
+#[async_trait]
 impl google_home::Device for IkeaOutlet {
     fn get_device_type(&self) -> Type {
         match self.config.outlet_type {
@@ -144,7 +145,7 @@ impl google_home::Device for IkeaOutlet {
         Device::get_id(self)
     }
 
-    fn is_online(&self) -> bool {
+    async fn is_online(&self) -> bool {
         true
     }
 

@@ -191,6 +191,7 @@ impl<T: LightState> OnPresence for Light<T> {
     }
 }
 
+#[async_trait]
 impl<T: LightState> google_home::Device for Light<T> {
     fn get_device_type(&self) -> Type {
         Type::Light
@@ -204,7 +205,7 @@ impl<T: LightState> google_home::Device for Light<T> {
         Device::get_id(self)
     }
 
-    fn is_online(&self) -> bool {
+    async fn is_online(&self) -> bool {
         true
     }
 

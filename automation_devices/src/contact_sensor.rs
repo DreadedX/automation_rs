@@ -107,6 +107,7 @@ impl Device for ContactSensor {
     }
 }
 
+#[async_trait]
 impl google_home::Device for ContactSensor {
     fn get_device_type(&self) -> google_home::types::Type {
         match self.config.sensor_type {
@@ -132,7 +133,7 @@ impl google_home::Device for ContactSensor {
         false
     }
 
-    fn is_online(&self) -> bool {
+    async fn is_online(&self) -> bool {
         true
     }
 }

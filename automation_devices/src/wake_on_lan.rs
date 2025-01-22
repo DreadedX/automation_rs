@@ -75,6 +75,7 @@ impl OnMqtt for WakeOnLAN {
     }
 }
 
+#[async_trait]
 impl google_home::Device for WakeOnLAN {
     fn get_device_type(&self) -> Type {
         Type::Scene
@@ -91,7 +92,7 @@ impl google_home::Device for WakeOnLAN {
         Device::get_id(self)
     }
 
-    fn is_online(&self) -> bool {
+    async fn is_online(&self) -> bool {
         true
     }
 

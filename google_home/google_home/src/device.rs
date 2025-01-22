@@ -11,7 +11,7 @@ pub trait Device: DeviceFulfillment {
     fn get_device_type(&self) -> Type;
     fn get_device_name(&self) -> Name;
     fn get_id(&self) -> String;
-    fn is_online(&self) -> bool;
+    async fn is_online(&self) -> bool;
 
     // Default values that can optionally be overridden
     fn will_report_state(&self) -> bool {
@@ -37,29 +37,39 @@ pub trait Device: DeviceFulfillment {
         }
         device.device_info = self.get_device_info();
 
-        let (traits, attributes) = DeviceFulfillment::sync(self).await.unwrap();
-
-        device.traits = traits;
-        device.attributes = attributes;
+        // TODO: Return the appropriate error
+        if let Ok((traits, attributes)) = DeviceFulfillment::sync(self).await {
+            device.traits = traits;
+            device.attributes = attributes;
+        }
 
         device
     }
 
     async fn query(&self) -> response::query::Device {
         let mut device = response::query::Device::new();
-        if !self.is_online() {
+        if !self.is_online().await {
             device.set_offline();
         }
 
-        device.state = DeviceFulfillment::query(self).await.unwrap();
+        // TODO: Return the appropriate error
+        if let Ok(state) = DeviceFulfillment::query(self).await {
+            device.state = state;
+        }
 
         device
     }
 
     async fn execute(&self, command: Command) -> Result<(), ErrorCode> {
-        DeviceFulfillment::execute(self, command.clone())
+        // TODO: Do something with the return value, or just get rut of the return value?
+        if DeviceFulfillment::execute(self, command.clone())
             .await
-            .unwrap();
+            .is_err()
+        {
+            return Err(ErrorCode::DeviceError(
+                crate::errors::DeviceError::TransientError,
+            ));
+        }
 
         Ok(())
     }

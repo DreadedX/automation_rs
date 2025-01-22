@@ -25,3 +25,4 @@ bytes = { workspace = true }
 thiserror = { workspace = true }
 eui48 = { workspace = true }
 wakey = { workspace = true }
+air_filter_types = { workspace = true }

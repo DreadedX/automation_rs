@@ -364,8 +364,7 @@ automation.device_manager:add(LightOnOff.new({
 local bedroom_air_filter = AirFilter.new({
 	name = "Air Filter",
 	room = "Bedroom",
-	topic = "pico/filter/bedroom",
-	client = mqtt_client,
+	url = "http://airfilter.lan.huizinga.dev",
 })
 automation.device_manager:add(bedroom_air_filter)
 

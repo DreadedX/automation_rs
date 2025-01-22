@@ -140,7 +140,7 @@ impl GoogleHome {
                             if let Some(device) = devices.get(id.as_str())
                                 && let Some(device) = device.as_ref().cast()
                             {
-                                if !device.is_online() {
+                                if !device.is_online().await {
                                     return (id, Ok(false));
                                 }
 
