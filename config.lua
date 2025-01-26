@@ -78,14 +78,14 @@ automation.device_manager:add(WakeOnLAN.new({
 }))
 
 -- TODO: Update this to 10.0.0.101 when DHCP want to finally work
-local living_mixer = IkeaOutlet.new({
+local living_mixer = OutletOnOff.new({
 	name = "Mixer",
 	room = "Living Room",
 	topic = mqtt_z2m("living/mixer"),
 	client = mqtt_client,
 })
 automation.device_manager:add(living_mixer)
-local living_speakers = IkeaOutlet.new({
+local living_speakers = OutletOnOff.new({
 	name = "Speakers",
 	room = "Living Room",
 	topic = mqtt_z2m("living/speakers"),
@@ -118,12 +118,12 @@ automation.device_manager:add(IkeaRemote.new({
 	end,
 }))
 
-local function off_timeout(duration)
+local function kettle_timeout()
 	local timeout = Timeout.new()
 
-	return function(self, on)
-		if on then
-			timeout:start(duration, function()
+	return function(self, state)
+		if state.state and state.power < 100 then
+			timeout:start(3, function()
 				self:set_on(false)
 			end)
 		else
@@ -132,13 +132,13 @@ local function off_timeout(duration)
 	end
 end
 
-local kettle = IkeaOutlet.new({
+local kettle = OutletPower.new({
 	outlet_type = "Kettle",
 	name = "Kettle",
 	room = "Kitchen",
 	topic = mqtt_z2m("kitchen/kettle"),
 	client = mqtt_client,
-	callback = off_timeout(debug and 5 or 300),
+	callback = kettle_timeout(),
 })
 automation.device_manager:add(kettle)
 
@@ -164,6 +164,20 @@ automation.device_manager:add(IkeaRemote.new({
 	callback = set_kettle,
 }))
 
+local function off_timeout(duration)
+	local timeout = Timeout.new()
+
+	return function(self, state)
+		if state.state then
+			timeout:start(duration, function()
+				self:set_on(false)
+			end)
+		else
+			timeout:cancel()
+		end
+	end
+end
+
 automation.device_manager:add(LightOnOff.new({
 	name = "Light",
 	room = "Bathroom",
@@ -180,8 +194,8 @@ automation.device_manager:add(Washer.new({
 	event_channel = automation.device_manager:event_channel(),
 }))
 
-automation.device_manager:add(IkeaOutlet.new({
-	outlet_type = "Charger",
+automation.device_manager:add(OutletOnOff.new({
+	presence_auto_off = false,
 	name = "Charger",
 	room = "Workbench",
 	topic = mqtt_z2m("workbench/charger"),
@@ -189,7 +203,7 @@ automation.device_manager:add(IkeaOutlet.new({
 	callback = off_timeout(debug and 5 or 20 * 3600),
 }))
 
-automation.device_manager:add(IkeaOutlet.new({
+automation.device_manager:add(OutletOnOff.new({
 	name = "Outlet",
 	room = "Workbench",
 	topic = mqtt_z2m("workbench/outlet"),
