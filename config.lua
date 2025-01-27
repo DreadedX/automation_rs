@@ -77,7 +77,6 @@ automation.device_manager:add(WakeOnLAN.new({
 	broadcast_ip = "10.0.3.255",
 }))
 
--- TODO: Update this to 10.0.0.101 when DHCP want to finally work
 local living_mixer = OutletOnOff.new({
 	name = "Mixer",
 	room = "Living Room",
@@ -378,7 +377,7 @@ automation.device_manager:add(LightOnOff.new({
 local bedroom_air_filter = AirFilter.new({
 	name = "Air Filter",
 	room = "Bedroom",
-	url = "http://10.0.1.245",
+	url = "http://10.0.0.103",
 })
 automation.device_manager:add(bedroom_air_filter)
 
