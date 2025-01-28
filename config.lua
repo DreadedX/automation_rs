@@ -233,7 +233,6 @@ local hallway_top_light = HueGroup.new({
 	login = hue_token,
 	group_id = 83,
 	scene_id = "QeufkFDICEHWeKJ7",
-	client = mqtt_client,
 })
 automation.device_manager:add(HueSwitch.new({
 	name = "SwitchBottom",
@@ -313,7 +312,6 @@ local hallway_bottom_lights = HueGroup.new({
 	login = hue_token,
 	group_id = 81,
 	scene_id = "3qWKxGVadXFFG4o",
-	client = mqtt_client,
 })
 automation.device_manager:add(hallway_bottom_lights)
 

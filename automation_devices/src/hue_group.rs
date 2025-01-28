@@ -2,7 +2,6 @@ use std::net::SocketAddr;
 
 use anyhow::Result;
 use async_trait::async_trait;
-use automation_lib::mqtt::WrappedAsyncClient;
 use automation_macro::LuaDeviceConfig;
 use google_home::errors::ErrorCode;
 use google_home::traits::OnOff;
@@ -18,8 +17,6 @@ pub struct Config {
     pub login: String,
     pub group_id: isize,
     pub scene_id: String,
-    #[device_config(from_lua)]
-    pub client: WrappedAsyncClient,
 }
 
 #[derive(Debug, Clone)]
