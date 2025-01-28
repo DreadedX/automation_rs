@@ -19,7 +19,6 @@ impls = { workspace = true }
 serde = { workspace = true }
 reqwest = { workspace = true }           # Use rustls, since the other packages also use rustls
 anyhow = { workspace = true }
-zigbee2mqtt-types = { workspace = true }
 axum = { workspace = true }
 bytes = { workspace = true }
 thiserror = { workspace = true }

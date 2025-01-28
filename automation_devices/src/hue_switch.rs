@@ -6,8 +6,8 @@ use automation_lib::event::OnMqtt;
 use automation_lib::mqtt::WrappedAsyncClient;
 use automation_macro::LuaDeviceConfig;
 use rumqttc::{matches, Publish};
+use serde::Deserialize;
 use tracing::{debug, trace, warn};
-use zigbee2mqtt_types::philips::{Zigbee929003017102, Zigbee929003017102Action};
 
 #[derive(Debug, Clone, LuaDeviceConfig)]
 pub struct Config {
@@ -25,6 +25,30 @@ pub struct Config {
 
     #[device_config(from_lua, default)]
     pub right_callback: ActionCallback<HueSwitch, ()>,
+
+    #[device_config(from_lua, default)]
+    pub left_hold_callback: ActionCallback<HueSwitch, ()>,
+
+    #[device_config(from_lua, default)]
+    pub right_hold_callback: ActionCallback<HueSwitch, ()>,
+}
+
+#[derive(Debug, Clone, Deserialize)]
+#[serde(rename_all = "snake_case")]
+enum Action {
+    LeftPress,
+    LeftPressRelease,
+    LeftHold,
+    LeftHoldRelease,
+    RightPress,
+    RightPressRelease,
+    RightHold,
+    RightHoldRelease,
+}
+
+#[derive(Debug, Clone, Deserialize)]
+struct State {
+    action: Action,
 }
 
 #[derive(Debug, Clone)]
@@ -60,7 +84,7 @@ impl OnMqtt for HueSwitch {
     async fn on_mqtt(&self, message: Publish) {
         // Check if the message is from the device itself or from a remote
         if matches(&message.topic, &self.config.mqtt.topic) {
-            let action = match serde_json::from_slice::<Zigbee929003017102>(&message.payload) {
+            let action = match serde_json::from_slice::<State>(&message.payload) {
                 Ok(message) => message.action,
                 Err(err) => {
                     warn!(id = Device::get_id(self), "Failed to parse message: {err}");
@@ -70,12 +94,10 @@ impl OnMqtt for HueSwitch {
             debug!(id = Device::get_id(self), "Remote action = {:?}", action);
 
             match action {
-                Zigbee929003017102Action::LeftPress => {
-                    self.config.left_callback.call(self, &()).await
-                }
-                Zigbee929003017102Action::RightPress => {
-                    self.config.right_callback.call(self, &()).await
-                }
+                Action::LeftPressRelease => self.config.left_callback.call(self, &()).await,
+                Action::LeftHold => self.config.left_hold_callback.call(self, &()).await,
+                Action::RightPressRelease => self.config.right_callback.call(self, &()).await,
+                Action::RightHold => self.config.right_hold_callback.call(self, &()).await,
                 _ => {}
             }
         }
