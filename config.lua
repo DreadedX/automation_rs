@@ -420,6 +420,36 @@ local bedroom_air_filter = AirFilter.new({
 })
 automation.device_manager:add(bedroom_air_filter)
 
+local bedroom_lights = HueGroup.new({
+	identifier = "bedroom_lights",
+	ip = hue_ip,
+	login = hue_token,
+	group_id = 3,
+	scene_id = "PvRs-lGD4VRytL9",
+})
+automation.device_manager:add(bedroom_lights)
+local bedroom_lights_relax = HueGroup.new({
+	identifier = "bedroom_lights",
+	ip = hue_ip,
+	login = hue_token,
+	group_id = 3,
+	scene_id = "60tfTyR168v2csz",
+})
+automation.device_manager:add(bedroom_lights_relax)
+
+automation.device_manager:add(HueSwitch.new({
+	name = "Switch",
+	room = "Bedroom",
+	client = mqtt_client,
+	topic = mqtt_z2m("bedroom/switch"),
+	left_callback = function()
+		bedroom_lights:set_on(not bedroom_lights:on())
+	end,
+	left_hold_callback = function()
+		bedroom_lights_relax:set_on(true)
+	end,
+}))
+
 automation.device_manager:add(ContactSensor.new({
 	name = "Balcony",
 	room = "Living Room",
