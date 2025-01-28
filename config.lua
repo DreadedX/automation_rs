@@ -59,6 +59,47 @@ automation.device_manager:add(HueBridge.new({
 	},
 }))
 
+local kitchen_lights = HueGroup.new({
+	identifier = "kitchen_lights",
+	ip = hue_ip,
+	login = hue_token,
+	group_id = 7,
+	scene_id = "7MJLG27RzeRAEVJ",
+})
+automation.device_manager:add(kitchen_lights)
+local living_lights = HueGroup.new({
+	identifier = "living_lights",
+	ip = hue_ip,
+	login = hue_token,
+	group_id = 1,
+	scene_id = "SNZw7jUhQ3cXSjkj",
+})
+automation.device_manager:add(living_lights)
+local living_lights_relax = HueGroup.new({
+	identifier = "living_lights",
+	ip = hue_ip,
+	login = hue_token,
+	group_id = 1,
+	scene_id = "eRJ3fvGHCcb6yNw",
+})
+automation.device_manager:add(living_lights_relax)
+
+automation.device_manager:add(HueSwitch.new({
+	name = "Switch",
+	room = "Living",
+	client = mqtt_client,
+	topic = mqtt_z2m("living/switch"),
+	left_callback = function()
+		kitchen_lights:set_on(not kitchen_lights:on())
+	end,
+	right_callback = function()
+		living_lights:set_on(not living_lights:on())
+	end,
+	right_hold_callback = function()
+		living_lights_relax:set_on(true)
+	end,
+}))
+
 automation.device_manager:add(LightSensor.new({
 	identifier = "living_light_sensor",
 	topic = mqtt_z2m("living/light"),
