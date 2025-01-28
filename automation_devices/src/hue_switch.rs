@@ -95,9 +95,20 @@ impl OnMqtt for HueSwitch {
 
             match action {
                 Action::LeftPressRelease => self.config.left_callback.call(self, &()).await,
-                Action::LeftHold => self.config.left_hold_callback.call(self, &()).await,
                 Action::RightPressRelease => self.config.right_callback.call(self, &()).await,
+                Action::LeftHold => self.config.left_hold_callback.call(self, &()).await,
                 Action::RightHold => self.config.right_hold_callback.call(self, &()).await,
+                // If there is no hold action, the switch will act like a normal release
+                Action::RightHoldRelease => {
+                    if !self.config.right_hold_callback.is_set() {
+                        self.config.right_callback.call(self, &()).await
+                    }
+                }
+                Action::LeftHoldRelease => {
+                    if !self.config.left_hold_callback.is_set() {
+                        self.config.left_callback.call(self, &()).await
+                    }
+                }
                 _ => {}
             }
         }

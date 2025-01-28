@@ -64,4 +64,8 @@ where
             _ => todo!("Only functions are currently supported"),
         }
     }
+
+    pub fn is_set(&self) -> bool {
+        self.internal.is_some()
+    }
 }
