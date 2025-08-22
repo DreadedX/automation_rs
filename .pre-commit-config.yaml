@@ -5,15 +5,11 @@ repos:
       - id: trailing-whitespace
       - id: end-of-file-fixer
       - id: check-yaml
+        args:
+          - --allow-multiple-documents
       - id: check-toml
       - id: check-added-large-files
       - id: check-merge-conflict
-
-  - repo: https://github.com/doublify/pre-commit-rust
-    rev: v1.0
-    hooks:
-      - id: clippy
-      - id: fmt
 
   - repo: https://github.com/JohnnyMorganz/StyLua
     rev: v0.20.0
@@ -26,7 +22,59 @@ repos:
       - id: typos
         args: ["--force-exclude"]
 
-  - repo: https://github.com/pryorda/dockerfilelint-precommit-hooks
-    rev: v0.1.0
+  - repo: local
     hooks:
-      - id: dockerfilelint
+      - id: fmt
+        name: fmt
+        description: Format files with cargo fmt.
+        entry: cargo +nightly fmt
+        language: system
+        types: [rust]
+        args: ["--", "--check"]
+        # For some reason some formatting is different depending on how you invoke?
+        pass_filenames: false
+
+      - id: clippy
+        name: clippy
+        description: Lint rust sources
+        entry: cargo clippy
+        language: system
+        args: ["--", "-D", "warnings"]
+        types: [file]
+        files: (\.rs|Cargo.lock)$
+        pass_filenames: false
+
+      - id: audit
+        name: audit
+        description: Audit packages
+        entry: cargo audit
+        args: ["--deny", "warnings"]
+        language: system
+        pass_filenames: false
+        verbose: true
+        always_run: true
+
+      - id: udeps
+        name: unused
+        description: Check for unused crates
+        entry: cargo udeps
+        args: ["--workspace"]
+        language: system
+        types: [file]
+        files: (\.rs|Cargo.lock)$
+        pass_filenames: false
+
+      - id: test
+        name: test
+        description: Rust test
+        entry: cargo test
+        language: system
+        args: ["--workspace"]
+        types: [file]
+        files: (\.rs|Cargo.lock)$
+        pass_filenames: false
+
+  - repo: https://github.com/hadolint/hadolint
+    rev: v2.12.0
+    hooks:
+      - id: hadolint
