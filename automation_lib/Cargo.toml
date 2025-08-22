@@ -15,14 +15,12 @@ reqwest = { workspace = true }
 serde_repr = { workspace = true }
 tracing = { workspace = true }
 bytes = { workspace = true }
-pollster = { workspace = true }
 async-trait = { workspace = true }
 futures = { workspace = true }
 thiserror = { workspace = true }
 indexmap = { workspace = true }
 tokio-cron-scheduler = { workspace = true }
 mlua = { workspace = true }
-tokio-util = { workspace = true }
 uuid = { workspace = true }
 dyn-clone = { workspace = true }
 impls = { workspace = true }
