@@ -96,6 +96,26 @@ macro_rules! impl_device {
                     });
                 }
 
+                if impls::impls!($device: google_home::traits::ColorSetting) {
+                    methods.add_async_method("set_color_temperature", |_lua, this, temperature: u32| async move {
+                        (this.deref().cast() as Option<&dyn google_home::traits::ColorSetting>)
+                            .expect("Cast should be valid")
+                            .set_color(google_home::traits::Color {temperature})
+                            .await
+                            .unwrap();
+
+                        Ok(())
+                    });
+
+                    methods.add_async_method("color_temperature", |_lua, this, _: ()| async move {
+                        Ok((this.deref().cast() as Option<&dyn google_home::traits::ColorSetting>)
+                            .expect("Cast should be valid")
+                            .color()
+                            .await
+                            .temperature)
+                    });
+                }
+
                 if impls::impls!($device: google_home::traits::OpenClose) {
 					// TODO: Make discrete_only_open_close and query_only_open_close static, that way we can
 					// add only the supported functions and drop _percet if discrete is true

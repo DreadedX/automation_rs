@@ -1,7 +1,7 @@
 #![allow(non_snake_case)]
 use automation_cast::Cast;
 use google_home_macro::traits;
-use serde::Serialize;
+use serde::{Deserialize, Serialize};
 
 use crate::errors::ErrorCode;
 use crate::Device;
@@ -25,6 +25,12 @@ traits! {
         command_only_brightness: Option<bool>,
         async fn brightness(&self) -> Result<u8, ErrorCode>,
         "action.devices.commands.BrightnessAbsolute" => async fn set_brightness(&self, brightness: u8) -> Result<(), ErrorCode>,
+    },
+    "action.devices.traits.ColorSetting" => trait ColorSetting {
+        color_temperature_range: ColorTemperatureRange,
+
+        async fn color(&self) -> Color,
+        "action.devices.commands.ColorAbsolute" => async fn set_color(&self, color: Color) -> Result<(), ErrorCode>,
     },
     "action.devices.traits.Scene" => trait Scene {
         scene_reversible: Option<bool>,
@@ -54,6 +60,20 @@ traits! {
 
         async fn temperature_ambient_celsius(&self) -> Result<f32, ErrorCode>,
     }
+}
+
+#[derive(Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct ColorTemperatureRange {
+    pub temperature_min_k: u32,
+    pub temperature_max_k: u32,
+}
+
+#[derive(Debug, Copy, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct Color {
+    #[serde(rename(serialize = "temperatureK"))]
+    pub temperature: u32,
 }
 
 #[derive(Debug, Serialize)]
