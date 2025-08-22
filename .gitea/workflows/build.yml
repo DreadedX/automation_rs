@@ -1,84 +1,24 @@
-# Based on: https://pastebin.com/99Fq2b2w
 name: Build and deploy
 on:
     push:
         branches:
             - master
             - feature/**
+        tags:
+            - v*.*.*
 
 jobs:
     build:
-        name: Build application
-        runs-on: ubuntu-latest
-        container: catthehacker/ubuntu:act-latest
-        steps:
-            - name: Checkout
-              uses: actions/checkout@v4
-
-            - name: Setup Rust
-              uses: actions-rust-lang/setup-rust-toolchain@v1
-              with:
-                  rustflags: ""
-
-            - name: Build
-              run: cargo build --release
-
-            - name: Upload artifact
-              uses: actions/upload-artifact@v3
-              with:
-                  name: automation
-                  path: target/release/automation
-
-    container:
-        name: Build container
-        runs-on: ubuntu-latest
-        needs: [build]
-        container: catthehacker/ubuntu:act-latest
-        steps:
-            - name: Checkout
-              uses: actions/checkout@v4
-
-            - name: Download artifact
-              uses: actions/download-artifact@v3
-              with:
-                  name: automation
-
-            - name: Set permissions
-              run: |
-                  chown 65532:65532 ./automation
-                  chmod 0755 ./automation
-
-            - name: Docker meta
-              id: meta
-              uses: https://github.com/docker/metadata-action@v5
-              with:
-                  images: git.huizinga.dev/dreaded_x/automation_rs
-                  tags: |
-                      type=ref,event=branch
-                      type=ref,event=pr
-                      type=semver,pattern={{version}}
-                      type=semver,pattern={{major}}.{{minor}}
-
-            - name: Login to registry
-              uses: https://github.com/docker/login-action@v3
-              with:
-                  registry: git.huizinga.dev
-                  username: ${{ gitea.actor }}
-                  password: ${{ secrets.REGISTRY_TOKEN }}
-
-            - name: Build and push Docker image
-              uses: https://github.com/docker/build-push-action@v5
-              with:
-                  context: .
-                  push: true
-                  tags: ${{ steps.meta.outputs.tags }}
-                  labels: ${{ steps.meta.outputs.labels }}
+        uses: dreaded_x/workflows/.gitea/workflows/rust-kubernetes.yaml@22ee0c1788a8d2157db87d6a6f8dbe520fe48592
+        secrets: inherit
+        with:
+            upload_manifests: false
 
     deploy:
         name: Deploy container
         runs-on: ubuntu-latest
         container: catthehacker/ubuntu:act-latest
-        needs: [container]
+        needs: build
         if: gitea.ref == 'refs/heads/master'
         steps:
             - name: Stop and remove current container
@@ -97,11 +37,9 @@ jobs:
                     -e MQTT_PASSWORD=${{ secrets.MQTT_PASSWORD }} \
                     -e HUE_TOKEN=${{ secrets.HUE_TOKEN }} \
                     -e NTFY_TOPIC=${{ secrets.NTFY_TOPIC }} \
-                    git.huizinga.dev/dreaded_x/automation_rs:master
+                    git.huizinga.dev/dreaded_x/automation_rs@${{ needs.build.outputs.digest }}
 
                   docker network connect web automation_rs
 
             - name: Start container
               run: docker start automation_rs
-
-            # TODO: Perform a healthcheck
