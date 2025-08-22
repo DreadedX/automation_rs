@@ -27,7 +27,7 @@ jobs:
               uses: actions/upload-artifact@v3
               with:
                   name: automation
-                  path: target/x86_64-unknown-linux-gnu/release/automation
+                  path: target/release/automation
 
     container:
         name: Build container
