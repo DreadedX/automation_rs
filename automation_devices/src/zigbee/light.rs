@@ -52,7 +52,7 @@ impl LightState for StateOnOff {}
 pub struct StateBrightness {
     #[serde(deserialize_with = "state_deserializer")]
     state: bool,
-    brightness: f64,
+    brightness: f32,
 }
 
 impl LightState for StateBrightness {}
@@ -255,7 +255,7 @@ where
     }
 }
 
-const FACTOR: f64 = 30.0;
+const FACTOR: f32 = 30.0;
 
 #[async_trait]
 impl<T> Brightness for Light<T>
@@ -267,14 +267,14 @@ where
         let state = self.state().await;
         let state: StateBrightness = state.deref().clone().into();
         let brightness =
-            100.0 * f64::log10(state.brightness / FACTOR + 1.0) / f64::log10(254.0 / FACTOR + 1.0);
+            100.0 * f32::log10(state.brightness / FACTOR + 1.0) / f32::log10(254.0 / FACTOR + 1.0);
 
         Ok(brightness.clamp(0.0, 100.0).round() as u8)
     }
 
     async fn set_brightness(&self, brightness: u8) -> Result<(), ErrorCode> {
         let brightness =
-            FACTOR * ((FACTOR / (FACTOR + 254.0)).powf(-(brightness as f64) / 100.0) - 1.0);
+            FACTOR * ((FACTOR / (FACTOR + 254.0)).powf(-(brightness as f32) / 100.0) - 1.0);
 
         let message = json!({
             "brightness": brightness.clamp(0.0, 254.0).round() as u8
