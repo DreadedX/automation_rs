@@ -1,2 +1,4 @@
 /target
 .env
+# Use the rust environment provided by the container
+rust-toolchain.toml
