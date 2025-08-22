@@ -47,7 +47,7 @@ traits! {
 
         async fn humidity_ambient_percent(&self) -> Result<isize, ErrorCode>,
     },
-    "action.devices.traits.TemperatureControl" => trait TemperatureSetting {
+    "action.devices.traits.TemperatureControl" => trait TemperatureControl {
         query_only_temperature_control: Option<bool>,
         // TODO: Add rename
         temperatureUnitForUX: TemperatureUnit,

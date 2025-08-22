@@ -5,7 +5,7 @@ use automation_macro::LuaDeviceConfig;
 use google_home::device::Name;
 use google_home::errors::ErrorCode;
 use google_home::traits::{
-    AvailableSpeeds, FanSpeed, HumiditySetting, OnOff, Speed, SpeedValue, TemperatureSetting,
+    AvailableSpeeds, FanSpeed, HumiditySetting, OnOff, Speed, SpeedValue, TemperatureControl,
     TemperatureUnit,
 };
 use google_home::types::Type;
@@ -209,7 +209,7 @@ impl HumiditySetting for AirFilter {
 }
 
 #[async_trait]
-impl TemperatureSetting for AirFilter {
+impl TemperatureControl for AirFilter {
     fn query_only_temperature_control(&self) -> Option<bool> {
         Some(true)
     }
