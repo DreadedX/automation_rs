@@ -13,7 +13,7 @@ use automation_lib::mqtt::WrappedAsyncClient;
 use automation_macro::LuaDeviceConfig;
 use google_home::device;
 use google_home::errors::ErrorCode;
-use google_home::traits::{Brightness, OnOff};
+use google_home::traits::{Brightness, Color, ColorSetting, ColorTemperatureRange, OnOff};
 use google_home::types::Type;
 use rumqttc::{matches, Publish};
 use serde::{Deserialize, Serialize};
@@ -63,6 +63,31 @@ impl From<StateBrightness> for StateOnOff {
     }
 }
 
+#[derive(Debug, Clone, Default, Serialize, Deserialize)]
+pub struct StateColorTemperature {
+    #[serde(deserialize_with = "state_deserializer")]
+    state: bool,
+    brightness: f32,
+    color_temp: u32,
+}
+
+impl LightState for StateColorTemperature {}
+
+impl From<StateColorTemperature> for StateOnOff {
+    fn from(state: StateColorTemperature) -> Self {
+        StateOnOff { state: state.state }
+    }
+}
+
+impl From<StateColorTemperature> for StateBrightness {
+    fn from(state: StateColorTemperature) -> Self {
+        StateBrightness {
+            state: state.state,
+            brightness: state.brightness,
+        }
+    }
+}
+
 #[derive(Debug, Clone)]
 pub struct Light<T: LightState> {
     config: Config<T>,
@@ -72,6 +97,7 @@ pub struct Light<T: LightState> {
 
 pub type LightOnOff = Light<StateOnOff>;
 pub type LightBrightness = Light<StateBrightness>;
+pub type LightColorTemperature = Light<StateColorTemperature>;
 
 impl<T: LightState> Light<T> {
     async fn state(&self) -> RwLockReadGuard<T> {
@@ -167,6 +193,47 @@ impl OnMqtt for Light<StateBrightness> {
 
             self.state_mut().await.state = state.state;
             self.state_mut().await.brightness = state.brightness;
+            debug!(
+                id = Device::get_id(self),
+                "Updating state to {:?}",
+                self.state().await
+            );
+
+            self.config
+                .callback
+                .call(self, self.state().await.deref())
+                .await;
+        }
+    }
+}
+
+#[async_trait]
+impl OnMqtt for Light<StateColorTemperature> {
+    async fn on_mqtt(&self, message: Publish) {
+        // Check if the message is from the deviec itself or from a remote
+        if matches(&message.topic, &self.config.mqtt.topic) {
+            let state = match serde_json::from_slice::<StateColorTemperature>(&message.payload) {
+                Ok(state) => state,
+                Err(err) => {
+                    warn!(id = Device::get_id(self), "Failed to parse message: {err}");
+                    return;
+                }
+            };
+
+            {
+                let current_state = self.state().await;
+                // No need to do anything if the state has not changed
+                if state.state == current_state.state
+                    && state.brightness == current_state.brightness
+                    && state.color_temp == current_state.color_temp
+                {
+                    return;
+                }
+            }
+
+            self.state_mut().await.state = state.state;
+            self.state_mut().await.brightness = state.brightness;
+            self.state_mut().await.color_temp = state.color_temp;
             debug!(
                 id = Device::get_id(self),
                 "Updating state to {:?}",
@@ -278,6 +345,53 @@ where
 
         let message = json!({
             "brightness": brightness.clamp(0.0, 254.0).round() as u8
+        });
+
+        let topic = format!("{}/set", self.config.mqtt.topic);
+        // TODO: Handle potential errors here
+        self.config
+            .client
+            .publish(
+                &topic,
+                rumqttc::QoS::AtLeastOnce,
+                false,
+                serde_json::to_string(&message).unwrap(),
+            )
+            .await
+            .map_err(|err| warn!("Failed to update state on {topic}: {err}"))
+            .ok();
+
+        Ok(())
+    }
+}
+
+#[async_trait]
+impl<T> ColorSetting for Light<T>
+where
+    T: LightState,
+    T: Into<StateColorTemperature>,
+{
+    fn color_temperature_range(&self) -> ColorTemperatureRange {
+        ColorTemperatureRange {
+            temperature_min_k: 2200,
+            temperature_max_k: 4000,
+        }
+    }
+
+    async fn color(&self) -> Color {
+        let state = self.state().await;
+        let state: StateColorTemperature = state.deref().clone().into();
+
+        let temperature = 1_000_000 / state.color_temp;
+
+        Color { temperature }
+    }
+
+    async fn set_color(&self, color: Color) -> Result<(), ErrorCode> {
+        let temperature = 1_000_000 / color.temperature;
+
+        let message = json!({
+            "color_temp": temperature,
         });
 
         let topic = format!("{}/set", self.config.mqtt.topic);

@@ -15,7 +15,7 @@ use std::ops::Deref;
 
 use automation_cast::Cast;
 use automation_lib::device::{Device, LuaDeviceCreate};
-use zigbee::light::{LightBrightness, LightOnOff};
+use zigbee::light::{LightBrightness, LightColorTemperature, LightOnOff};
 use zigbee::outlet::{OutletOnOff, OutletPower};
 
 pub use self::air_filter::AirFilter;
@@ -144,6 +144,7 @@ macro_rules! impl_device {
 
 impl_device!(LightOnOff);
 impl_device!(LightBrightness);
+impl_device!(LightColorTemperature);
 impl_device!(OutletOnOff);
 impl_device!(OutletPower);
 impl_device!(AirFilter);
@@ -161,6 +162,7 @@ impl_device!(Washer);
 pub fn register_with_lua(lua: &mlua::Lua) -> mlua::Result<()> {
     register_device!(lua, LightOnOff);
     register_device!(lua, LightBrightness);
+    register_device!(lua, LightColorTemperature);
     register_device!(lua, OutletOnOff);
     register_device!(lua, OutletPower);
     register_device!(lua, AirFilter);
