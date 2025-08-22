@@ -250,7 +250,7 @@ automation.device_manager:add(OutletOnOff.new({
 	client = mqtt_client,
 }))
 
-local workbench_light = LightBrightness.new({
+local workbench_light = LightColorTemperature.new({
 	name = "Light",
 	room = "Workbench",
 	topic = mqtt_z2m("workbench/light"),
@@ -258,13 +258,26 @@ local workbench_light = LightBrightness.new({
 })
 automation.device_manager:add(workbench_light)
 
+local delay_color_temp = Timeout.new()
 automation.device_manager:add(IkeaRemote.new({
 	name = "Remote",
 	room = "Workbench",
 	client = mqtt_client,
 	topic = mqtt_z2m("workbench/remote"),
 	callback = function(_, on)
-		workbench_light:set_on(on)
+		delay_color_temp:cancel()
+		if on then
+			workbench_light:set_brightness(82)
+			-- NOTE: This light does NOT support changing both the brightness and color
+			-- temperature at the same time, so we first change the brightness and once
+			-- that is complete we change the color temperature, as that is less likely
+			-- to have to actually change.
+			delay_color_temp:start(0.5, function()
+				workbench_light:set_color_temperature(3333)
+			end)
+		else
+			workbench_light:set_on(false)
+		end
 	end,
 }))
 
