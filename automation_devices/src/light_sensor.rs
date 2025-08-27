@@ -38,11 +38,11 @@ pub struct LightSensor {
 }
 
 impl LightSensor {
-    async fn state(&self) -> RwLockReadGuard<State> {
+    async fn state(&self) -> RwLockReadGuard<'_, State> {
         self.state.read().await
     }
 
-    async fn state_mut(&self) -> RwLockWriteGuard<State> {
+    async fn state_mut(&self) -> RwLockWriteGuard<'_, State> {
         self.state.write().await
     }
 }
@@ -99,9 +99,7 @@ impl OnMqtt for LightSensor {
             let is_dark = self.state().await.is_dark;
             trace!(
                 "In between min ({}) and max ({}) value, keeping current state: {}",
-                self.config.min,
-                self.config.max,
-                is_dark
+                self.config.min, self.config.max, is_dark
             );
             is_dark
         };

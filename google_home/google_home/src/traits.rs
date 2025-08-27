@@ -3,8 +3,8 @@ use automation_cast::Cast;
 use google_home_macro::traits;
 use serde::{Deserialize, Serialize};
 
-use crate::errors::ErrorCode;
 use crate::Device;
+use crate::errors::ErrorCode;
 
 traits! {
     Device,

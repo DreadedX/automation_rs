@@ -6,7 +6,7 @@ use automation_lib::messages::{RemoteAction, RemoteMessage};
 use automation_lib::mqtt::WrappedAsyncClient;
 use automation_macro::LuaDeviceConfig;
 use axum::async_trait;
-use rumqttc::{matches, Publish};
+use rumqttc::{Publish, matches};
 use tracing::{debug, error, trace};
 
 #[derive(Debug, Clone, LuaDeviceConfig)]

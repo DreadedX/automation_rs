@@ -5,7 +5,7 @@ use automation_lib::device::{Device, LuaDeviceCreate};
 use automation_lib::event::OnMqtt;
 use automation_lib::mqtt::WrappedAsyncClient;
 use automation_macro::LuaDeviceConfig;
-use rumqttc::{matches, Publish};
+use rumqttc::{Publish, matches};
 use serde::Deserialize;
 use tracing::{debug, trace, warn};
 

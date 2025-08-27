@@ -68,11 +68,11 @@ pub struct ContactSensor {
 }
 
 impl ContactSensor {
-    async fn state(&self) -> RwLockReadGuard<State> {
+    async fn state(&self) -> RwLockReadGuard<'_, State> {
         self.state.read().await
     }
 
-    async fn state_mut(&self) -> RwLockWriteGuard<State> {
+    async fn state_mut(&self) -> RwLockWriteGuard<'_, State> {
         self.state.write().await
     }
 }

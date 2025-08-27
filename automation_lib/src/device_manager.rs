@@ -2,8 +2,8 @@ use std::collections::HashMap;
 use std::pin::Pin;
 use std::sync::Arc;
 
-use futures::future::join_all;
 use futures::Future;
+use futures::future::join_all;
 use tokio::sync::{RwLock, RwLockReadGuard};
 use tokio_cron_scheduler::{Job, JobScheduler};
 use tracing::{debug, instrument, trace};
@@ -64,7 +64,7 @@ impl DeviceManager {
         self.devices.read().await.get(name).cloned()
     }
 
-    pub async fn devices(&self) -> RwLockReadGuard<DeviceMap> {
+    pub async fn devices(&self) -> RwLockReadGuard<'_, DeviceMap> {
         self.devices.read().await
     }
 
