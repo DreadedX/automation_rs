@@ -10,7 +10,7 @@ use tokio::sync::{RwLock, RwLockReadGuard, RwLockWriteGuard};
 use tracing::{debug, trace, warn};
 
 use crate::config::MqttDeviceConfig;
-use crate::device::{impl_device, Device, LuaDeviceCreate};
+use crate::device::{Device, LuaDeviceCreate, impl_device};
 use crate::event::{self, Event, EventChannel, OnMqtt};
 use crate::messages::PresenceMessage;
 use crate::mqtt::WrappedAsyncClient;
@@ -40,11 +40,11 @@ pub struct Presence {
 }
 
 impl Presence {
-    async fn state(&self) -> RwLockReadGuard<State> {
+    async fn state(&self) -> RwLockReadGuard<'_, State> {
         self.state.read().await
     }
 
-    async fn state_mut(&self) -> RwLockWriteGuard<State> {
+    async fn state_mut(&self) -> RwLockWriteGuard<'_, State> {
         self.state.write().await
     }
 }

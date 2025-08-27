@@ -2,9 +2,9 @@ use std::result;
 
 use axum::async_trait;
 use axum::extract::{FromRef, FromRequestParts};
+use axum::http::StatusCode;
 use axum::http::request::Parts;
 use axum::http::status::InvalidStatusCode;
-use axum::http::StatusCode;
 use axum::response::IntoResponse;
 use serde::{Deserialize, Serialize};
 use thiserror::Error;

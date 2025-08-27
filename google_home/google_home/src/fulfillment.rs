@@ -2,14 +2,14 @@ use std::collections::HashMap;
 use std::sync::Arc;
 
 use automation_cast::Cast;
-use futures::future::{join_all, OptionFuture};
+use futures::future::{OptionFuture, join_all};
 use thiserror::Error;
 use tokio::sync::Mutex;
 
+use crate::Device;
 use crate::errors::{DeviceError, ErrorCode};
 use crate::request::{self, Intent, Request};
-use crate::response::{self, execute, query, sync, Response, ResponsePayload};
-use crate::Device;
+use crate::response::{self, Response, ResponsePayload, execute, query, sync};
 
 #[derive(Debug)]
 pub struct GoogleHome {
@@ -64,7 +64,7 @@ impl GoogleHome {
         devices: &HashMap<String, Box<T>>,
     ) -> sync::Payload {
         let mut resp_payload = sync::Payload::new(&self.user_id);
-        let f = devices.iter().map(|(_, device)| async move {
+        let f = devices.values().map(|device| async move {
             if let Some(device) = device.as_ref().cast() {
                 Some(Device::sync(device).await)
             } else {

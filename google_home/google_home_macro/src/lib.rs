@@ -1,4 +1,3 @@
-#![feature(let_chains)]
 #![feature(iter_intersperse)]
 use proc_macro::TokenStream;
 use quote::quote;
@@ -6,8 +5,8 @@ use syn::parse::Parse;
 use syn::punctuated::Punctuated;
 use syn::token::Brace;
 use syn::{
-    braced, parse_macro_input, GenericArgument, Ident, LitStr, Path, PathArguments, PathSegment,
-    ReturnType, Signature, Token, Type, TypePath,
+    GenericArgument, Ident, LitStr, Path, PathArguments, PathSegment, ReturnType, Signature, Token,
+    Type, TypePath, braced, parse_macro_input,
 };
 
 mod kw {

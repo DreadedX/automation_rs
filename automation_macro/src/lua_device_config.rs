@@ -6,8 +6,8 @@ use syn::punctuated::Punctuated;
 use syn::spanned::Spanned;
 use syn::token::Paren;
 use syn::{
-    parenthesized, Data, DataStruct, DeriveInput, Expr, Field, Fields, FieldsNamed, LitStr, Result,
-    Token, Type,
+    Data, DataStruct, DeriveInput, Expr, Field, Fields, FieldsNamed, LitStr, Result, Token, Type,
+    parenthesized,
 };
 
 mod kw {
@@ -155,7 +155,7 @@ fn field_from_lua(field: &Field) -> TokenStream {
         [] => field.ident.clone().unwrap().to_string(),
         [rename] => rename.to_owned(),
         _ => {
-            return quote_spanned! {field.span() => compile_error!("Field contains duplicate 'rename'")}
+            return quote_spanned! {field.span() => compile_error!("Field contains duplicate 'rename'")};
         }
     };
 
@@ -174,7 +174,7 @@ fn field_from_lua(field: &Field) -> TokenStream {
         [] => quote! {panic!(#missing)},
         [default] => default.to_owned(),
         _ => {
-            return quote_spanned! {field.span() => compile_error!("Field contains duplicate 'default'")}
+            return quote_spanned! {field.span() => compile_error!("Field contains duplicate 'default'")};
         }
     };
 
@@ -232,7 +232,7 @@ fn field_from_lua(field: &Field) -> TokenStream {
         [] => value,
         [value] => value.to_owned(),
         _ => {
-            return quote_spanned! {field.span() => compile_error!("Only one of either 'from' or 'with' is allowed")}
+            return quote_spanned! {field.span() => compile_error!("Only one of either 'from' or 'with' is allowed")};
         }
     };
 

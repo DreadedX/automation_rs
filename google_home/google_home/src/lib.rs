@@ -1,6 +1,5 @@
 #![allow(incomplete_features)]
 #![feature(specialization)]
-#![feature(let_chains)]
 pub mod device;
 mod fulfillment;
 

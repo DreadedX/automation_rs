@@ -38,7 +38,9 @@ impl fmt::Display for MissingEnv {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         write!(f, "Missing environment variable")?;
         if self.keys.is_empty() {
-            unreachable!("This error should only be returned if there are actually missing environment variables");
+            unreachable!(
+                "This error should only be returned if there are actually missing environment variables"
+            );
         }
         if self.keys.len() == 1 {
             write!(f, " '{}'", self.keys[0])?;

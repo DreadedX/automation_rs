@@ -1,7 +1,7 @@
 [package]
 name = "automation_devices"
 version = "0.1.0"
-edition = "2021"
+edition = "2024"
 
 [dependencies]
 automation_lib = { workspace = true }
@@ -17,7 +17,7 @@ tracing = { workspace = true }
 serde_json = { workspace = true }
 impls = { workspace = true }
 serde = { workspace = true }
-reqwest = { workspace = true }           # Use rustls, since the other packages also use rustls
+reqwest = { workspace = true }          # Use rustls, since the other packages also use rustls
 anyhow = { workspace = true }
 axum = { workspace = true }
 bytes = { workspace = true }

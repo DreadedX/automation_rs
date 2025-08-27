@@ -15,7 +15,7 @@ use google_home::device;
 use google_home::errors::ErrorCode;
 use google_home::traits::{Brightness, Color, ColorSetting, ColorTemperatureRange, OnOff};
 use google_home::types::Type;
-use rumqttc::{matches, Publish};
+use rumqttc::{Publish, matches};
 use serde::{Deserialize, Serialize};
 use serde_json::json;
 use tokio::sync::{RwLock, RwLockReadGuard, RwLockWriteGuard};
@@ -100,11 +100,11 @@ pub type LightBrightness = Light<StateBrightness>;
 pub type LightColorTemperature = Light<StateColorTemperature>;
 
 impl<T: LightState> Light<T> {
-    async fn state(&self) -> RwLockReadGuard<T> {
+    async fn state(&self) -> RwLockReadGuard<'_, T> {
         self.state.read().await
     }
 
-    async fn state_mut(&self) -> RwLockWriteGuard<T> {
+    async fn state_mut(&self) -> RwLockWriteGuard<'_, T> {
         self.state.write().await
     }
 }

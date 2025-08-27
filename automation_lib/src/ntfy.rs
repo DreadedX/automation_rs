@@ -9,7 +9,7 @@ use serde::Serialize;
 use serde_repr::*;
 use tracing::{error, trace, warn};
 
-use crate::device::{impl_device, Device, LuaDeviceCreate};
+use crate::device::{Device, LuaDeviceCreate, impl_device};
 use crate::event::{self, Event, EventChannel, OnNotification, OnPresence};
 
 #[derive(Debug, Serialize_repr, Clone, Copy)]
