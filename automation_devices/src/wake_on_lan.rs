@@ -6,7 +6,7 @@ use automation_lib::device::{Device, LuaDeviceCreate};
 use automation_lib::event::OnMqtt;
 use automation_lib::messages::ActivateMessage;
 use automation_lib::mqtt::WrappedAsyncClient;
-use automation_macro::LuaDeviceConfig;
+use automation_macro::{LuaDeviceConfig, impl_device};
 use eui48::MacAddress;
 use google_home::device;
 use google_home::errors::ErrorCode;
@@ -32,6 +32,7 @@ pub struct Config {
 pub struct WakeOnLAN {
     config: Config,
 }
+impl_device!(WakeOnLAN);
 
 #[async_trait]
 impl LuaDeviceCreate for WakeOnLAN {

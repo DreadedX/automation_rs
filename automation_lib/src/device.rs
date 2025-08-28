@@ -7,51 +7,6 @@ use mlua::ObjectLike;
 
 use crate::event::{OnDarkness, OnMqtt, OnNotification, OnPresence};
 
-// TODO: Make this a proper macro
-macro_rules! impl_device {
-    ($device:ty) => {
-        impl mlua::UserData for $device {
-            fn add_methods<M: mlua::UserDataMethods<Self>>(methods: &mut M) {
-                methods.add_async_function("new", |_lua, config| async {
-                    let device: $device = LuaDeviceCreate::create(config)
-                        .await
-                        .map_err(mlua::ExternalError::into_lua_err)?;
-
-                    Ok(device)
-                });
-
-                methods.add_method("__box", |_lua, this, _: ()| {
-                    let b: Box<dyn Device> = Box::new(this.clone());
-                    Ok(b)
-                });
-
-                methods.add_async_method("get_id", |_lua, this, _: ()| async move { Ok(this.get_id()) });
-
-                if impls::impls!($device: google_home::traits::OnOff) {
-                    methods.add_async_method("set_on", |_lua, this, on: bool| async move {
-                        (this.deref().cast() as Option<&dyn google_home::traits::OnOff>)
-                            .expect("Cast should be valid")
-                            .set_on(on)
-                            .await
-                            .unwrap();
-
-                        Ok(())
-                    });
-
-                    methods.add_async_method("is_on", |_lua, this, _: ()| async move {
-                        Ok((this.deref().cast() as Option<&dyn google_home::traits::OnOff>)
-                            .expect("Cast should be valid")
-                            .on()
-                            .await
-                            .unwrap())
-                    });
-                }
-            }
-        }
-    };
-}
-pub(crate) use impl_device;
-
 #[async_trait::async_trait]
 pub trait LuaDeviceCreate {
     type Config;

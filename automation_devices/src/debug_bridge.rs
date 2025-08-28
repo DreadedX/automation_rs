@@ -6,7 +6,7 @@ use automation_lib::device::{Device, LuaDeviceCreate};
 use automation_lib::event::{OnDarkness, OnPresence};
 use automation_lib::messages::{DarknessMessage, PresenceMessage};
 use automation_lib::mqtt::WrappedAsyncClient;
-use automation_macro::LuaDeviceConfig;
+use automation_macro::{LuaDeviceConfig, impl_device};
 use tracing::{trace, warn};
 
 #[derive(Debug, LuaDeviceConfig, Clone)]
@@ -22,6 +22,7 @@ pub struct Config {
 pub struct DebugBridge {
     config: Config,
 }
+impl_device!(DebugBridge);
 
 #[async_trait]
 impl LuaDeviceCreate for DebugBridge {

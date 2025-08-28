@@ -4,7 +4,7 @@ use automation_lib::device::{Device, LuaDeviceCreate};
 use automation_lib::event::OnMqtt;
 use automation_lib::messages::{RemoteAction, RemoteMessage};
 use automation_lib::mqtt::WrappedAsyncClient;
-use automation_macro::LuaDeviceConfig;
+use automation_macro::{LuaDeviceConfig, impl_device};
 use axum::async_trait;
 use rumqttc::{Publish, matches};
 use tracing::{debug, error, trace};
@@ -31,6 +31,7 @@ pub struct Config {
 pub struct IkeaRemote {
     config: Config,
 }
+impl_device!(IkeaRemote);
 
 impl Device for IkeaRemote {
     fn get_id(&self) -> String {

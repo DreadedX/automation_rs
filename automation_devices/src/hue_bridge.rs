@@ -4,7 +4,7 @@ use std::net::SocketAddr;
 use async_trait::async_trait;
 use automation_lib::device::{Device, LuaDeviceCreate};
 use automation_lib::event::{OnDarkness, OnPresence};
-use automation_macro::LuaDeviceConfig;
+use automation_macro::{LuaDeviceConfig, impl_device};
 use serde::{Deserialize, Serialize};
 use tracing::{error, trace, warn};
 
@@ -33,6 +33,7 @@ pub struct Config {
 pub struct HueBridge {
     config: Config,
 }
+impl_device!(HueBridge);
 
 #[derive(Debug, Serialize)]
 struct FlagMessage {

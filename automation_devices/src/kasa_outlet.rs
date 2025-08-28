@@ -5,7 +5,7 @@ use std::str::Utf8Error;
 use async_trait::async_trait;
 use automation_lib::device::{Device, LuaDeviceCreate};
 use automation_lib::event::OnPresence;
-use automation_macro::LuaDeviceConfig;
+use automation_macro::{LuaDeviceConfig, impl_device};
 use bytes::{Buf, BufMut};
 use google_home::errors::{self, DeviceError};
 use google_home::traits::OnOff;
@@ -26,6 +26,7 @@ pub struct Config {
 pub struct KasaOutlet {
     config: Config,
 }
+impl_device!(KasaOutlet);
 
 #[async_trait]
 impl LuaDeviceCreate for KasaOutlet {

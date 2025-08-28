@@ -23,4 +23,3 @@ tokio-cron-scheduler = { workspace = true }
 mlua = { workspace = true }
 uuid = { workspace = true }
 dyn-clone = { workspace = true }
-impls = { workspace = true }
