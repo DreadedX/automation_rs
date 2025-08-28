@@ -6,7 +6,6 @@ edition = "2024"
 [dependencies]
 automation_lib = { workspace = true }
 automation_macro = { workspace = true }
-automation_cast = { workspace = true }
 google_home = { workspace = true }
 mlua = { workspace = true }
 async-trait = { workspace = true }
@@ -15,7 +14,6 @@ rumqttc = { workspace = true }
 tokio = { workspace = true }
 tracing = { workspace = true }
 serde_json = { workspace = true }
-impls = { workspace = true }
 serde = { workspace = true }
 reqwest = { workspace = true }          # Use rustls, since the other packages also use rustls
 anyhow = { workspace = true }

@@ -7,7 +7,7 @@ use automation_lib::event::{self, Event, EventChannel, OnMqtt};
 use automation_lib::messages::PowerMessage;
 use automation_lib::mqtt::WrappedAsyncClient;
 use automation_lib::ntfy::{Notification, Priority};
-use automation_macro::LuaDeviceConfig;
+use automation_macro::{LuaDeviceConfig, impl_device};
 use rumqttc::Publish;
 use tokio::sync::{RwLock, RwLockReadGuard, RwLockWriteGuard};
 use tracing::{debug, error, trace, warn};
@@ -36,6 +36,7 @@ pub struct Washer {
     config: Config,
     state: Arc<RwLock<State>>,
 }
+impl_device!(Washer);
 
 impl Washer {
     async fn state(&self) -> RwLockReadGuard<'_, State> {

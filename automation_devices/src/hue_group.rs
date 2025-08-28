@@ -2,7 +2,7 @@ use std::net::SocketAddr;
 
 use anyhow::Result;
 use async_trait::async_trait;
-use automation_macro::LuaDeviceConfig;
+use automation_macro::{LuaDeviceConfig, impl_device};
 use google_home::errors::ErrorCode;
 use google_home::traits::OnOff;
 use tracing::{error, trace, warn};
@@ -23,6 +23,7 @@ pub struct Config {
 pub struct HueGroup {
     config: Config,
 }
+impl_device!(HueGroup);
 
 // Couple of helper function to get the correct urls
 #[async_trait]

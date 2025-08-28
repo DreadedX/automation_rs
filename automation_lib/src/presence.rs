@@ -1,16 +1,14 @@
 use std::collections::HashMap;
-use std::ops::Deref;
 use std::sync::Arc;
 
 use async_trait::async_trait;
-use automation_cast::Cast;
-use automation_macro::LuaDeviceConfig;
+use automation_macro::{LuaDeviceConfig, impl_device};
 use rumqttc::Publish;
 use tokio::sync::{RwLock, RwLockReadGuard, RwLockWriteGuard};
 use tracing::{debug, trace, warn};
 
 use crate::config::MqttDeviceConfig;
-use crate::device::{Device, LuaDeviceCreate, impl_device};
+use crate::device::{Device, LuaDeviceCreate};
 use crate::event::{self, Event, EventChannel, OnMqtt};
 use crate::messages::PresenceMessage;
 use crate::mqtt::WrappedAsyncClient;
@@ -38,6 +36,7 @@ pub struct Presence {
     config: Config,
     state: Arc<RwLock<State>>,
 }
+impl_device!(Presence);
 
 impl Presence {
     async fn state(&self) -> RwLockReadGuard<'_, State> {
@@ -48,8 +47,6 @@ impl Presence {
         self.state.write().await
     }
 }
-
-impl_device!(Presence);
 
 #[async_trait]
 impl LuaDeviceCreate for Presence {

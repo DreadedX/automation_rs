@@ -10,7 +10,7 @@ use automation_lib::device::{Device, LuaDeviceCreate};
 use automation_lib::event::{OnMqtt, OnPresence};
 use automation_lib::helpers::serialization::state_deserializer;
 use automation_lib::mqtt::WrappedAsyncClient;
-use automation_macro::LuaDeviceConfig;
+use automation_macro::{LuaDeviceConfig, impl_device};
 use google_home::device;
 use google_home::errors::ErrorCode;
 use google_home::traits::{Brightness, Color, ColorSetting, ColorTemperatureRange, OnOff};
@@ -96,8 +96,11 @@ pub struct Light<T: LightState> {
 }
 
 pub type LightOnOff = Light<StateOnOff>;
+impl_device!(LightOnOff -> OnOff);
 pub type LightBrightness = Light<StateBrightness>;
+impl_device!(LightBrightness -> OnOff, Brightness);
 pub type LightColorTemperature = Light<StateColorTemperature>;
+impl_device!(LightColorTemperature -> OnOff, Brightness, ColorSetting);
 
 impl<T: LightState> Light<T> {
     async fn state(&self) -> RwLockReadGuard<'_, T> {
