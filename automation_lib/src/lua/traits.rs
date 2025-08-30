@@ -81,3 +81,9 @@ pub trait OpenClose {
     }
 }
 impl<T> OpenClose for T where T: google_home::traits::OpenClose {}
+
+pub trait AddAdditionalMethods {
+    fn add_methods<M: mlua::UserDataMethods<Self>>(methods: &mut M)
+    where
+        Self: Sized + 'static;
+}

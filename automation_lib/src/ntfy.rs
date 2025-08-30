@@ -3,15 +3,18 @@ use std::convert::Infallible;
 
 use async_trait::async_trait;
 use automation_macro::{LuaDevice, LuaDeviceConfig};
-use serde::Serialize;
+use mlua::LuaSerdeExt;
+use serde::{Deserialize, Serialize};
 use serde_repr::*;
 use tracing::{error, trace, warn};
 
 use crate::device::{Device, LuaDeviceCreate};
 use crate::event::{self, Event, EventChannel, OnNotification, OnPresence};
+use crate::lua::traits::AddAdditionalMethods;
 
-#[derive(Debug, Serialize_repr, Clone, Copy)]
+#[derive(Debug, Serialize_repr, Deserialize, Clone, Copy)]
 #[repr(u8)]
+#[serde(rename_all = "snake_case")]
 pub enum Priority {
     Min = 1,
     Low,
@@ -20,7 +23,7 @@ pub enum Priority {
     Max,
 }
 
-#[derive(Debug, Serialize, Clone)]
+#[derive(Debug, Serialize, Deserialize, Clone)]
 #[serde(rename_all = "snake_case", tag = "action")]
 pub enum ActionType {
     Broadcast {
@@ -31,7 +34,7 @@ pub enum ActionType {
     // Http
 }
 
-#[derive(Debug, Serialize, Clone)]
+#[derive(Debug, Serialize, Deserialize, Clone)]
 pub struct Action {
     #[serde(flatten)]
     pub action: ActionType,
@@ -39,24 +42,24 @@ pub struct Action {
     pub clear: Option<bool>,
 }
 
-#[derive(Serialize)]
+#[derive(Serialize, Deserialize)]
 struct NotificationFinal {
     topic: String,
     #[serde(flatten)]
     inner: Notification,
 }
 
-#[derive(Debug, Serialize, Clone)]
+#[derive(Debug, Serialize, Clone, Deserialize)]
 pub struct Notification {
     #[serde(skip_serializing_if = "Option::is_none")]
     title: Option<String>,
     #[serde(skip_serializing_if = "Option::is_none")]
     message: Option<String>,
-    #[serde(skip_serializing_if = "Vec::is_empty")]
+    #[serde(skip_serializing_if = "Vec::is_empty", default = "Default::default")]
     tags: Vec<String>,
     #[serde(skip_serializing_if = "Option::is_none")]
     priority: Option<Priority>,
-    #[serde(skip_serializing_if = "Vec::is_empty")]
+    #[serde(skip_serializing_if = "Vec::is_empty", default = "Default::default")]
     actions: Vec<Action>,
 }
 
@@ -120,6 +123,7 @@ pub struct Config {
 }
 
 #[derive(Debug, Clone, LuaDevice)]
+#[traits(crate::lua::traits::AddAdditionalMethods)]
 pub struct Ntfy {
     config: Config,
 }
@@ -203,5 +207,23 @@ impl OnPresence for Ntfy {
 impl OnNotification for Ntfy {
     async fn on_notification(&self, notification: Notification) {
         self.send(notification).await;
+    }
+}
+
+impl AddAdditionalMethods for Ntfy {
+    fn add_methods<M: mlua::UserDataMethods<Self>>(methods: &mut M)
+    where
+        Self: Sized + 'static,
+    {
+        methods.add_async_method(
+            "send_notification",
+            |lua, this, notification: mlua::Value| async move {
+                let notification: Notification = lua.from_value(notification)?;
+
+                this.send(notification).await;
+
+                Ok(())
+            },
+        );
     }
 }
