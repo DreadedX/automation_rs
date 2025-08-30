@@ -29,10 +29,11 @@ local mqtt_client = automation.new_mqtt_client({
 	tls = host == "zeus" or host == "hephaestus",
 })
 
-automation.device_manager:add(Ntfy.new({
+local ntfy = Ntfy.new({
 	topic = automation.util.get_env("NTFY_TOPIC"),
 	event_channel = automation.device_manager:event_channel(),
-}))
+})
+automation.device_manager:add(ntfy)
 
 automation.device_manager:add(Presence.new({
 	topic = mqtt_automation("presence/+/#"),
@@ -232,6 +233,14 @@ automation.device_manager:add(Washer.new({
 	client = mqtt_client,
 	threshold = 1,
 	event_channel = automation.device_manager:event_channel(),
+	done_callback = function()
+		ntfy:send_notification({
+			title = "Laundy is done",
+			message = "Don't forget to hang it!",
+			tags = { "womans_clothes" },
+			priority = "high",
+		})
+	end,
 }))
 
 automation.device_manager:add(OutletOnOff.new({

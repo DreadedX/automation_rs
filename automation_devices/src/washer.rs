@@ -1,16 +1,16 @@
 use std::sync::Arc;
 
 use async_trait::async_trait;
+use automation_lib::action_callback::ActionCallback;
 use automation_lib::config::MqttDeviceConfig;
 use automation_lib::device::{Device, LuaDeviceCreate};
-use automation_lib::event::{self, Event, EventChannel, OnMqtt};
+use automation_lib::event::{self, EventChannel, OnMqtt};
 use automation_lib::messages::PowerMessage;
 use automation_lib::mqtt::WrappedAsyncClient;
-use automation_lib::ntfy::{Notification, Priority};
 use automation_macro::{LuaDevice, LuaDeviceConfig};
 use rumqttc::Publish;
 use tokio::sync::{RwLock, RwLockReadGuard, RwLockWriteGuard};
-use tracing::{debug, error, trace, warn};
+use tracing::{debug, error, trace};
 
 #[derive(Debug, Clone, LuaDeviceConfig)]
 pub struct Config {
@@ -21,6 +21,10 @@ pub struct Config {
     pub threshold: f32,
     #[device_config(rename("event_channel"), from_lua, with(|ec: EventChannel| ec.get_tx()))]
     pub tx: event::Sender,
+
+    #[device_config(from_lua, default)]
+    pub done_callback: ActionCallback<Washer, ()>,
+
     #[device_config(from_lua)]
     pub client: WrappedAsyncClient,
 }
@@ -96,8 +100,6 @@ impl OnMqtt for Washer {
             }
         };
 
-        // debug!(id = self.identifier, power, "Washer state update");
-
         if power < self.config.threshold && self.state().await.running >= HYSTERESIS {
             // The washer is done running
             debug!(
@@ -108,21 +110,8 @@ impl OnMqtt for Washer {
             );
 
             self.state_mut().await.running = 0;
-            let notification = Notification::new()
-                .set_title("Laundy is done")
-                .set_message("Don't forget to hang it!")
-                .add_tag("womans_clothes")
-                .set_priority(Priority::High);
 
-            if self
-                .config
-                .tx
-                .send(Event::Ntfy(notification))
-                .await
-                .is_err()
-            {
-                warn!("There are no receivers on the event channel");
-            }
+            self.config.done_callback.call(self, &()).await;
         } else if power < self.config.threshold {
             // Prevent false positives
             self.state_mut().await.running = 0;
