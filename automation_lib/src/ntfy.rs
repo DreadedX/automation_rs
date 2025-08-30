@@ -9,7 +9,7 @@ use serde_repr::*;
 use tracing::{error, trace, warn};
 
 use crate::device::{Device, LuaDeviceCreate};
-use crate::event::{self, Event, EventChannel, OnNotification, OnPresence};
+use crate::event::{self, EventChannel, OnNotification};
 use crate::lua::traits::AddAdditionalMethods;
 
 #[derive(Debug, Serialize_repr, Deserialize, Clone, Copy)]
@@ -163,42 +163,6 @@ impl Ntfy {
             if !status.is_success() {
                 warn!("Received status {status} when sending notification");
             }
-        }
-    }
-}
-
-#[async_trait]
-impl OnPresence for Ntfy {
-    async fn on_presence(&self, presence: bool) {
-        // Setup extras for the broadcast
-        let extras = HashMap::from([
-            ("cmd".into(), "presence".into()),
-            ("state".into(), if presence { "0" } else { "1" }.into()),
-        ]);
-
-        // Create broadcast action
-        let action = Action {
-            action: ActionType::Broadcast { extras },
-            label: if presence { "Set away" } else { "Set home" }.into(),
-            clear: Some(true),
-        };
-
-        // Create the notification
-        let notification = Notification::new()
-            .set_title("Presence")
-            .set_message(if presence { "Home" } else { "Away" })
-            .add_tag("house")
-            .add_action(action)
-            .set_priority(Priority::Low);
-
-        if self
-            .config
-            .tx
-            .send(Event::Ntfy(notification))
-            .await
-            .is_err()
-        {
-            warn!("There are no receivers on the event channel");
         }
     }
 }

@@ -7,6 +7,7 @@ use rumqttc::Publish;
 use tokio::sync::{RwLock, RwLockReadGuard, RwLockWriteGuard};
 use tracing::{debug, trace, warn};
 
+use crate::action_callback::ActionCallback;
 use crate::config::MqttDeviceConfig;
 use crate::device::{Device, LuaDeviceCreate};
 use crate::event::{self, Event, EventChannel, OnMqtt};
@@ -19,6 +20,10 @@ pub struct Config {
     pub mqtt: MqttDeviceConfig,
     #[device_config(from_lua, rename("event_channel"), with(|ec: EventChannel| ec.get_tx()))]
     pub tx: event::Sender,
+
+    #[device_config(from_lua, default)]
+    pub callback: ActionCallback<Presence, bool>,
+
     #[device_config(from_lua)]
     pub client: WrappedAsyncClient,
 }
@@ -123,6 +128,8 @@ impl OnMqtt for Presence {
             {
                 warn!("There are no receivers on the event channel");
             }
+
+            self.config.callback.call(self, &overall_presence).await;
         }
     }
 }

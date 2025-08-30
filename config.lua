@@ -39,6 +39,25 @@ automation.device_manager:add(Presence.new({
 	topic = mqtt_automation("presence/+/#"),
 	client = mqtt_client,
 	event_channel = automation.device_manager:event_channel(),
+	callback = function(_, presence)
+		ntfy:send_notification({
+			title = "Presence",
+			message = presence and "Home" or "Away",
+			tags = { "house" },
+			priority = "low",
+			actions = {
+				{
+					action = "broadcast",
+					extras = {
+						cmd = "presence",
+						state = presence and "0" or "1",
+					},
+					label = presence and "Set away" or "Set home",
+					clear = true,
+				},
+			},
+		})
+	end,
 }))
 
 automation.device_manager:add(DebugBridge.new({
