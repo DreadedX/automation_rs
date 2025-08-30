@@ -2,7 +2,7 @@ use std::collections::HashMap;
 use std::sync::Arc;
 
 use async_trait::async_trait;
-use automation_macro::{LuaDeviceConfig, impl_device};
+use automation_macro::{LuaDevice, LuaDeviceConfig};
 use rumqttc::Publish;
 use tokio::sync::{RwLock, RwLockReadGuard, RwLockWriteGuard};
 use tracing::{debug, trace, warn};
@@ -31,12 +31,11 @@ pub struct State {
     current_overall_presence: bool,
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, LuaDevice)]
 pub struct Presence {
     config: Config,
     state: Arc<RwLock<State>>,
 }
-impl_device!(Presence);
 
 impl Presence {
     async fn state(&self) -> RwLockReadGuard<'_, State> {

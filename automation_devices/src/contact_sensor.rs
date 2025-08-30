@@ -10,7 +10,7 @@ use automation_lib::event::{OnMqtt, OnPresence};
 use automation_lib::messages::{ContactMessage, PresenceMessage};
 use automation_lib::mqtt::WrappedAsyncClient;
 use automation_lib::presence::DEFAULT_PRESENCE;
-use automation_macro::{LuaDeviceConfig, impl_device};
+use automation_macro::{LuaDevice, LuaDeviceConfig};
 use google_home::device;
 use google_home::errors::{DeviceError, ErrorCode};
 use google_home::traits::OpenClose;
@@ -61,12 +61,12 @@ struct State {
     handle: Option<JoinHandle<()>>,
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, LuaDevice)]
+#[traits(OpenClose)]
 pub struct ContactSensor {
     config: Config,
     state: Arc<RwLock<State>>,
 }
-impl_device!(ContactSensor);
 
 impl ContactSensor {
     async fn state(&self) -> RwLockReadGuard<'_, State> {

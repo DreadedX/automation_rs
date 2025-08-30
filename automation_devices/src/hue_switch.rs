@@ -4,7 +4,7 @@ use automation_lib::config::{InfoConfig, MqttDeviceConfig};
 use automation_lib::device::{Device, LuaDeviceCreate};
 use automation_lib::event::OnMqtt;
 use automation_lib::mqtt::WrappedAsyncClient;
-use automation_macro::{LuaDeviceConfig, impl_device};
+use automation_macro::{LuaDevice, LuaDeviceConfig};
 use rumqttc::{Publish, matches};
 use serde::Deserialize;
 use tracing::{debug, trace, warn};
@@ -51,11 +51,10 @@ struct State {
     action: Action,
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, LuaDevice)]
 pub struct HueSwitch {
     config: Config,
 }
-impl_device!(HueSwitch);
 
 impl Device for HueSwitch {
     fn get_id(&self) -> String {
