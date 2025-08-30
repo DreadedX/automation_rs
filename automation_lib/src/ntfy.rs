@@ -9,7 +9,7 @@ use serde_repr::*;
 use tracing::{error, trace, warn};
 
 use crate::device::{Device, LuaDeviceCreate};
-use crate::event::{self, EventChannel, OnNotification};
+use crate::event::{self, EventChannel};
 use crate::lua::traits::AddAdditionalMethods;
 
 #[derive(Debug, Serialize_repr, Deserialize, Clone, Copy)]
@@ -164,13 +164,6 @@ impl Ntfy {
                 warn!("Received status {status} when sending notification");
             }
         }
-    }
-}
-
-#[async_trait]
-impl OnNotification for Ntfy {
-    async fn on_notification(&self, notification: Notification) {
-        self.send(notification).await;
     }
 }
 

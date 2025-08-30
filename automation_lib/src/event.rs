@@ -3,14 +3,11 @@ use mlua::FromLua;
 use rumqttc::Publish;
 use tokio::sync::mpsc;
 
-use crate::ntfy::Notification;
-
 #[derive(Debug, Clone)]
 pub enum Event {
     MqttMessage(Publish),
     Darkness(bool),
     Presence(bool),
-    Ntfy(Notification),
 }
 
 pub type Sender = mpsc::Sender<Event>;
@@ -47,9 +44,4 @@ pub trait OnPresence: Sync + Send {
 #[async_trait]
 pub trait OnDarkness: Sync + Send {
     async fn on_darkness(&self, dark: bool);
-}
-
-#[async_trait]
-pub trait OnNotification: Sync + Send {
-    async fn on_notification(&self, notification: Notification);
 }
