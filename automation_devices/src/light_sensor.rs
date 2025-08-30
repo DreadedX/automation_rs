@@ -6,7 +6,7 @@ use automation_lib::device::{Device, LuaDeviceCreate};
 use automation_lib::event::{self, Event, EventChannel, OnMqtt};
 use automation_lib::messages::BrightnessMessage;
 use automation_lib::mqtt::WrappedAsyncClient;
-use automation_macro::{LuaDeviceConfig, impl_device};
+use automation_macro::{LuaDevice, LuaDeviceConfig};
 use rumqttc::Publish;
 use tokio::sync::{RwLock, RwLockReadGuard, RwLockWriteGuard};
 use tracing::{debug, trace, warn};
@@ -31,12 +31,11 @@ pub struct State {
     is_dark: bool,
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, LuaDevice)]
 pub struct LightSensor {
     config: Config,
     state: Arc<RwLock<State>>,
 }
-impl_device!(LightSensor);
 
 impl LightSensor {
     async fn state(&self) -> RwLockReadGuard<'_, State> {

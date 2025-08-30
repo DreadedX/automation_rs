@@ -2,7 +2,7 @@ use std::collections::HashMap;
 use std::convert::Infallible;
 
 use async_trait::async_trait;
-use automation_macro::{LuaDeviceConfig, impl_device};
+use automation_macro::{LuaDevice, LuaDeviceConfig};
 use serde::Serialize;
 use serde_repr::*;
 use tracing::{error, trace, warn};
@@ -119,11 +119,10 @@ pub struct Config {
     pub tx: event::Sender,
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, LuaDevice)]
 pub struct Ntfy {
     config: Config,
 }
-impl_device!(Ntfy);
 
 #[async_trait]
 impl LuaDeviceCreate for Ntfy {

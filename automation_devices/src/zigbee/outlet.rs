@@ -10,7 +10,7 @@ use automation_lib::device::{Device, LuaDeviceCreate};
 use automation_lib::event::{OnMqtt, OnPresence};
 use automation_lib::helpers::serialization::state_deserializer;
 use automation_lib::mqtt::WrappedAsyncClient;
-use automation_macro::{LuaDeviceConfig, impl_device};
+use automation_macro::{LuaDevice, LuaDeviceConfig};
 use google_home::device;
 use google_home::errors::ErrorCode;
 use google_home::traits::OnOff;
@@ -84,7 +84,9 @@ impl From<StatePower> for StateOnOff {
     }
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, LuaDevice)]
+#[traits(<StateOnOff>: OnOff)]
+#[traits(<StatePower>: OnOff)]
 pub struct Outlet<T: OutletState> {
     config: Config<T>,
 
@@ -92,9 +94,7 @@ pub struct Outlet<T: OutletState> {
 }
 
 pub type OutletOnOff = Outlet<StateOnOff>;
-impl_device!(OutletOnOff -> OnOff);
 pub type OutletPower = Outlet<StatePower>;
-impl_device!(OutletPower -> OnOff);
 
 impl<T: OutletState> Outlet<T> {
     async fn state(&self) -> RwLockReadGuard<'_, T> {

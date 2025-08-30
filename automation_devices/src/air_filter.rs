@@ -1,7 +1,7 @@
 use async_trait::async_trait;
 use automation_lib::config::InfoConfig;
 use automation_lib::device::{Device, LuaDeviceCreate};
-use automation_macro::{LuaDeviceConfig, impl_device};
+use automation_macro::{LuaDevice, LuaDeviceConfig};
 use google_home::device::Name;
 use google_home::errors::ErrorCode;
 use google_home::traits::{
@@ -19,7 +19,8 @@ pub struct Config {
     pub url: String,
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, LuaDevice)]
+#[traits(OnOff)]
 pub struct AirFilter {
     config: Config,
 }
@@ -62,7 +63,6 @@ impl AirFilter {
         Ok(reqwest::get(url).await?.json().await?)
     }
 }
-impl_device!(AirFilter);
 
 #[async_trait]
 impl LuaDeviceCreate for AirFilter {

@@ -14,7 +14,9 @@ pub fn lua_device_config_derive(input: proc_macro::TokenStream) -> proc_macro::T
     impl_lua_device_config_macro(&ast).into()
 }
 
-#[proc_macro]
+#[proc_macro_derive(LuaDevice, attributes(traits))]
 pub fn impl_device(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
-    impl_device_macro(input)
+    let ast = parse_macro_input!(input as DeriveInput);
+
+    impl_device_macro(&ast).into()
 }
