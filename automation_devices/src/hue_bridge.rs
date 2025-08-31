@@ -3,12 +3,15 @@ use std::net::SocketAddr;
 
 use async_trait::async_trait;
 use automation_lib::device::{Device, LuaDeviceCreate};
-use automation_lib::event::{OnDarkness, OnPresence};
+use automation_lib::event::OnPresence;
+use automation_lib::lua::traits::AddAdditionalMethods;
 use automation_macro::{LuaDevice, LuaDeviceConfig};
+use mlua::LuaSerdeExt;
 use serde::{Deserialize, Serialize};
 use tracing::{error, trace, warn};
 
-#[derive(Debug)]
+#[derive(Debug, Deserialize)]
+#[serde(rename_all = "snake_case")]
 pub enum Flag {
     Presence,
     Darkness,
@@ -30,6 +33,7 @@ pub struct Config {
 }
 
 #[derive(Debug, Clone, LuaDevice)]
+#[traits(AddAdditionalMethods)]
 pub struct HueBridge {
     config: Config,
 }
@@ -89,18 +93,28 @@ impl Device for HueBridge {
     }
 }
 
+impl AddAdditionalMethods for HueBridge {
+    fn add_methods<M: mlua::UserDataMethods<Self>>(methods: &mut M)
+    where
+        Self: Sized + 'static,
+    {
+        methods.add_async_method(
+            "set_flag",
+            |lua, this, (flag, value): (mlua::Value, bool)| async move {
+                let flag: Flag = lua.from_value(flag)?;
+
+                this.set_flag(flag, value).await;
+
+                Ok(())
+            },
+        );
+    }
+}
+
 #[async_trait]
 impl OnPresence for HueBridge {
     async fn on_presence(&self, presence: bool) {
         trace!("Bridging presence to hue");
         self.set_flag(Flag::Presence, presence).await;
-    }
-}
-
-#[async_trait]
-impl OnDarkness for HueBridge {
-    async fn on_darkness(&self, dark: bool) {
-        trace!("Bridging darkness to hue");
-        self.set_flag(Flag::Darkness, dark).await;
     }
 }

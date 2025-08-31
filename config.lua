@@ -68,7 +68,7 @@ automation.device_manager:add(DebugBridge.new({
 local hue_ip = "10.0.0.102"
 local hue_token = automation.util.get_env("HUE_TOKEN")
 
-automation.device_manager:add(HueBridge.new({
+local hue_bridge = HueBridge.new({
 	identifier = "hue_bridge",
 	ip = hue_ip,
 	login = hue_token,
@@ -76,7 +76,8 @@ automation.device_manager:add(HueBridge.new({
 		presence = 41,
 		darkness = 43,
 	},
-}))
+})
+automation.device_manager:add(hue_bridge)
 
 local kitchen_lights = HueGroup.new({
 	identifier = "kitchen_lights",
@@ -126,6 +127,9 @@ automation.device_manager:add(LightSensor.new({
 	min = 22000,
 	max = 23500,
 	event_channel = automation.device_manager:event_channel(),
+	callback = function(_, light)
+		hue_bridge:set_flag("darkness", not light)
+	end,
 }))
 
 automation.device_manager:add(WakeOnLAN.new({
