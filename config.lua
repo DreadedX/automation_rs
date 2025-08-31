@@ -1,4 +1,4 @@
-print("Hello from lua")
+print(_VERSION)
 
 local host = automation.util.get_hostname()
 print("Running @" .. host)
