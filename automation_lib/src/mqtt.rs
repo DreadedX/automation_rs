@@ -23,7 +23,25 @@ impl DerefMut for WrappedAsyncClient {
     }
 }
 
-impl mlua::UserData for WrappedAsyncClient {}
+impl mlua::UserData for WrappedAsyncClient {
+    fn add_methods<M: mlua::UserDataMethods<Self>>(methods: &mut M) {
+        methods.add_async_method(
+            "send_message",
+            |_lua, this, (topic, message): (String, mlua::Value)| async move {
+                let message = serde_json::to_string(&message).unwrap();
+
+                debug!("message = {message}");
+
+                this.0
+                    .publish(topic, rumqttc::QoS::AtLeastOnce, true, message)
+                    .await
+                    .unwrap();
+
+                Ok(())
+            },
+        );
+    }
+}
 
 pub fn start(mut eventloop: EventLoop, event_channel: &EventChannel) {
     let tx = event_channel.get_tx();
