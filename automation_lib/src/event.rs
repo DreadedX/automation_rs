@@ -6,7 +6,6 @@ use tokio::sync::mpsc;
 #[derive(Debug, Clone)]
 pub enum Event {
     MqttMessage(Publish),
-    Darkness(bool),
     Presence(bool),
 }
 
@@ -39,9 +38,4 @@ pub trait OnMqtt: Sync + Send {
 #[async_trait]
 pub trait OnPresence: Sync + Send {
     async fn on_presence(&self, presence: bool);
-}
-
-#[async_trait]
-pub trait OnDarkness: Sync + Send {
-    async fn on_darkness(&self, dark: bool);
 }

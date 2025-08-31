@@ -126,7 +126,6 @@ automation.device_manager:add(LightSensor.new({
 	client = mqtt_client,
 	min = 22000,
 	max = 23500,
-	event_channel = automation.device_manager:event_channel(),
 	callback = function(_, light)
 		hue_bridge:set_flag("darkness", not light)
 		mqtt_client:send_message(mqtt_automation("debug") .. "/darkness", {

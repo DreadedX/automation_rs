@@ -162,40 +162,6 @@ impl TryFrom<Publish> for ContactMessage {
     }
 }
 
-// Message used to report the current darkness state
-#[derive(Debug, Deserialize, Serialize)]
-pub struct DarknessMessage {
-    state: bool,
-    updated: Option<u128>,
-}
-
-impl DarknessMessage {
-    pub fn new(state: bool) -> Self {
-        Self {
-            state,
-            updated: Some(
-                SystemTime::now()
-                    .duration_since(UNIX_EPOCH)
-                    .expect("Time is after UNIX EPOCH")
-                    .as_millis(),
-            ),
-        }
-    }
-
-    pub fn is_dark(&self) -> bool {
-        self.state
-    }
-}
-
-impl TryFrom<Publish> for DarknessMessage {
-    type Error = ParseError;
-
-    fn try_from(message: Publish) -> Result<Self, Self::Error> {
-        serde_json::from_slice(&message.payload)
-            .or(Err(ParseError::InvalidPayload(message.payload.clone())))
-    }
-}
-
 // Message used to report the power draw a smart plug
 #[derive(Debug, Deserialize)]
 pub struct PowerMessage {

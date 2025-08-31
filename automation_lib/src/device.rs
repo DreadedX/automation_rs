@@ -5,7 +5,7 @@ use dyn_clone::DynClone;
 use google_home::traits::OnOff;
 use mlua::ObjectLike;
 
-use crate::event::{OnDarkness, OnMqtt, OnPresence};
+use crate::event::{OnMqtt, OnPresence};
 
 #[async_trait::async_trait]
 pub trait LuaDeviceCreate {
@@ -25,7 +25,6 @@ pub trait Device:
     + Cast<dyn google_home::Device>
     + Cast<dyn OnMqtt>
     + Cast<dyn OnPresence>
-    + Cast<dyn OnDarkness>
     + Cast<dyn OnOff>
 {
     fn get_id(&self) -> String;

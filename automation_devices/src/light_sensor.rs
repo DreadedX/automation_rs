@@ -4,7 +4,7 @@ use async_trait::async_trait;
 use automation_lib::action_callback::ActionCallback;
 use automation_lib::config::MqttDeviceConfig;
 use automation_lib::device::{Device, LuaDeviceCreate};
-use automation_lib::event::{self, Event, EventChannel, OnMqtt};
+use automation_lib::event::OnMqtt;
 use automation_lib::messages::BrightnessMessage;
 use automation_lib::mqtt::WrappedAsyncClient;
 use automation_macro::{LuaDevice, LuaDeviceConfig};
@@ -19,8 +19,6 @@ pub struct Config {
     pub mqtt: MqttDeviceConfig,
     pub min: isize,
     pub max: isize,
-    #[device_config(rename("event_channel"), from_lua, with(|ec: EventChannel| ec.get_tx()))]
-    pub tx: event::Sender,
 
     #[device_config(from_lua, default)]
     pub callback: ActionCallback<LightSensor, bool>,
@@ -113,10 +111,6 @@ impl OnMqtt for LightSensor {
         if is_dark != self.state().await.is_dark {
             debug!("Dark state has changed: {is_dark}");
             self.state_mut().await.is_dark = is_dark;
-
-            if self.config.tx.send(Event::Darkness(is_dark)).await.is_err() {
-                warn!("There are no receivers on the event channel");
-            }
 
             self.config
                 .callback
