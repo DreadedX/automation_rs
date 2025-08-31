@@ -39,7 +39,8 @@ local on_presence = {
 		self[#self + 1] = f
 	end,
 }
-automation.device_manager:add(Presence.new({
+
+local presence_system = Presence.new({
 	topic = mqtt_automation("presence/+/#"),
 	client = mqtt_client,
 	event_channel = automation.device_manager:event_channel(),
@@ -50,7 +51,8 @@ automation.device_manager:add(Presence.new({
 			end
 		end
 	end,
-}))
+})
+automation.device_manager:add(presence_system)
 on_presence:add(function(presence)
 	ntfy:send_notification({
 		title = "Presence",
@@ -457,6 +459,28 @@ hallway_light_automation.group = {
 	end,
 }
 
+local frontdoor_presence = {
+	timeout = Timeout.new(),
+}
+setmetatable(frontdoor_presence, {
+	__call = function(self, open)
+		if open then
+			self.timeout:cancel()
+
+			if not presence_system:overall_presence() then
+				mqtt_client:send_message(mqtt_automation("presence/contact/frontdoor"), {
+					state = true,
+					updated = automation.util.get_epoch(),
+				})
+			end
+		else
+			self.timeout:start(debug and 10 or 15 * 60, function()
+				mqtt_client:send_message(mqtt_automation("presence/contact/frontdoor"), {})
+			end)
+		end
+	end,
+})
+
 automation.device_manager:add(IkeaRemote.new({
 	name = "Remote",
 	room = "Hallway",
@@ -478,6 +502,7 @@ local hallway_frontdoor = ContactSensor.new({
 	},
 	callback = function(_, open)
 		hallway_light_automation:door_callback(open)
+		frontdoor_presence(open)
 	end,
 })
 automation.device_manager:add(hallway_frontdoor)
