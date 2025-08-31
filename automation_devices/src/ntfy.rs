@@ -3,7 +3,6 @@ use std::convert::Infallible;
 
 use async_trait::async_trait;
 use automation_lib::device::{Device, LuaDeviceCreate};
-use automation_lib::event::{self, EventChannel};
 use automation_lib::lua::traits::AddAdditionalMethods;
 use automation_macro::{LuaDevice, LuaDeviceConfig};
 use mlua::LuaSerdeExt;
@@ -117,8 +116,6 @@ pub struct Config {
     #[device_config(default("https://ntfy.sh".into()))]
     pub url: String,
     pub topic: String,
-    #[device_config(rename("event_channel"), from_lua, with(|ec: EventChannel| ec.get_tx()))]
-    pub tx: event::Sender,
 }
 
 #[derive(Debug, Clone, LuaDevice)]

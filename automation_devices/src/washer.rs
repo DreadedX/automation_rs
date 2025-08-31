@@ -4,7 +4,7 @@ use async_trait::async_trait;
 use automation_lib::action_callback::ActionCallback;
 use automation_lib::config::MqttDeviceConfig;
 use automation_lib::device::{Device, LuaDeviceCreate};
-use automation_lib::event::{self, EventChannel, OnMqtt};
+use automation_lib::event::OnMqtt;
 use automation_lib::messages::PowerMessage;
 use automation_lib::mqtt::WrappedAsyncClient;
 use automation_macro::{LuaDevice, LuaDeviceConfig};
@@ -19,8 +19,6 @@ pub struct Config {
     pub mqtt: MqttDeviceConfig,
     // Power in Watt
     pub threshold: f32,
-    #[device_config(rename("event_channel"), from_lua, with(|ec: EventChannel| ec.get_tx()))]
-    pub tx: event::Sender,
 
     #[device_config(from_lua, default)]
     pub done_callback: ActionCallback<Washer, ()>,
