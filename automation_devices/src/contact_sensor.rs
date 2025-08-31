@@ -9,7 +9,6 @@ use automation_lib::error::DeviceConfigError;
 use automation_lib::event::{OnMqtt, OnPresence};
 use automation_lib::messages::{ContactMessage, PresenceMessage};
 use automation_lib::mqtt::WrappedAsyncClient;
-use automation_lib::presence::DEFAULT_PRESENCE;
 use automation_macro::{LuaDevice, LuaDeviceConfig};
 use google_home::device;
 use google_home::errors::{DeviceError, ErrorCode};
@@ -19,6 +18,8 @@ use serde::Deserialize;
 use tokio::sync::{RwLock, RwLockReadGuard, RwLockWriteGuard};
 use tokio::task::JoinHandle;
 use tracing::{debug, error, trace, warn};
+
+use crate::presence::DEFAULT_PRESENCE;
 
 #[derive(Debug, Clone, Deserialize, PartialEq, Eq, Copy)]
 pub enum SensorType {

@@ -4,15 +4,12 @@ version = "0.1.0"
 edition = "2024"
 
 [dependencies]
-automation_macro = { workspace = true }
 automation_cast = { workspace = true }
 google_home = { workspace = true }
 rumqttc = { workspace = true }
 serde = { workspace = true }
 serde_json = { workspace = true }
 tokio = { workspace = true }
-reqwest = { workspace = true }
-serde_repr = { workspace = true }
 tracing = { workspace = true }
 bytes = { workspace = true }
 async-trait = { workspace = true }

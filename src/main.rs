@@ -9,8 +9,6 @@ use automation_lib::config::{FulfillmentConfig, MqttConfig};
 use automation_lib::device_manager::DeviceManager;
 use automation_lib::helpers;
 use automation_lib::mqtt::{self, WrappedAsyncClient};
-use automation_lib::ntfy::Ntfy;
-use automation_lib::presence::Presence;
 use axum::extract::{FromRef, State};
 use axum::http::StatusCode;
 use axum::routing::post;
@@ -118,9 +116,6 @@ async fn app() -> anyhow::Result<()> {
 
         automation_devices::register_with_lua(&lua)?;
         helpers::register_with_lua(&lua)?;
-        lua.globals().set("Ntfy", lua.create_proxy::<Ntfy>()?)?;
-        lua.globals()
-            .set("Presence", lua.create_proxy::<Presence>()?)?;
 
         // TODO: Make this not hardcoded
         let config_filename = std::env::var("AUTOMATION_CONFIG").unwrap_or("./config.lua".into());

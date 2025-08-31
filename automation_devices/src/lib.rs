@@ -7,6 +7,8 @@ mod hue_switch;
 mod ikea_remote;
 mod kasa_outlet;
 mod light_sensor;
+mod ntfy;
+mod presence;
 mod wake_on_lan;
 mod washer;
 mod zigbee;
@@ -24,6 +26,8 @@ pub use self::hue_switch::HueSwitch;
 pub use self::ikea_remote::IkeaRemote;
 pub use self::kasa_outlet::KasaOutlet;
 pub use self::light_sensor::LightSensor;
+pub use self::ntfy::*;
+pub use self::presence::Presence;
 pub use self::wake_on_lan::WakeOnLAN;
 pub use self::washer::Washer;
 
@@ -35,11 +39,6 @@ macro_rules! register_device {
 }
 
 pub fn register_with_lua(lua: &mlua::Lua) -> mlua::Result<()> {
-    register_device!(lua, LightOnOff);
-    register_device!(lua, LightBrightness);
-    register_device!(lua, LightColorTemperature);
-    register_device!(lua, OutletOnOff);
-    register_device!(lua, OutletPower);
     register_device!(lua, AirFilter);
     register_device!(lua, ContactSensor);
     register_device!(lua, DebugBridge);
@@ -48,7 +47,14 @@ pub fn register_with_lua(lua: &mlua::Lua) -> mlua::Result<()> {
     register_device!(lua, HueSwitch);
     register_device!(lua, IkeaRemote);
     register_device!(lua, KasaOutlet);
+    register_device!(lua, LightBrightness);
+    register_device!(lua, LightColorTemperature);
+    register_device!(lua, LightOnOff);
     register_device!(lua, LightSensor);
+    register_device!(lua, Ntfy);
+    register_device!(lua, OutletOnOff);
+    register_device!(lua, OutletPower);
+    register_device!(lua, Presence);
     register_device!(lua, WakeOnLAN);
     register_device!(lua, Washer);
 

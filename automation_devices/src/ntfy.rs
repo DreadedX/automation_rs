@@ -2,15 +2,14 @@ use std::collections::HashMap;
 use std::convert::Infallible;
 
 use async_trait::async_trait;
+use automation_lib::device::{Device, LuaDeviceCreate};
+use automation_lib::event::{self, EventChannel};
+use automation_lib::lua::traits::AddAdditionalMethods;
 use automation_macro::{LuaDevice, LuaDeviceConfig};
 use mlua::LuaSerdeExt;
 use serde::{Deserialize, Serialize};
 use serde_repr::*;
 use tracing::{error, trace, warn};
-
-use crate::device::{Device, LuaDeviceCreate};
-use crate::event::{self, EventChannel};
-use crate::lua::traits::AddAdditionalMethods;
 
 #[derive(Debug, Serialize_repr, Deserialize, Clone, Copy)]
 #[repr(u8)]
@@ -123,7 +122,7 @@ pub struct Config {
 }
 
 #[derive(Debug, Clone, LuaDevice)]
-#[traits(crate::lua::traits::AddAdditionalMethods)]
+#[traits(AddAdditionalMethods)]
 pub struct Ntfy {
     config: Config,
 }

@@ -10,6 +10,4 @@ pub mod helpers;
 pub mod lua;
 pub mod messages;
 pub mod mqtt;
-pub mod ntfy;
-pub mod presence;
 pub mod schedule;
