@@ -3,6 +3,7 @@ mod web;
 use std::net::SocketAddr;
 use std::path::Path;
 use std::process;
+use std::time::{SystemTime, UNIX_EPOCH};
 
 use anyhow::anyhow;
 use automation_lib::config::{FulfillmentConfig, MqttConfig};
@@ -110,6 +111,13 @@ async fn app() -> anyhow::Result<()> {
                 .map_err(mlua::ExternalError::into_lua_err)
         })?;
         util.set("get_hostname", get_hostname)?;
+        let get_epoch = lua.create_function(|_lua, ()| {
+            Ok(SystemTime::now()
+                .duration_since(UNIX_EPOCH)
+                .expect("Time is after UNIX EPOCH")
+                .as_millis())
+        })?;
+        util.set("get_epoch", get_epoch)?;
         automation.set("util", util)?;
 
         lua.globals().set("automation", automation)?;
