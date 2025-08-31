@@ -34,30 +34,68 @@ local ntfy = Ntfy.new({
 })
 automation.device_manager:add(ntfy)
 
+local on_presence = {
+	add = function(self, f)
+		self[#self + 1] = f
+	end,
+}
 automation.device_manager:add(Presence.new({
 	topic = mqtt_automation("presence/+/#"),
 	client = mqtt_client,
 	event_channel = automation.device_manager:event_channel(),
 	callback = function(_, presence)
-		ntfy:send_notification({
-			title = "Presence",
-			message = presence and "Home" or "Away",
-			tags = { "house" },
-			priority = "low",
-			actions = {
-				{
-					action = "broadcast",
-					extras = {
-						cmd = "presence",
-						state = presence and "0" or "1",
-					},
-					label = presence and "Set away" or "Set home",
-					clear = true,
-				},
-			},
-		})
+		for _, f in ipairs(on_presence) do
+			if type(f) == "function" then
+				f(presence)
+			end
+		end
 	end,
 }))
+on_presence:add(function(presence)
+	ntfy:send_notification({
+		title = "Presence",
+		message = presence and "Home" or "Away",
+		tags = { "house" },
+		priority = "low",
+		actions = {
+			{
+				action = "broadcast",
+				extras = {
+					cmd = "presence",
+					state = presence and "0" or "1",
+				},
+				label = presence and "Set away" or "Set home",
+				clear = true,
+			},
+		},
+	})
+end)
+
+local on_light = {
+	add = function(self, f)
+		self[#self + 1] = f
+	end,
+}
+automation.device_manager:add(LightSensor.new({
+	identifier = "living_light_sensor",
+	topic = mqtt_z2m("living/light"),
+	client = mqtt_client,
+	min = 22000,
+	max = 23500,
+	callback = function(_, light)
+		for _, f in ipairs(on_light) do
+			if type(f) == "function" then
+				f(light)
+			end
+		end
+	end,
+}))
+on_light:add(function(light)
+	mqtt_client:send_message(mqtt_automation("debug") .. "/darkness", {
+		state = not light,
+		updated = automation.util.get_epoch(),
+	})
+end)
 
 automation.device_manager:add(DebugBridge.new({
 	identifier = "debug_bridge",
@@ -78,6 +116,9 @@ local hue_bridge = HueBridge.new({
 	},
 })
 automation.device_manager:add(hue_bridge)
+on_light:add(function(light)
+	hue_bridge:set_flag("darkness", not light)
+end)
 
 local kitchen_lights = HueGroup.new({
 	identifier = "kitchen_lights",
@@ -117,21 +158,6 @@ automation.device_manager:add(HueSwitch.new({
 	end,
 	right_hold_callback = function()
 		living_lights_relax:set_on(true)
-	end,
-}))
-
-automation.device_manager:add(LightSensor.new({
-	identifier = "living_light_sensor",
-	topic = mqtt_z2m("living/light"),
-	client = mqtt_client,
-	min = 22000,
-	max = 23500,
-	callback = function(_, light)
-		hue_bridge:set_flag("darkness", not light)
-		mqtt_client:send_message(mqtt_automation("debug") .. "/darkness", {
-			state = not light,
-			updated = automation.util.get_epoch(),
-		})
 	end,
 }))
 
