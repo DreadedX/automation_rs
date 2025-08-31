@@ -70,6 +70,12 @@ on_presence:add(function(presence)
 		},
 	})
 end)
+on_presence:add(function(presence)
+	mqtt_client:send_message(mqtt_automation("debug") .. "/presence", {
+		state = presence,
+		updated = automation.util.get_epoch(),
+	})
+end)
 
 local on_light = {
 	add = function(self, f)

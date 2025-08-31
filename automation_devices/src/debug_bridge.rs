@@ -3,11 +3,9 @@ use std::convert::Infallible;
 use async_trait::async_trait;
 use automation_lib::config::MqttDeviceConfig;
 use automation_lib::device::{Device, LuaDeviceCreate};
-use automation_lib::event::OnPresence;
-use automation_lib::messages::PresenceMessage;
 use automation_lib::mqtt::WrappedAsyncClient;
 use automation_macro::{LuaDevice, LuaDeviceConfig};
-use tracing::{trace, warn};
+use tracing::trace;
 
 #[derive(Debug, LuaDeviceConfig, Clone)]
 pub struct Config {
@@ -37,29 +35,5 @@ impl LuaDeviceCreate for DebugBridge {
 impl Device for DebugBridge {
     fn get_id(&self) -> String {
         self.config.identifier.clone()
-    }
-}
-
-#[async_trait]
-impl OnPresence for DebugBridge {
-    async fn on_presence(&self, presence: bool) {
-        let message = PresenceMessage::new(presence);
-        let topic = format!("{}/presence", self.config.mqtt.topic);
-        self.config
-            .client
-            .publish(
-                topic,
-                rumqttc::QoS::AtLeastOnce,
-                true,
-                serde_json::to_string(&message).expect("Serialization should not fail"),
-            )
-            .await
-            .map_err(|err| {
-                warn!(
-                    "Failed to update presence on {}/presence: {err}",
-                    self.config.mqtt.topic
-                )
-            })
-            .ok();
     }
 }
