@@ -4,7 +4,6 @@ use std::str::Utf8Error;
 
 use async_trait::async_trait;
 use automation_lib::device::{Device, LuaDeviceCreate};
-use automation_lib::event::OnPresence;
 use automation_macro::{LuaDevice, LuaDeviceConfig};
 use bytes::{Buf, BufMut};
 use google_home::errors::{self, DeviceError};
@@ -13,7 +12,7 @@ use serde::{Deserialize, Serialize};
 use thiserror::Error;
 use tokio::io::{AsyncReadExt, AsyncWriteExt};
 use tokio::net::TcpStream;
-use tracing::{debug, trace};
+use tracing::trace;
 
 #[derive(Debug, Clone, LuaDeviceConfig)]
 pub struct Config {
@@ -274,15 +273,5 @@ impl OnOff for KasaOutlet {
 
         resp.check_set_relay_success()
             .or(Err(DeviceError::TransientError.into()))
-    }
-}
-
-#[async_trait]
-impl OnPresence for KasaOutlet {
-    async fn on_presence(&self, presence: bool) {
-        if !presence {
-            debug!(id = Device::get_id(self), "Turning device off");
-            self.set_on(false).await.ok();
-        }
     }
 }

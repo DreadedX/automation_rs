@@ -7,7 +7,7 @@ use async_trait::async_trait;
 use automation_lib::action_callback::ActionCallback;
 use automation_lib::config::{InfoConfig, MqttDeviceConfig};
 use automation_lib::device::{Device, LuaDeviceCreate};
-use automation_lib::event::{OnMqtt, OnPresence};
+use automation_lib::event::OnMqtt;
 use automation_lib::helpers::serialization::state_deserializer;
 use automation_lib::mqtt::WrappedAsyncClient;
 use automation_macro::{LuaDevice, LuaDeviceConfig};
@@ -247,16 +247,6 @@ impl OnMqtt for Light<StateColorTemperature> {
                 .callback
                 .call(self, self.state().await.deref())
                 .await;
-        }
-    }
-}
-
-#[async_trait]
-impl<T: LightState> OnPresence for Light<T> {
-    async fn on_presence(&self, presence: bool) {
-        if !presence {
-            debug!(id = Device::get_id(self), "Turning device off");
-            self.set_on(false).await.ok();
         }
     }
 }

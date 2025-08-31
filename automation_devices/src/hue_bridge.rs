@@ -3,7 +3,6 @@ use std::net::SocketAddr;
 
 use async_trait::async_trait;
 use automation_lib::device::{Device, LuaDeviceCreate};
-use automation_lib::event::OnPresence;
 use automation_lib::lua::traits::AddAdditionalMethods;
 use automation_macro::{LuaDevice, LuaDeviceConfig};
 use mlua::LuaSerdeExt;
@@ -108,13 +107,5 @@ impl AddAdditionalMethods for HueBridge {
                 Ok(())
             },
         );
-    }
-}
-
-#[async_trait]
-impl OnPresence for HueBridge {
-    async fn on_presence(&self, presence: bool) {
-        trace!("Bridging presence to hue");
-        self.set_flag(Flag::Presence, presence).await;
     }
 }

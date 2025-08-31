@@ -77,6 +77,14 @@ on_presence:add(function(presence)
 	})
 end)
 
+local function turn_off_when_away(device)
+	on_presence:add(function(presence)
+		if not presence then
+			device:set_on(false)
+		end
+	end)
+end
+
 local on_light = {
 	add = function(self, f)
 		self[#self + 1] = f
@@ -118,6 +126,9 @@ local hue_bridge = HueBridge.new({
 automation.device_manager:add(hue_bridge)
 on_light:add(function(light)
 	hue_bridge:set_flag("darkness", not light)
+end)
+on_presence:add(function(presence)
+	hue_bridge:set_flag("presence", presence)
 end)
 
 local kitchen_lights = HueGroup.new({
@@ -176,6 +187,7 @@ local living_mixer = OutletOnOff.new({
 	topic = mqtt_z2m("living/mixer"),
 	client = mqtt_client,
 })
+turn_off_when_away(living_mixer)
 automation.device_manager:add(living_mixer)
 local living_speakers = OutletOnOff.new({
 	name = "Speakers",
@@ -183,6 +195,7 @@ local living_speakers = OutletOnOff.new({
 	topic = mqtt_z2m("living/speakers"),
 	client = mqtt_client,
 })
+turn_off_when_away(living_speakers)
 automation.device_manager:add(living_speakers)
 
 automation.device_manager:add(IkeaRemote.new({
@@ -232,6 +245,7 @@ local kettle = OutletPower.new({
 	client = mqtt_client,
 	callback = kettle_timeout(),
 })
+turn_off_when_away(kettle)
 automation.device_manager:add(kettle)
 
 local function set_kettle(_, on)
@@ -270,13 +284,14 @@ local function off_timeout(duration)
 	end
 end
 
-automation.device_manager:add(LightOnOff.new({
+local bathroom_light = LightOnOff.new({
 	name = "Light",
 	room = "Bathroom",
 	topic = mqtt_z2m("bathroom/light"),
 	client = mqtt_client,
 	callback = off_timeout(debug and 60 or 45 * 60),
-}))
+})
+automation.device_manager:add(bathroom_light)
 
 automation.device_manager:add(Washer.new({
 	identifier = "bathroom_washer",
@@ -294,7 +309,6 @@ automation.device_manager:add(Washer.new({
 }))
 
 automation.device_manager:add(OutletOnOff.new({
-	presence_auto_off = false,
 	name = "Charger",
 	room = "Workbench",
 	topic = mqtt_z2m("workbench/charger"),
@@ -302,12 +316,14 @@ automation.device_manager:add(OutletOnOff.new({
 	callback = off_timeout(debug and 5 or 20 * 3600),
 }))
 
-automation.device_manager:add(OutletOnOff.new({
+local workbench_outlet = OutletOnOff.new({
 	name = "Outlet",
 	room = "Workbench",
 	topic = mqtt_z2m("workbench/outlet"),
 	client = mqtt_client,
-}))
+})
+turn_off_when_away(workbench_outlet)
+automation.device_manager:add(workbench_outlet)
 
 local workbench_light = LightColorTemperature.new({
 	name = "Light",
@@ -315,6 +331,7 @@ local workbench_light = LightColorTemperature.new({
 	topic = mqtt_z2m("workbench/light"),
 	client = mqtt_client,
 })
+turn_off_when_away(workbench_light)
 automation.device_manager:add(workbench_light)
 
 local delay_color_temp = Timeout.new()
@@ -417,6 +434,7 @@ local hallway_storage = LightBrightness.new({
 		hallway_light_automation:light_callback(state.state)
 	end,
 })
+turn_off_when_away(hallway_storage)
 automation.device_manager:add(hallway_storage)
 
 local hallway_bottom_lights = HueGroup.new({
@@ -478,12 +496,14 @@ local hallway_trash = ContactSensor.new({
 automation.device_manager:add(hallway_trash)
 hallway_light_automation.trash = hallway_trash
 
-automation.device_manager:add(LightOnOff.new({
+local guest_light = LightOnOff.new({
 	name = "Light",
 	room = "Guest Room",
 	topic = mqtt_z2m("guest/light"),
 	client = mqtt_client,
-}))
+})
+turn_off_when_away(guest_light)
+automation.device_manager:add(guest_light)
 
 local bedroom_air_filter = AirFilter.new({
 	name = "Air Filter",
@@ -554,6 +574,7 @@ local storage_light = LightBrightness.new({
 	topic = mqtt_z2m("storage/light"),
 	client = mqtt_client,
 })
+turn_off_when_away(storage_light)
 automation.device_manager:add(storage_light)
 
 automation.device_manager:add(ContactSensor.new({
