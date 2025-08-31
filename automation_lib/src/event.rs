@@ -6,7 +6,6 @@ use tokio::sync::mpsc;
 #[derive(Debug, Clone)]
 pub enum Event {
     MqttMessage(Publish),
-    Presence(bool),
 }
 
 pub type Sender = mpsc::Sender<Event>;
@@ -33,9 +32,4 @@ impl mlua::UserData for EventChannel {}
 pub trait OnMqtt: Sync + Send {
     // fn topics(&self) -> Vec<&str>;
     async fn on_mqtt(&self, message: Publish);
-}
-
-#[async_trait]
-pub trait OnPresence: Sync + Send {
-    async fn on_presence(&self, presence: bool);
 }

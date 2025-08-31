@@ -9,7 +9,7 @@ use tokio_cron_scheduler::{Job, JobScheduler};
 use tracing::{debug, instrument, trace};
 
 use crate::device::Device;
-use crate::event::{Event, EventChannel, OnMqtt, OnPresence};
+use crate::event::{Event, EventChannel, OnMqtt};
 
 pub type DeviceMap = HashMap<String, Box<dyn Device>>;
 
@@ -89,19 +89,6 @@ impl DeviceManager {
                             trace!(id, "Done");
                             // }
                         }
-                    }
-                });
-
-                join_all(iter).await;
-            }
-            Event::Presence(presence) => {
-                let devices = self.devices.read().await;
-                let iter = devices.iter().map(|(id, device)| async move {
-                    let device: Option<&dyn OnPresence> = device.cast();
-                    if let Some(device) = device {
-                        trace!(id, "Handling");
-                        device.on_presence(presence).await;
-                        trace!(id, "Done");
                     }
                 });
 

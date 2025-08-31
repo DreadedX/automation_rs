@@ -43,7 +43,6 @@ local on_presence = {
 local presence_system = Presence.new({
 	topic = mqtt_automation("presence/+/#"),
 	client = mqtt_client,
-	event_channel = automation.device_manager:event_channel(),
 	callback = function(_, presence)
 		for _, f in ipairs(on_presence) do
 			if type(f) == "function" then

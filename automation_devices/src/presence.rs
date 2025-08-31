@@ -5,7 +5,7 @@ use async_trait::async_trait;
 use automation_lib::action_callback::ActionCallback;
 use automation_lib::config::MqttDeviceConfig;
 use automation_lib::device::{Device, LuaDeviceCreate};
-use automation_lib::event::{self, Event, EventChannel, OnMqtt};
+use automation_lib::event::OnMqtt;
 use automation_lib::lua::traits::AddAdditionalMethods;
 use automation_lib::messages::PresenceMessage;
 use automation_lib::mqtt::WrappedAsyncClient;
@@ -18,8 +18,6 @@ use tracing::{debug, trace, warn};
 pub struct Config {
     #[device_config(flatten)]
     pub mqtt: MqttDeviceConfig,
-    #[device_config(from_lua, rename("event_channel"), with(|ec: EventChannel| ec.get_tx()))]
-    pub tx: event::Sender,
 
     #[device_config(from_lua, default)]
     pub callback: ActionCallback<Presence, bool>,
@@ -119,16 +117,6 @@ impl OnMqtt for Presence {
         if overall_presence != self.state().await.current_overall_presence {
             debug!("Overall presence updated: {overall_presence}");
             self.state_mut().await.current_overall_presence = overall_presence;
-
-            if self
-                .config
-                .tx
-                .send(Event::Presence(overall_presence))
-                .await
-                .is_err()
-            {
-                warn!("There are no receivers on the event channel");
-            }
 
             self.config.callback.call(self, &overall_presence).await;
         }
