@@ -103,12 +103,6 @@ on_light:add(function(light)
 	})
 end)
 
-automation.device_manager:add(DebugBridge.new({
-	identifier = "debug_bridge",
-	topic = mqtt_automation("debug"),
-	client = mqtt_client,
-}))
-
 local hue_ip = "10.0.0.102"
 local hue_token = automation.util.get_env("HUE_TOKEN")
 

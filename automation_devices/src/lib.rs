@@ -1,6 +1,5 @@
 mod air_filter;
 mod contact_sensor;
-mod debug_bridge;
 mod hue_bridge;
 mod hue_group;
 mod hue_switch;
@@ -19,7 +18,6 @@ use zigbee::outlet::{OutletOnOff, OutletPower};
 
 pub use self::air_filter::AirFilter;
 pub use self::contact_sensor::ContactSensor;
-pub use self::debug_bridge::DebugBridge;
 pub use self::hue_bridge::HueBridge;
 pub use self::hue_group::HueGroup;
 pub use self::hue_switch::HueSwitch;
@@ -41,7 +39,6 @@ macro_rules! register_device {
 pub fn register_with_lua(lua: &mlua::Lua) -> mlua::Result<()> {
     register_device!(lua, AirFilter);
     register_device!(lua, ContactSensor);
-    register_device!(lua, DebugBridge);
     register_device!(lua, HueBridge);
     register_device!(lua, HueGroup);
     register_device!(lua, HueSwitch);
