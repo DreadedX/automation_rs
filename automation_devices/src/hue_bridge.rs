@@ -99,7 +99,7 @@ impl AddAdditionalMethods for HueBridge {
     {
         methods.add_async_method(
             "set_flag",
-            |lua, this, (flag, value): (mlua::Value, bool)| async move {
+            async |lua, this, (flag, value): (mlua::Value, bool)| {
                 let flag: Flag = lua.from_value(flag)?;
 
                 this.set_flag(flag, value).await;

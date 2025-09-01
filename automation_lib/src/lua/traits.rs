@@ -7,13 +7,13 @@ pub trait OnOff {
     where
         Self: Sized + google_home::traits::OnOff + 'static,
     {
-        methods.add_async_method("set_on", |_lua, this, on: bool| async move {
+        methods.add_async_method("set_on", async |_lua, this, on: bool| {
             this.deref().set_on(on).await.unwrap();
 
             Ok(())
         });
 
-        methods.add_async_method("on", |_lua, this, ()| async move {
+        methods.add_async_method("on", async |_lua, this, ()| {
             Ok(this.deref().on().await.unwrap())
         });
     }
@@ -25,13 +25,13 @@ pub trait Brightness {
     where
         Self: Sized + google_home::traits::Brightness + 'static,
     {
-        methods.add_async_method("set_brightness", |_lua, this, brightness: u8| async move {
+        methods.add_async_method("set_brightness", async |_lua, this, brightness: u8| {
             this.set_brightness(brightness).await.unwrap();
 
             Ok(())
         });
 
-        methods.add_async_method("brightness", |_lua, this, _: ()| async move {
+        methods.add_async_method("brightness", async |_lua, this, _: ()| {
             Ok(this.brightness().await.unwrap())
         });
     }
@@ -45,7 +45,7 @@ pub trait ColorSetting {
     {
         methods.add_async_method(
             "set_color_temperature",
-            |_lua, this, temperature: u32| async move {
+            async |_lua, this, temperature: u32| {
                 this.set_color(google_home::traits::Color { temperature })
                     .await
                     .unwrap();
@@ -54,7 +54,7 @@ pub trait ColorSetting {
             },
         );
 
-        methods.add_async_method("color_temperature", |_lua, this, ()| async move {
+        methods.add_async_method("color_temperature", async |_lua, this, ()| {
             Ok(this.color().await.temperature)
         });
     }
@@ -66,16 +66,13 @@ pub trait OpenClose {
     where
         Self: Sized + google_home::traits::OpenClose + 'static,
     {
-        methods.add_async_method(
-            "set_open_percent",
-            |_lua, this, open_percent: u8| async move {
-                this.set_open_percent(open_percent).await.unwrap();
+        methods.add_async_method("set_open_percent", async |_lua, this, open_percent: u8| {
+            this.set_open_percent(open_percent).await.unwrap();
 
-                Ok(())
-            },
-        );
+            Ok(())
+        });
 
-        methods.add_async_method("open_percent", |_lua, this, _: ()| async move {
+        methods.add_async_method("open_percent", async |_lua, this, _: ()| {
             Ok(this.open_percent().await.unwrap())
         });
     }

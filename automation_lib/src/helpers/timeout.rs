@@ -29,7 +29,7 @@ impl mlua::UserData for Timeout {
 
         methods.add_async_method(
             "start",
-            |_lua, this, (timeout, callback): (f32, ActionCallback<mlua::Value, bool>)| async move {
+            async |_lua, this, (timeout, callback): (f32, ActionCallback<mlua::Value, bool>)| {
                 if let Some(handle) = this.state.write().await.handle.take() {
                     handle.abort();
                 }
@@ -50,7 +50,7 @@ impl mlua::UserData for Timeout {
             },
         );
 
-        methods.add_async_method("cancel", |_lua, this, ()| async move {
+        methods.add_async_method("cancel", async |_lua, this, ()| {
             debug!("Canceling timeout callback");
 
             if let Some(handle) = this.state.write().await.handle.take() {
@@ -60,7 +60,7 @@ impl mlua::UserData for Timeout {
             Ok(())
         });
 
-        methods.add_async_method("is_waiting", |_lua, this, ()| async move {
+        methods.add_async_method("is_waiting", async |_lua, this, ()| {
             debug!("Canceling timeout callback");
 
             if let Some(handle) = this.state.read().await.handle.as_ref() {

@@ -27,7 +27,7 @@ impl mlua::UserData for WrappedAsyncClient {
     fn add_methods<M: mlua::UserDataMethods<Self>>(methods: &mut M) {
         methods.add_async_method(
             "send_message",
-            |_lua, this, (topic, message): (String, mlua::Value)| async move {
+            async |_lua, this, (topic, message): (String, mlua::Value)| {
                 let message = serde_json::to_string(&message).unwrap();
 
                 debug!("message = {message}");

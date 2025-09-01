@@ -40,15 +40,13 @@ impl GoogleHome {
         let intent = request.inputs.into_iter().next();
 
         let payload: OptionFuture<_> = intent
-            .map(|intent| async move {
-                match intent {
-                    Intent::Sync => ResponsePayload::Sync(self.sync(devices).await),
-                    Intent::Query(payload) => {
-                        ResponsePayload::Query(self.query(payload, devices).await)
-                    }
-                    Intent::Execute(payload) => {
-                        ResponsePayload::Execute(self.execute(payload, devices).await)
-                    }
+            .map(async |intent| match intent {
+                Intent::Sync => ResponsePayload::Sync(self.sync(devices).await),
+                Intent::Query(payload) => {
+                    ResponsePayload::Query(self.query(payload, devices).await)
+                }
+                Intent::Execute(payload) => {
+                    ResponsePayload::Execute(self.execute(payload, devices).await)
                 }
             })
             .into();
@@ -64,7 +62,7 @@ impl GoogleHome {
         devices: &HashMap<String, Box<T>>,
     ) -> sync::Payload {
         let mut resp_payload = sync::Payload::new(&self.user_id);
-        let f = devices.values().map(|device| async move {
+        let f = devices.values().map(async |device| {
             if let Some(device) = device.as_ref().cast() {
                 Some(Device::sync(device).await)
             } else {
@@ -86,7 +84,7 @@ impl GoogleHome {
             .devices
             .into_iter()
             .map(|device| device.id)
-            .map(|id| async move {
+            .map(async |id| {
                 // NOTE: Requires let_chains feature
                 let device = if let Some(device) = devices.get(id.as_str())
                     && let Some(device) = device.as_ref().cast()
@@ -115,84 +113,77 @@ impl GoogleHome {
     ) -> execute::Payload {
         let resp_payload = Arc::new(Mutex::new(response::execute::Payload::new()));
 
-        let f = payload.commands.into_iter().map(|command| {
-            let resp_payload = resp_payload.clone();
-            async move {
-                let mut success = response::execute::Command::new(execute::Status::Success);
-                success.states = Some(execute::States {
-                    online: true,
-                    state: Default::default(),
-                });
-                let mut offline = response::execute::Command::new(execute::Status::Offline);
-                offline.states = Some(execute::States {
-                    online: false,
-                    state: Default::default(),
-                });
-                let mut errors: HashMap<ErrorCode, response::execute::Command> = HashMap::new();
+        let f = payload.commands.into_iter().map(async |command| {
+            let mut success = response::execute::Command::new(execute::Status::Success);
+            success.states = Some(execute::States {
+                online: true,
+                state: Default::default(),
+            });
+            let mut offline = response::execute::Command::new(execute::Status::Offline);
+            offline.states = Some(execute::States {
+                online: false,
+                state: Default::default(),
+            });
+            let mut errors: HashMap<ErrorCode, response::execute::Command> = HashMap::new();
 
-                let f = command
-                    .devices
-                    .into_iter()
-                    .map(|device| device.id)
-                    .map(|id| {
-                        let execution = command.execution.clone();
-                        async move {
-                            if let Some(device) = devices.get(id.as_str())
-                                && let Some(device) = device.as_ref().cast()
-                            {
-                                if !device.is_online().await {
-                                    return (id, Ok(false));
-                                }
-
-                                // NOTE: We can not use .map here because async =(
-                                let mut results = Vec::new();
-                                for cmd in &execution {
-                                    results.push(Device::execute(device, cmd.clone()).await);
-                                }
-
-                                // Convert vec of results to a result with a vec and the first
-                                // encountered error
-                                let results =
-                                    results.into_iter().collect::<Result<Vec<_>, ErrorCode>>();
-
-                                // TODO: We only get one error not all errors
-                                if let Err(err) = results {
-                                    (id, Err(err))
-                                } else {
-                                    (id, Ok(true))
-                                }
-                            } else {
-                                (id.clone(), Err(DeviceError::DeviceNotFound.into()))
-                            }
+            let f = command
+                .devices
+                .into_iter()
+                .map(|device| device.id)
+                .map(async |id| {
+                    if let Some(device) = devices.get(id.as_str())
+                        && let Some(device) = device.as_ref().cast()
+                    {
+                        if !device.is_online().await {
+                            return (id, Ok(false));
                         }
-                    });
 
-                let a = join_all(f).await;
-                a.into_iter().for_each(|(id, state)| {
-                    match state {
-                        Ok(true) => success.add_id(&id),
-                        Ok(false) => offline.add_id(&id),
-                        Err(err) => errors
-                            .entry(err)
-                            .or_insert_with(|| match &err {
-                                ErrorCode::DeviceError(_) => {
-                                    response::execute::Command::new(execute::Status::Error)
-                                }
-                                ErrorCode::DeviceException(_) => {
-                                    response::execute::Command::new(execute::Status::Exceptions)
-                                }
-                            })
-                            .add_id(&id),
-                    };
+                        // NOTE: We can not use .map here because async =(
+                        let mut results = Vec::new();
+                        for cmd in &command.execution {
+                            results.push(Device::execute(device, cmd.clone()).await);
+                        }
+
+                        // Convert vec of results to a result with a vec and the first
+                        // encountered error
+                        let results = results.into_iter().collect::<Result<Vec<_>, ErrorCode>>();
+
+                        // TODO: We only get one error not all errors
+                        if let Err(err) = results {
+                            (id, Err(err))
+                        } else {
+                            (id, Ok(true))
+                        }
+                    } else {
+                        (id.clone(), Err(DeviceError::DeviceNotFound.into()))
+                    }
                 });
 
-                let mut resp_payload = resp_payload.lock().await;
-                resp_payload.add_command(success);
-                resp_payload.add_command(offline);
-                for (error, mut cmd) in errors {
-                    cmd.error_code = Some(error);
-                    resp_payload.add_command(cmd);
-                }
+            let a = join_all(f).await;
+            a.into_iter().for_each(|(id, state)| {
+                match state {
+                    Ok(true) => success.add_id(&id),
+                    Ok(false) => offline.add_id(&id),
+                    Err(err) => errors
+                        .entry(err)
+                        .or_insert_with(|| match &err {
+                            ErrorCode::DeviceError(_) => {
+                                response::execute::Command::new(execute::Status::Error)
+                            }
+                            ErrorCode::DeviceException(_) => {
+                                response::execute::Command::new(execute::Status::Exceptions)
+                            }
+                        })
+                        .add_id(&id),
+                };
+            });
+
+            let mut resp_payload = resp_payload.lock().await;
+            resp_payload.add_command(success);
+            resp_payload.add_command(offline);
+            for (error, mut cmd) in errors {
+                cmd.error_code = Some(error);
+                resp_payload.add_command(cmd);
             }
         });
 

@@ -170,7 +170,7 @@ impl AddAdditionalMethods for Ntfy {
     {
         methods.add_async_method(
             "send_notification",
-            |lua, this, notification: mlua::Value| async move {
+            async |lua, this, notification: mlua::Value| {
                 let notification: Notification = lua.from_value(notification)?;
 
                 this.send(notification).await;

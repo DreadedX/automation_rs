@@ -45,7 +45,7 @@ impl Impl {
         quote! {
             impl mlua::UserData for #name #generics {
                 fn add_methods<M: mlua::UserDataMethods<Self>>(methods: &mut M) {
-                    methods.add_async_function("new", |_lua, config| async {
+                    methods.add_async_function("new", async |_lua, config| {
                         let device: Self = LuaDeviceCreate::create(config)
                             .await
                             .map_err(mlua::ExternalError::into_lua_err)?;
@@ -58,7 +58,7 @@ impl Impl {
                         Ok(b)
                     });
 
-                    methods.add_async_method("get_id", |_lua, this, _: ()| async move { Ok(this.get_id()) });
+                    methods.add_async_method("get_id", async |_lua, this, _: ()| { Ok(this.get_id()) });
 
                     #(
                         #traits::add_methods(methods);

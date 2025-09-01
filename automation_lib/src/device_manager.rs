@@ -73,22 +73,19 @@ impl DeviceManager {
         match event {
             Event::MqttMessage(message) => {
                 let devices = self.devices.read().await;
-                let iter = devices.iter().map(|(id, device)| {
-                    let message = message.clone();
-                    async move {
-                        let device: Option<&dyn OnMqtt> = device.cast();
-                        if let Some(device) = device {
-                            // let subscribed = device
-                            //     .topics()
-                            //     .iter()
-                            //     .any(|topic| matches(&message.topic, topic));
-                            //
-                            // if subscribed {
-                            trace!(id, "Handling");
-                            device.on_mqtt(message).await;
-                            trace!(id, "Done");
-                            // }
-                        }
+                let iter = devices.iter().map(async |(id, device)| {
+                    let device: Option<&dyn OnMqtt> = device.cast();
+                    if let Some(device) = device {
+                        // let subscribed = device
+                        //     .topics()
+                        //     .iter()
+                        //     .any(|topic| matches(&message.topic, topic));
+                        //
+                        // if subscribed {
+                        trace!(id, "Handling");
+                        device.on_mqtt(message.clone()).await;
+                        trace!(id, "Done");
+                        // }
                     }
                 });
 
@@ -100,7 +97,7 @@ impl DeviceManager {
 
 impl mlua::UserData for DeviceManager {
     fn add_methods<M: mlua::UserDataMethods<Self>>(methods: &mut M) {
-        methods.add_async_method("add", |_lua, this, device: Box<dyn Device>| async move {
+        methods.add_async_method("add", async |_lua, this, device: Box<dyn Device>| {
             this.add(device).await;
 
             Ok(())
@@ -108,7 +105,7 @@ impl mlua::UserData for DeviceManager {
 
         methods.add_async_method(
             "schedule",
-            |lua, this, (schedule, f): (String, mlua::Function)| async move {
+            async |lua, this, (schedule, f): (String, mlua::Function)| {
                 debug!("schedule = {schedule}");
                 // This creates a function, that returns the actual job we want to run
                 let create_job = {
