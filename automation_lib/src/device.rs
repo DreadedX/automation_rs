@@ -2,7 +2,6 @@ use std::fmt::Debug;
 
 use automation_cast::Cast;
 use dyn_clone::DynClone;
-use google_home::traits::OnOff;
 use mlua::ObjectLike;
 
 use crate::event::OnMqtt;
@@ -18,7 +17,7 @@ pub trait LuaDeviceCreate {
 }
 
 pub trait Device:
-    Debug + DynClone + Sync + Send + Cast<dyn google_home::Device> + Cast<dyn OnMqtt> + Cast<dyn OnOff>
+    Debug + DynClone + Sync + Send + Cast<dyn google_home::Device> + Cast<dyn OnMqtt>
 {
     fn get_id(&self) -> String;
 }
