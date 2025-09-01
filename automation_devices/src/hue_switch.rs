@@ -31,9 +31,12 @@ pub struct Config {
 
     #[device_config(from_lua, default)]
     pub right_hold_callback: ActionCallback<HueSwitch, ()>,
+
+    #[device_config(from_lua, default)]
+    pub battery_callback: ActionCallback<HueSwitch, f32>,
 }
 
-#[derive(Debug, Clone, Deserialize)]
+#[derive(Debug, Copy, Clone, Deserialize)]
 #[serde(rename_all = "snake_case")]
 enum Action {
     LeftPress,
@@ -48,7 +51,8 @@ enum Action {
 
 #[derive(Debug, Clone, Deserialize)]
 struct State {
-    action: Action,
+    action: Option<Action>,
+    battery: Option<f32>,
 }
 
 #[derive(Debug, Clone, LuaDevice)]
@@ -84,32 +88,43 @@ impl OnMqtt for HueSwitch {
     async fn on_mqtt(&self, message: Publish) {
         // Check if the message is from the device itself or from a remote
         if matches(&message.topic, &self.config.mqtt.topic) {
-            let action = match serde_json::from_slice::<State>(&message.payload) {
-                Ok(message) => message.action,
+            let message = match serde_json::from_slice::<State>(&message.payload) {
+                Ok(message) => message,
                 Err(err) => {
                     warn!(id = Device::get_id(self), "Failed to parse message: {err}");
                     return;
                 }
             };
-            debug!(id = Device::get_id(self), "Remote action = {:?}", action);
 
-            match action {
-                Action::LeftPressRelease => self.config.left_callback.call(self, &()).await,
-                Action::RightPressRelease => self.config.right_callback.call(self, &()).await,
-                Action::LeftHold => self.config.left_hold_callback.call(self, &()).await,
-                Action::RightHold => self.config.right_hold_callback.call(self, &()).await,
-                // If there is no hold action, the switch will act like a normal release
-                Action::RightHoldRelease => {
-                    if !self.config.right_hold_callback.is_set() {
-                        self.config.right_callback.call(self, &()).await
+            if let Some(action) = message.action {
+                debug!(
+                    id = Device::get_id(self),
+                    ?message.action,
+                    "Action received",
+                );
+
+                match action {
+                    Action::LeftPressRelease => self.config.left_callback.call(self, &()).await,
+                    Action::RightPressRelease => self.config.right_callback.call(self, &()).await,
+                    Action::LeftHold => self.config.left_hold_callback.call(self, &()).await,
+                    Action::RightHold => self.config.right_hold_callback.call(self, &()).await,
+                    // If there is no hold action, the switch will act like a normal release
+                    Action::RightHoldRelease => {
+                        if !self.config.right_hold_callback.is_set() {
+                            self.config.right_callback.call(self, &()).await
+                        }
                     }
-                }
-                Action::LeftHoldRelease => {
-                    if !self.config.left_hold_callback.is_set() {
-                        self.config.left_callback.call(self, &()).await
+                    Action::LeftHoldRelease => {
+                        if !self.config.left_hold_callback.is_set() {
+                            self.config.left_callback.call(self, &()).await
+                        }
                     }
+                    _ => {}
                 }
-                _ => {}
+            }
+
+            if let Some(battery) = message.battery {
+                self.config.battery_callback.call(self, &battery).await;
             }
         }
     }

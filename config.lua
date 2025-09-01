@@ -34,6 +34,37 @@ local ntfy = Ntfy.new({
 })
 automation.device_manager:add(ntfy)
 
+local low_battery = {}
+local function check_battery(device, battery)
+	local id = device:get_id()
+	if battery < 15 then
+		print("Device '" .. id .. "' has low battery: " .. tostring(battery))
+		low_battery[id] = battery
+	else
+		low_battery[id] = nil
+	end
+end
+automation.device_manager:schedule("0 0 21 */1 * *", function()
+	-- Don't send notifications if there are now devices with low battery
+	if next(low_battery) == nil then
+		print("No devices with low battery")
+		return
+	end
+
+	local lines = {}
+	for name, battery in pairs(low_battery) do
+		table.insert(lines, name .. ": " .. tostring(battery) .. "%")
+	end
+	local message = table.concat(lines, "\n")
+
+	ntfy:send_notification({
+		title = "Low battery",
+		message = message,
+		tags = { "battery" },
+		priority = "default",
+	})
+end)
+
 local on_presence = {
 	add = function(self, f)
 		self[#self + 1] = f
@@ -171,6 +202,7 @@ automation.device_manager:add(HueSwitch.new({
 	right_hold_callback = function()
 		living_lights_relax:set_on(true)
 	end,
+	battery_callback = check_battery,
 }))
 
 automation.device_manager:add(WakeOnLAN.new({
@@ -222,6 +254,7 @@ automation.device_manager:add(IkeaRemote.new({
 			end
 		end
 	end,
+	battery_callback = check_battery,
 }))
 
 local function kettle_timeout()
@@ -260,6 +293,7 @@ automation.device_manager:add(IkeaRemote.new({
 	topic = mqtt_z2m("bedroom/remote"),
 	single_button = true,
 	callback = set_kettle,
+	battery_callback = check_battery,
 }))
 
 automation.device_manager:add(IkeaRemote.new({
@@ -269,6 +303,7 @@ automation.device_manager:add(IkeaRemote.new({
 	topic = mqtt_z2m("kitchen/remote"),
 	single_button = true,
 	callback = set_kettle,
+	battery_callback = check_battery,
 }))
 
 local function off_timeout(duration)
@@ -356,6 +391,7 @@ automation.device_manager:add(IkeaRemote.new({
 			workbench_light:set_on(false)
 		end
 	end,
+	battery_callback = check_battery,
 }))
 
 local hallway_top_light = HueGroup.new({
@@ -373,6 +409,7 @@ automation.device_manager:add(HueSwitch.new({
 	left_callback = function()
 		hallway_top_light:set_on(not hallway_top_light:on())
 	end,
+	battery_callback = check_battery,
 }))
 automation.device_manager:add(HueSwitch.new({
 	name = "SwitchTop",
@@ -382,6 +419,7 @@ automation.device_manager:add(HueSwitch.new({
 	left_callback = function()
 		hallway_top_light:set_on(not hallway_top_light:on())
 	end,
+	battery_callback = check_battery,
 }))
 
 local hallway_light_automation = {
@@ -488,6 +526,7 @@ automation.device_manager:add(IkeaRemote.new({
 	callback = function(_, on)
 		hallway_light_automation:switch_callback(on)
 	end,
+	battery_callback = check_battery,
 }))
 local hallway_frontdoor = ContactSensor.new({
 	name = "Frontdoor",
@@ -503,6 +542,7 @@ local hallway_frontdoor = ContactSensor.new({
 		hallway_light_automation:door_callback(open)
 		frontdoor_presence(open)
 	end,
+	battery_callback = check_battery,
 })
 automation.device_manager:add(hallway_frontdoor)
 hallway_light_automation.door = hallway_frontdoor
@@ -516,6 +556,7 @@ local hallway_trash = ContactSensor.new({
 	callback = function(_, open)
 		hallway_light_automation:trash_callback(open)
 	end,
+	battery_callback = check_battery,
 })
 automation.device_manager:add(hallway_trash)
 hallway_light_automation.trash = hallway_trash
@@ -564,6 +605,7 @@ automation.device_manager:add(HueSwitch.new({
 	left_hold_callback = function()
 		bedroom_lights_relax:set_on(true)
 	end,
+	battery_callback = check_battery,
 }))
 
 automation.device_manager:add(ContactSensor.new({
@@ -572,24 +614,28 @@ automation.device_manager:add(ContactSensor.new({
 	sensor_type = "Door",
 	topic = mqtt_z2m("living/balcony"),
 	client = mqtt_client,
+	battery_callback = check_battery,
 }))
 automation.device_manager:add(ContactSensor.new({
 	name = "Window",
 	room = "Living Room",
 	topic = mqtt_z2m("living/window"),
 	client = mqtt_client,
+	battery_callback = check_battery,
 }))
 automation.device_manager:add(ContactSensor.new({
 	name = "Window",
 	room = "Bedroom",
 	topic = mqtt_z2m("bedroom/window"),
 	client = mqtt_client,
+	battery_callback = check_battery,
 }))
 automation.device_manager:add(ContactSensor.new({
 	name = "Window",
 	room = "Guest Room",
 	topic = mqtt_z2m("guest/window"),
 	client = mqtt_client,
+	battery_callback = check_battery,
 }))
 
 local storage_light = LightBrightness.new({
@@ -614,6 +660,7 @@ automation.device_manager:add(ContactSensor.new({
 			storage_light:set_on(false)
 		end
 	end,
+	battery_callback = check_battery,
 }))
 
 automation.device_manager:schedule("0 0 19 * * *", function()

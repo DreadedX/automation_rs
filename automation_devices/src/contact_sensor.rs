@@ -36,6 +36,9 @@ pub struct Config {
 
     #[device_config(from_lua, default)]
     pub callback: ActionCallback<ContactSensor, bool>,
+    #[device_config(from_lua, default)]
+    pub battery_callback: ActionCallback<ContactSensor, f32>,
+
     #[device_config(from_lua)]
     pub client: WrappedAsyncClient,
 }
@@ -149,21 +152,27 @@ impl OnMqtt for ContactSensor {
             return;
         }
 
-        let is_closed = match ContactMessage::try_from(message) {
-            Ok(state) => state.is_closed(),
+        let message = match ContactMessage::try_from(message) {
+            Ok(message) => message,
             Err(err) => {
                 error!(id = self.get_id(), "Failed to parse message: {err}");
                 return;
             }
         };
 
-        if is_closed == self.state().await.is_closed {
-            return;
+        if let Some(is_closed) = message.contact {
+            if is_closed == self.state().await.is_closed {
+                return;
+            }
+
+            self.config.callback.call(self, &!is_closed).await;
+
+            debug!(id = self.get_id(), "Updating state to {is_closed}");
+            self.state_mut().await.is_closed = is_closed;
         }
 
-        self.config.callback.call(self, &!is_closed).await;
-
-        debug!(id = self.get_id(), "Updating state to {is_closed}");
-        self.state_mut().await.is_closed = is_closed;
+        if let Some(battery) = message.battery {
+            self.config.battery_callback.call(self, &battery).await;
+        }
     }
 }

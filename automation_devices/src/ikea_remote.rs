@@ -25,6 +25,8 @@ pub struct Config {
 
     #[device_config(from_lua)]
     pub callback: ActionCallback<IkeaRemote, bool>,
+    #[device_config(from_lua, default)]
+    pub battery_callback: ActionCallback<IkeaRemote, f32>,
 }
 
 #[derive(Debug, Clone, LuaDevice)]
@@ -60,31 +62,38 @@ impl OnMqtt for IkeaRemote {
     async fn on_mqtt(&self, message: Publish) {
         // Check if the message is from the deviec itself or from a remote
         if matches(&message.topic, &self.config.mqtt.topic) {
-            let action = match RemoteMessage::try_from(message) {
-                Ok(message) => message.action(),
+            let message = match RemoteMessage::try_from(message) {
+                Ok(message) => message,
                 Err(err) => {
                     error!(id = Device::get_id(self), "Failed to parse message: {err}");
                     return;
                 }
             };
-            debug!(id = Device::get_id(self), "Remote action = {:?}", action);
 
-            let on = if self.config.single_button {
-                match action {
-                    RemoteAction::On => Some(true),
-                    RemoteAction::BrightnessMoveUp => Some(false),
-                    _ => None,
-                }
-            } else {
-                match action {
-                    RemoteAction::On => Some(true),
-                    RemoteAction::Off => Some(false),
-                    _ => None,
-                }
-            };
+            if let Some(action) = message.action {
+                debug!(id = Device::get_id(self), "Remote action = {:?}", action);
 
-            if let Some(on) = on {
-                self.config.callback.call(self, &on).await;
+                let on = if self.config.single_button {
+                    match action {
+                        RemoteAction::On => Some(true),
+                        RemoteAction::BrightnessMoveUp => Some(false),
+                        _ => None,
+                    }
+                } else {
+                    match action {
+                        RemoteAction::On => Some(true),
+                        RemoteAction::Off => Some(false),
+                        _ => None,
+                    }
+                };
+
+                if let Some(on) = on {
+                    self.config.callback.call(self, &on).await;
+                }
+            }
+
+            if let Some(battery) = message.battery {
+                self.config.battery_callback.call(self, &battery).await;
             }
         }
     }

@@ -68,13 +68,8 @@ pub enum RemoteAction {
 // Message used to report the action performed by a remote
 #[derive(Debug, Deserialize)]
 pub struct RemoteMessage {
-    action: RemoteAction,
-}
-
-impl RemoteMessage {
-    pub fn action(&self) -> RemoteAction {
-        self.action
-    }
+    pub action: Option<RemoteAction>,
+    pub battery: Option<f32>,
 }
 
 impl TryFrom<Publish> for RemoteMessage {
@@ -144,13 +139,8 @@ impl TryFrom<Publish> for BrightnessMessage {
 // Message to report the state of a contact sensor
 #[derive(Debug, Deserialize)]
 pub struct ContactMessage {
-    contact: bool,
-}
-
-impl ContactMessage {
-    pub fn is_closed(&self) -> bool {
-        self.contact
-    }
+    pub contact: Option<bool>,
+    pub battery: Option<f32>,
 }
 
 impl TryFrom<Publish> for ContactMessage {
