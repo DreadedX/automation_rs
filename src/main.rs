@@ -1,3 +1,4 @@
+#![feature(iter_intersperse)]
 mod web;
 
 use std::net::SocketAddr;
@@ -83,6 +84,30 @@ async fn app() -> anyhow::Result<()> {
             warn!("{text}");
             Ok(())
         });
+        let print = lua.create_function(|lua, values: mlua::Variadic<mlua::Value>| {
+            // Fortmat the values the same way lua does by default
+            let text: String = values
+                .iter()
+                .map(|value| {
+                    value.to_string().unwrap_or_else(|_| {
+                        format!("{}: {}", value.type_name(), value.to_pointer().addr())
+                    })
+                })
+                .intersperse("\t".to_owned())
+                .collect();
+
+            // Level 1 of the stack gives us the location that called this function
+            let stack = lua.inspect_stack(1).unwrap();
+            let file = stack.source().short_src.unwrap_or("?".into());
+            let line = stack.curr_line();
+
+            // The target is overridden to make it possible to filter for logs originating from the
+            // config
+            info!(target: "automation_config", %file, line, "{text}");
+
+            Ok(())
+        })?;
+        lua.globals().set("print", print)?;
 
         let automation = lua.create_table()?;
         let event_channel = device_manager.event_channel();
