@@ -1,6 +1,6 @@
 repos:
   - repo: https://github.com/pre-commit/pre-commit-hooks
-    rev: v4.6.0
+    rev: v6.0.0
     hooks:
       - id: trailing-whitespace
       - id: end-of-file-fixer
@@ -12,12 +12,12 @@ repos:
       - id: check-merge-conflict
 
   - repo: https://github.com/JohnnyMorganz/StyLua
-    rev: v0.20.0
+    rev: v2.1.0
     hooks:
       - id: stylua
 
   - repo: https://github.com/crate-ci/typos
-    rev: v1.21.0
+    rev: v1.36.1
     hooks:
       - id: typos
         args: ["--force-exclude"]
@@ -75,6 +75,6 @@ repos:
         pass_filenames: false
 
   - repo: https://github.com/hadolint/hadolint
-    rev: v2.12.0
+    rev: v2.13.1
     hooks:
       - id: hadolint
