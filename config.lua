@@ -437,7 +437,7 @@ local hallway_light_automation = {
 			self.group.set_on(true)
 		elseif not self.forced then
 			self.timeout:start(debug and 10 or 2 * 60, function()
-				if self.trash:open_percent() == 0 then
+				if self.trash == nil or self.trash:open_percent() == 0 then
 					self.group.set_on(false)
 				end
 			end)
@@ -447,13 +447,21 @@ local hallway_light_automation = {
 		if open then
 			self.group.set_on(true)
 		else
-			if not self.timeout:is_waiting() and self.door:open_percent() == 0 and not self.forced then
+			if
+				not self.timeout:is_waiting()
+				and (self.door == nil or self.door:open_percent() == 0)
+				and not self.forced
+			then
 				self.group.set_on(false)
 			end
 		end
 	end,
 	light_callback = function(self, on)
-		if on and self.trash:open_percent() == 0 and self.door:open_percent() == 0 then
+		if
+			on
+			and (self.trash == nil or self.trash:open_percent()) == 0
+			and (self.door == nil or self.door:open_percent() == 0)
+		then
 			-- If the door and trash are not open, that means the light got turned on manually
 			self.timeout:cancel()
 			self.forced = true
