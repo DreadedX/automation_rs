@@ -14,7 +14,7 @@ members = [
 ]
 
 [workspace.dependencies]
-mlua = { version = "0.10.1", features = [
+mlua = { version = "0.11.3", features = [
   "lua54",
   "vendored",
   "macros",
@@ -30,40 +30,41 @@ google_home = { path = "./google_home/google_home" }
 google_home_macro = { path = "./google_home/google_home_macro" }
 tokio = { version = "1", features = ["rt-multi-thread"] }
 rumqttc = "0.24.0"
-tracing = "0.1.37"
-anyhow = "1.0.68"
-async-trait = "0.1.83"
-axum = "0.7.9"
-bytes = "1.3.0"
-dotenvy = "0.15.0"
-dyn-clone = "1.0.17"
+tracing = "0.1.41"
+anyhow = "1.0.99"
+async-trait = "0.1.89"
+axum = "0.8.4"
+bytes = "1.10.1"
+dotenvy = "0.15.7"
+dyn-clone = "1.0.20"
 eui48 = { version = "1.1.0", features = [
   "disp_hexstring",
   "serde",
 ], default-features = false }
-futures = "0.3.25"
-hostname = "0.4.0"
-indexmap = { version = "2.0.0", features = ["serde"] }
-itertools = "0.13.0"
-json_value_merge = "2.0.0"
-proc-macro2 = "1.0.81"
-quote = "1.0.36"
-reqwest = { version = "0.12.9", features = [
+futures = "0.3.31"
+hostname = "0.4.1"
+indexmap = { version = "2.11.0", features = ["serde"] }
+itertools = "0.14.0"
+json_value_merge = "2.0.1"
+proc-macro2 = "1.0.101"
+quote = "1.0.40"
+reqwest = { version = "0.12.23", features = [
   "json",
   "rustls-tls",
 ], default-features = false } # Use rustls, since the other packages also use rustls
-serde = { version = "1.0.149", features = ["derive"] }
-serde_json = "1.0.89"
-serde_repr = "0.1.10"
-syn = { version = "2.0.60", features = ["extra-traits", "full"] }
-thiserror = "2.0.5"
-tokio-cron-scheduler = "0.13.0"
-tracing-subscriber = "0.3.16"
-uuid = "1.8.0"
+serde = { version = "1.0.219", features = ["derive"] }
+serde_json = "1.0.143"
+serde_repr = "0.1.20"
+syn = { version = "2.0.106", features = ["extra-traits", "full"] }
+thiserror = "2.0.16"
+tokio-cron-scheduler = "0.14.0"
+tracing-subscriber = "0.3.20"
+uuid = "1.18.1"
 wakey = "0.3.0"
 air_filter_types = { git = "https://git.huizinga.dev/Dreaded_X/airfilter", tag = "v0.4.4" }
 
 [dependencies]
+async-trait = { workspace = true }
 automation_lib = { workspace = true }
 automation_devices = { workspace = true }
 google_home = { workspace = true }

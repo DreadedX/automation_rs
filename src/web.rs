@@ -1,6 +1,5 @@
 use std::result;
 
-use axum::async_trait;
 use axum::extract::{FromRef, FromRequestParts};
 use axum::http::StatusCode;
 use axum::http::request::Parts;
@@ -79,7 +78,6 @@ pub struct User {
     pub preferred_username: String,
 }
 
-#[async_trait]
 impl<S> FromRequestParts<S> for User
 where
     String: FromRef<S>,
@@ -116,7 +114,7 @@ where
                 .await
                 .map_err(|err| ApiError::new(StatusCode::INTERNAL_SERVER_ERROR, err.into()))?;
 
-            return Ok(user);
+            Ok(user)
         } else {
             let err: ApiErrorJson = res
                 .json()

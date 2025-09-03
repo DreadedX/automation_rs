@@ -97,9 +97,18 @@ async fn app() -> anyhow::Result<()> {
                 .collect();
 
             // Level 1 of the stack gives us the location that called this function
-            let stack = lua.inspect_stack(1).unwrap();
-            let file = stack.source().short_src.unwrap_or("?".into());
-            let line = stack.curr_line();
+            let (file, line) = lua
+                .inspect_stack(1, |debug| {
+                    (
+                        debug
+                            .source()
+                            .short_src
+                            .unwrap_or("???".into())
+                            .into_owned(),
+                        debug.current_line().unwrap_or(0),
+                    )
+                })
+                .unwrap();
 
             // The target is overridden to make it possible to filter for logs originating from the
             // config
