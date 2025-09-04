@@ -1,10 +1,11 @@
-local automation = require("automation")
+local utils = require("utils")
+
 print(_VERSION)
 
-local host = automation.util.get_hostname()
+local host = utils.get_hostname()
 print("Running @" .. host)
 
-local debug, value = pcall(automation.util.get_env, "DEBUG")
+local debug, value = pcall(utils.get_env, "DEBUG")
 if debug and value ~= "true" then
 	debug = false
 end
@@ -26,12 +27,12 @@ local mqtt_client = automation.new_mqtt_client({
 	port = 8883,
 	client_name = "automation-" .. host,
 	username = "mqtt",
-	password = automation.util.get_env("MQTT_PASSWORD"),
+	password = utils.get_env("MQTT_PASSWORD"),
 	tls = host == "zeus" or host == "hephaestus",
 })
 
 local ntfy = Ntfy.new({
-	topic = automation.util.get_env("NTFY_TOPIC"),
+	topic = utils.get_env("NTFY_TOPIC"),
 })
 automation.device_manager:add(ntfy)
 
@@ -106,7 +107,7 @@ end)
 on_presence:add(function(presence)
 	mqtt_client:send_message(mqtt_automation("debug") .. "/presence", {
 		state = presence,
-		updated = automation.util.get_epoch(),
+		updated = utils.get_epoch(),
 	})
 end)
 
@@ -140,12 +141,12 @@ automation.device_manager:add(LightSensor.new({
 on_light:add(function(light)
 	mqtt_client:send_message(mqtt_automation("debug") .. "/darkness", {
 		state = not light,
-		updated = automation.util.get_epoch(),
+		updated = utils.get_epoch(),
 	})
 end)
 
 local hue_ip = "10.0.0.102"
-local hue_token = automation.util.get_env("HUE_TOKEN")
+local hue_token = utils.get_env("HUE_TOKEN")
 
 local hue_bridge = HueBridge.new({
 	identifier = "hue_bridge",
@@ -516,7 +517,7 @@ setmetatable(frontdoor_presence, {
 			if not presence_system:overall_presence() then
 				mqtt_client:send_message(mqtt_automation("presence/contact/frontdoor"), {
 					state = true,
-					updated = automation.util.get_epoch(),
+					updated = utils.get_epoch(),
 				})
 			end
 		else

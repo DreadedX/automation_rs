@@ -131,28 +131,28 @@ async fn app() -> anyhow::Result<()> {
 
     automation.set("new_mqtt_client", new_mqtt_client)?;
     automation.set("device_manager", device_manager.clone())?;
+    lua.globals().set("automation", automation)?;
 
-    let util = lua.create_table()?;
+    let utils = lua.create_table()?;
     let get_env = lua.create_function(|_lua, name: String| {
         std::env::var(name).map_err(mlua::ExternalError::into_lua_err)
     })?;
-    util.set("get_env", get_env)?;
+    utils.set("get_env", get_env)?;
     let get_hostname = lua.create_function(|_lua, ()| {
         hostname::get()
             .map(|name| name.to_str().unwrap_or("unknown").to_owned())
             .map_err(mlua::ExternalError::into_lua_err)
     })?;
-    util.set("get_hostname", get_hostname)?;
+    utils.set("get_hostname", get_hostname)?;
     let get_epoch = lua.create_function(|_lua, ()| {
         Ok(SystemTime::now()
             .duration_since(UNIX_EPOCH)
             .expect("Time is after UNIX EPOCH")
             .as_millis())
     })?;
-    util.set("get_epoch", get_epoch)?;
-    automation.set("util", util)?;
+    utils.set("get_epoch", get_epoch)?;
 
-    lua.register_module("automation", automation)?;
+    lua.register_module("utils", utils)?;
 
     automation_devices::register_with_lua(&lua)?;
     helpers::register_with_lua(&lua)?;
