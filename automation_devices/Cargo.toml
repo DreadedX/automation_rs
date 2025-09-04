@@ -4,22 +4,22 @@ version = "0.1.0"
 edition = "2024"
 
 [dependencies]
+air_filter_types = { workspace = true }
+anyhow = { workspace = true }
+async-trait = { workspace = true }
 automation_lib = { workspace = true }
 automation_macro = { workspace = true }
+bytes = { workspace = true }
+dyn-clone = { workspace = true }
+eui48 = { workspace = true }
 google_home = { workspace = true }
 mlua = { workspace = true }
-async-trait = { workspace = true }
-dyn-clone = { workspace = true }
+reqwest = { workspace = true }
 rumqttc = { workspace = true }
-tokio = { workspace = true }
-serde_repr = { workspace = true }
-tracing = { workspace = true }
-serde_json = { workspace = true }
 serde = { workspace = true }
-reqwest = { workspace = true }          # Use rustls, since the other packages also use rustls
-anyhow = { workspace = true }
-bytes = { workspace = true }
+serde_json = { workspace = true }
+serde_repr = { workspace = true }
 thiserror = { workspace = true }
-eui48 = { workspace = true }
+tokio = { workspace = true }
+tracing = { workspace = true }
 wakey = { workspace = true }
-air_filter_types = { workspace = true }

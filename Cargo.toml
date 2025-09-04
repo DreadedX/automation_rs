@@ -5,34 +5,22 @@ edition = "2024"
 
 [workspace]
 members = [
-  "automation_macro",
   "automation_cast",
-  "google_home/google_home",
-  "google_home/google_home_macro",
   "automation_devices",
   "automation_lib",
+  "automation_macro",
+  "google_home/google_home",
+  "google_home/google_home_macro",
 ]
 
 [workspace.dependencies]
-mlua = { version = "0.11.3", features = [
-  "lua54",
-  "vendored",
-  "macros",
-  "serialize",
-  "async",
-  "send",
-] }
-automation_macro = { path = "./automation_macro" }
-automation_cast = { path = "./automation_cast" }
-automation_lib = { path = "./automation_lib" }
-automation_devices = { path = "./automation_devices" }
-google_home = { path = "./google_home/google_home" }
-google_home_macro = { path = "./google_home/google_home_macro" }
-tokio = { version = "1", features = ["rt-multi-thread"] }
-rumqttc = "0.24.0"
-tracing = "0.1.41"
+air_filter_types = { git = "https://git.huizinga.dev/Dreaded_X/airfilter", tag = "v0.4.4" }
 anyhow = "1.0.99"
 async-trait = "0.1.89"
+automation_cast = { path = "./automation_cast" }
+automation_devices = { path = "./automation_devices" }
+automation_lib = { path = "./automation_lib" }
+automation_macro = { path = "./automation_macro" }
 axum = "0.8.4"
 bytes = "1.10.1"
 dotenvy = "0.15.7"
@@ -42,45 +30,57 @@ eui48 = { version = "1.1.0", features = [
   "serde",
 ], default-features = false }
 futures = "0.3.31"
+google_home = { path = "./google_home/google_home" }
+google_home_macro = { path = "./google_home/google_home_macro" }
 hostname = "0.4.1"
 indexmap = { version = "2.11.0", features = ["serde"] }
 itertools = "0.14.0"
 json_value_merge = "2.0.1"
+mlua = { version = "0.11.3", features = [
+  "lua54",
+  "vendored",
+  "macros",
+  "serialize",
+  "async",
+  "send",
+] }
 proc-macro2 = "1.0.101"
 quote = "1.0.40"
 reqwest = { version = "0.12.23", features = [
   "json",
   "rustls-tls",
 ], default-features = false } # Use rustls, since the other packages also use rustls
+rumqttc = "0.24.0"
 serde = { version = "1.0.219", features = ["derive"] }
 serde_json = "1.0.143"
 serde_repr = "0.1.20"
 syn = { version = "2.0.106", features = ["extra-traits", "full"] }
 thiserror = "2.0.16"
+tokio = { version = "1", features = ["rt-multi-thread"] }
 tokio-cron-scheduler = "0.14.0"
+tracing = "0.1.41"
 tracing-subscriber = "0.3.20"
 uuid = "1.18.1"
 wakey = "0.3.0"
-air_filter_types = { git = "https://git.huizinga.dev/Dreaded_X/airfilter", tag = "v0.4.4" }
 
 [dependencies]
-async-trait = { workspace = true }
-automation_lib = { workspace = true }
-automation_devices = { workspace = true }
-google_home = { workspace = true }
-mlua = { workspace = true }
-tokio = { workspace = true }
-hostname = { workspace = true }
-rumqttc = { workspace = true }
-axum = { workspace = true }
-tracing = { workspace = true }
 anyhow = { workspace = true }
+async-trait = { workspace = true }
+automation_devices = { workspace = true }
+automation_lib = { workspace = true }
+axum = { workspace = true }
 dotenvy = { workspace = true }
-tracing-subscriber = { workspace = true }
-serde = { workspace = true }
-thiserror = { workspace = true }
-serde_json = { workspace = true }
+google_home = { workspace = true }
+hostname = { workspace = true }
+mlua = { workspace = true }
 reqwest = { workspace = true }
+rumqttc = { workspace = true }
+serde = { workspace = true }
+serde_json = { workspace = true }
+thiserror = { workspace = true }
+tokio = { workspace = true }
+tracing = { workspace = true }
+tracing-subscriber = { workspace = true }
 
 [patch.crates-io]
 wakey = { git = "https://git.huizinga.dev/Dreaded_X/wakey" }
