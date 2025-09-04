@@ -87,3 +87,6 @@ wakey = { git = "https://git.huizinga.dev/Dreaded_X/wakey" }
 
 [profile.release]
 lto = true
+
+[package.metadata.typos.default.extend-words]
+mosquitto = "mosquitto"
