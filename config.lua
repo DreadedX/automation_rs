@@ -1,3 +1,4 @@
+local automation = require("automation")
 print(_VERSION)
 
 local host = automation.util.get_hostname()
@@ -16,7 +17,7 @@ local function mqtt_automation(topic)
 	return "automation/" .. topic
 end
 
-automation.fulfillment = {
+local fulfillment = {
 	openid_url = "https://login.huizinga.dev/api/oidc",
 }
 
@@ -677,3 +678,5 @@ end)
 automation.device_manager:schedule("0 0 20 * * *", function()
 	bedroom_air_filter:set_on(false)
 end)
+
+return fulfillment

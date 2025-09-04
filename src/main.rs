@@ -6,7 +6,6 @@ use std::path::Path;
 use std::process;
 use std::time::{SystemTime, UNIX_EPOCH};
 
-use anyhow::anyhow;
 use automation_lib::config::{FulfillmentConfig, MqttConfig};
 use automation_lib::device_manager::DeviceManager;
 use automation_lib::helpers;
@@ -77,109 +76,93 @@ async fn app() -> anyhow::Result<()> {
     // Setup the device handler
     let device_manager = DeviceManager::new().await;
 
-    let fulfillment_config = {
-        let lua = mlua::Lua::new();
+    let lua = mlua::Lua::new();
 
-        lua.set_warning_function(|_lua, text, _cont| {
-            warn!("{text}");
-            Ok(())
-        });
-        let print = lua.create_function(|lua, values: mlua::Variadic<mlua::Value>| {
-            // Fortmat the values the same way lua does by default
-            let text: String = values
-                .iter()
-                .map(|value| {
-                    value.to_string().unwrap_or_else(|_| {
-                        format!("{}: {}", value.type_name(), value.to_pointer().addr())
-                    })
+    lua.set_warning_function(|_lua, text, _cont| {
+        warn!("{text}");
+        Ok(())
+    });
+    let print = lua.create_function(|lua, values: mlua::Variadic<mlua::Value>| {
+        // Fortmat the values the same way lua does by default
+        let text: String = values
+            .iter()
+            .map(|value| {
+                value.to_string().unwrap_or_else(|_| {
+                    format!("{}: {}", value.type_name(), value.to_pointer().addr())
                 })
-                .intersperse("\t".to_owned())
-                .collect();
+            })
+            .intersperse("\t".to_owned())
+            .collect();
 
-            // Level 1 of the stack gives us the location that called this function
-            let (file, line) = lua
-                .inspect_stack(1, |debug| {
-                    (
-                        debug
-                            .source()
-                            .short_src
-                            .unwrap_or("???".into())
-                            .into_owned(),
-                        debug.current_line().unwrap_or(0),
-                    )
-                })
-                .unwrap();
+        // Level 1 of the stack gives us the location that called this function
+        let (file, line) = lua
+            .inspect_stack(1, |debug| {
+                (
+                    debug
+                        .source()
+                        .short_src
+                        .unwrap_or("???".into())
+                        .into_owned(),
+                    debug.current_line().unwrap_or(0),
+                )
+            })
+            .unwrap();
 
-            // The target is overridden to make it possible to filter for logs originating from the
-            // config
-            info!(target: "automation_config", %file, line, "{text}");
+        // The target is overridden to make it possible to filter for logs originating from the
+        // config
+        info!(target: "automation_config", %file, line, "{text}");
 
-            Ok(())
-        })?;
-        lua.globals().set("print", print)?;
+        Ok(())
+    })?;
+    lua.globals().set("print", print)?;
 
-        let automation = lua.create_table()?;
-        let event_channel = device_manager.event_channel();
-        let new_mqtt_client = lua.create_function(move |lua, config: mlua::Value| {
-            let config: MqttConfig = lua.from_value(config)?;
+    let automation = lua.create_table()?;
+    let event_channel = device_manager.event_channel();
+    let new_mqtt_client = lua.create_function(move |lua, config: mlua::Value| {
+        let config: MqttConfig = lua.from_value(config)?;
 
-            // Create a mqtt client
-            // TODO: When starting up, the devices are not yet created, this could lead to a device being out of sync
-            let (client, eventloop) = AsyncClient::new(config.into(), 100);
-            mqtt::start(eventloop, &event_channel);
+        // Create a mqtt client
+        // TODO: When starting up, the devices are not yet created, this could lead to a device being out of sync
+        let (client, eventloop) = AsyncClient::new(config.into(), 100);
+        mqtt::start(eventloop, &event_channel);
 
-            Ok(WrappedAsyncClient(client))
-        })?;
+        Ok(WrappedAsyncClient(client))
+    })?;
 
-        automation.set("new_mqtt_client", new_mqtt_client)?;
-        automation.set("device_manager", device_manager.clone())?;
+    automation.set("new_mqtt_client", new_mqtt_client)?;
+    automation.set("device_manager", device_manager.clone())?;
 
-        let util = lua.create_table()?;
-        let get_env = lua.create_function(|_lua, name: String| {
-            std::env::var(name).map_err(mlua::ExternalError::into_lua_err)
-        })?;
-        util.set("get_env", get_env)?;
-        let get_hostname = lua.create_function(|_lua, ()| {
-            hostname::get()
-                .map(|name| name.to_str().unwrap_or("unknown").to_owned())
-                .map_err(mlua::ExternalError::into_lua_err)
-        })?;
-        util.set("get_hostname", get_hostname)?;
-        let get_epoch = lua.create_function(|_lua, ()| {
-            Ok(SystemTime::now()
-                .duration_since(UNIX_EPOCH)
-                .expect("Time is after UNIX EPOCH")
-                .as_millis())
-        })?;
-        util.set("get_epoch", get_epoch)?;
-        automation.set("util", util)?;
+    let util = lua.create_table()?;
+    let get_env = lua.create_function(|_lua, name: String| {
+        std::env::var(name).map_err(mlua::ExternalError::into_lua_err)
+    })?;
+    util.set("get_env", get_env)?;
+    let get_hostname = lua.create_function(|_lua, ()| {
+        hostname::get()
+            .map(|name| name.to_str().unwrap_or("unknown").to_owned())
+            .map_err(mlua::ExternalError::into_lua_err)
+    })?;
+    util.set("get_hostname", get_hostname)?;
+    let get_epoch = lua.create_function(|_lua, ()| {
+        Ok(SystemTime::now()
+            .duration_since(UNIX_EPOCH)
+            .expect("Time is after UNIX EPOCH")
+            .as_millis())
+    })?;
+    util.set("get_epoch", get_epoch)?;
+    automation.set("util", util)?;
 
-        lua.globals().set("automation", automation)?;
+    lua.register_module("automation", automation)?;
 
-        automation_devices::register_with_lua(&lua)?;
-        helpers::register_with_lua(&lua)?;
+    automation_devices::register_with_lua(&lua)?;
+    helpers::register_with_lua(&lua)?;
 
-        // TODO: Make this not hardcoded
-        let config_filename = std::env::var("AUTOMATION_CONFIG").unwrap_or("./config.lua".into());
-        let config_path = Path::new(&config_filename);
-        match lua.load(config_path).exec_async().await {
-            Err(error) => {
-                println!("{error}");
-                Err(error)
-            }
-            result => result,
-        }?;
+    // TODO: Make this not hardcoded
+    let config_filename = std::env::var("AUTOMATION_CONFIG").unwrap_or("./config.lua".into());
+    let config_path = Path::new(&config_filename);
 
-        let automation: mlua::Table = lua.globals().get("automation")?;
-        let fulfillment_config: Option<mlua::Value> = automation.get("fulfillment")?;
-        if let Some(fulfillment_config) = fulfillment_config {
-            let fulfillment_config: FulfillmentConfig = lua.from_value(fulfillment_config)?;
-            debug!("automation.fulfillment = {fulfillment_config:?}");
-            fulfillment_config
-        } else {
-            return Err(anyhow!("Fulfillment is not configured"));
-        }
-    };
+    let fulfillment_config: mlua::Value = lua.load(config_path).eval_async().await?;
+    let fulfillment_config: FulfillmentConfig = lua.from_value(fulfillment_config)?;
 
     // Create google home fulfillment route
     let fulfillment = Router::new().route("/google_home", post(fulfillment));
