@@ -116,9 +116,9 @@ async fn app() -> anyhow::Result<()> {
     })?;
     lua.globals().set("print", print)?;
 
-    let automation = lua.create_table()?;
+    let mqtt = lua.create_table()?;
     let event_channel = device_manager.event_channel();
-    let new_mqtt_client = lua.create_function(move |lua, config: mlua::Value| {
+    let mqtt_new = lua.create_function(move |lua, config: mlua::Value| {
         let config: MqttConfig = lua.from_value(config)?;
 
         // Create a mqtt client
@@ -128,9 +128,8 @@ async fn app() -> anyhow::Result<()> {
 
         Ok(WrappedAsyncClient(client))
     })?;
-
-    automation.set("new_mqtt_client", new_mqtt_client)?;
-    lua.globals().set("automation", automation)?;
+    mqtt.set("new", mqtt_new)?;
+    lua.register_module("mqtt", mqtt)?;
 
     lua.register_module("device_manager", device_manager.clone())?;
 

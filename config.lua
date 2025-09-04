@@ -23,7 +23,7 @@ local fulfillment = {
 	openid_url = "https://login.huizinga.dev/api/oidc",
 }
 
-local mqtt_client = automation.new_mqtt_client({
+local mqtt_client = require("mqtt").new({
 	host = ((host == "zeus" or host == "hephaestus") and "olympus.lan.huizinga.dev") or "mosquitto",
 	port = 8883,
 	client_name = "automation-" .. host,
