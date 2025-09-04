@@ -1,3 +1,4 @@
+local device_manager = require("device_manager")
 local utils = require("utils")
 
 print(_VERSION)
@@ -34,7 +35,7 @@ local mqtt_client = automation.new_mqtt_client({
 local ntfy = Ntfy.new({
 	topic = utils.get_env("NTFY_TOPIC"),
 })
-automation.device_manager:add(ntfy)
+device_manager:add(ntfy)
 
 local low_battery = {}
 local function check_battery(device, battery)
@@ -46,7 +47,7 @@ local function check_battery(device, battery)
 		low_battery[id] = nil
 	end
 end
-automation.device_manager:schedule("0 0 21 */1 * *", function()
+device_manager:schedule("0 0 21 */1 * *", function()
 	-- Don't send notifications if there are now devices with low battery
 	if next(low_battery) == nil then
 		print("No devices with low battery")
@@ -84,7 +85,7 @@ local presence_system = Presence.new({
 		end
 	end,
 })
-automation.device_manager:add(presence_system)
+device_manager:add(presence_system)
 on_presence:add(function(presence)
 	ntfy:send_notification({
 		title = "Presence",
@@ -124,7 +125,7 @@ local on_light = {
 		self[#self + 1] = f
 	end,
 }
-automation.device_manager:add(LightSensor.new({
+device_manager:add(LightSensor.new({
 	identifier = "living_light_sensor",
 	topic = mqtt_z2m("living/light"),
 	client = mqtt_client,
@@ -157,7 +158,7 @@ local hue_bridge = HueBridge.new({
 		darkness = 43,
 	},
 })
-automation.device_manager:add(hue_bridge)
+device_manager:add(hue_bridge)
 on_light:add(function(light)
 	hue_bridge:set_flag("darkness", not light)
 end)
@@ -172,7 +173,7 @@ local kitchen_lights = HueGroup.new({
 	group_id = 7,
 	scene_id = "7MJLG27RzeRAEVJ",
 })
-automation.device_manager:add(kitchen_lights)
+device_manager:add(kitchen_lights)
 local living_lights = HueGroup.new({
 	identifier = "living_lights",
 	ip = hue_ip,
@@ -180,7 +181,7 @@ local living_lights = HueGroup.new({
 	group_id = 1,
 	scene_id = "SNZw7jUhQ3cXSjkj",
 })
-automation.device_manager:add(living_lights)
+device_manager:add(living_lights)
 local living_lights_relax = HueGroup.new({
 	identifier = "living_lights",
 	ip = hue_ip,
@@ -188,9 +189,9 @@ local living_lights_relax = HueGroup.new({
 	group_id = 1,
 	scene_id = "eRJ3fvGHCcb6yNw",
 })
-automation.device_manager:add(living_lights_relax)
+device_manager:add(living_lights_relax)
 
-automation.device_manager:add(HueSwitch.new({
+device_manager:add(HueSwitch.new({
 	name = "Switch",
 	room = "Living",
 	client = mqtt_client,
@@ -207,7 +208,7 @@ automation.device_manager:add(HueSwitch.new({
 	battery_callback = check_battery,
 }))
 
-automation.device_manager:add(WakeOnLAN.new({
+device_manager:add(WakeOnLAN.new({
 	name = "Zeus",
 	room = "Living Room",
 	topic = mqtt_automation("appliance/living_room/zeus"),
@@ -223,7 +224,7 @@ local living_mixer = OutletOnOff.new({
 	client = mqtt_client,
 })
 turn_off_when_away(living_mixer)
-automation.device_manager:add(living_mixer)
+device_manager:add(living_mixer)
 local living_speakers = OutletOnOff.new({
 	name = "Speakers",
 	room = "Living Room",
@@ -231,9 +232,9 @@ local living_speakers = OutletOnOff.new({
 	client = mqtt_client,
 })
 turn_off_when_away(living_speakers)
-automation.device_manager:add(living_speakers)
+device_manager:add(living_speakers)
 
-automation.device_manager:add(IkeaRemote.new({
+device_manager:add(IkeaRemote.new({
 	name = "Remote",
 	room = "Living Room",
 	client = mqtt_client,
@@ -282,13 +283,13 @@ local kettle = OutletPower.new({
 	callback = kettle_timeout(),
 })
 turn_off_when_away(kettle)
-automation.device_manager:add(kettle)
+device_manager:add(kettle)
 
 local function set_kettle(_, on)
 	kettle:set_on(on)
 end
 
-automation.device_manager:add(IkeaRemote.new({
+device_manager:add(IkeaRemote.new({
 	name = "Remote",
 	room = "Bedroom",
 	client = mqtt_client,
@@ -298,7 +299,7 @@ automation.device_manager:add(IkeaRemote.new({
 	battery_callback = check_battery,
 }))
 
-automation.device_manager:add(IkeaRemote.new({
+device_manager:add(IkeaRemote.new({
 	name = "Remote",
 	room = "Kitchen",
 	client = mqtt_client,
@@ -329,9 +330,9 @@ local bathroom_light = LightOnOff.new({
 	client = mqtt_client,
 	callback = off_timeout(debug and 60 or 45 * 60),
 })
-automation.device_manager:add(bathroom_light)
+device_manager:add(bathroom_light)
 
-automation.device_manager:add(Washer.new({
+device_manager:add(Washer.new({
 	identifier = "bathroom_washer",
 	topic = mqtt_z2m("bathroom/washer"),
 	client = mqtt_client,
@@ -346,7 +347,7 @@ automation.device_manager:add(Washer.new({
 	end,
 }))
 
-automation.device_manager:add(OutletOnOff.new({
+device_manager:add(OutletOnOff.new({
 	name = "Charger",
 	room = "Workbench",
 	topic = mqtt_z2m("workbench/charger"),
@@ -361,7 +362,7 @@ local workbench_outlet = OutletOnOff.new({
 	client = mqtt_client,
 })
 turn_off_when_away(workbench_outlet)
-automation.device_manager:add(workbench_outlet)
+device_manager:add(workbench_outlet)
 
 local workbench_light = LightColorTemperature.new({
 	name = "Light",
@@ -370,10 +371,10 @@ local workbench_light = LightColorTemperature.new({
 	client = mqtt_client,
 })
 turn_off_when_away(workbench_light)
-automation.device_manager:add(workbench_light)
+device_manager:add(workbench_light)
 
 local delay_color_temp = Timeout.new()
-automation.device_manager:add(IkeaRemote.new({
+device_manager:add(IkeaRemote.new({
 	name = "Remote",
 	room = "Workbench",
 	client = mqtt_client,
@@ -403,7 +404,7 @@ local hallway_top_light = HueGroup.new({
 	group_id = 83,
 	scene_id = "QeufkFDICEHWeKJ7",
 })
-automation.device_manager:add(HueSwitch.new({
+device_manager:add(HueSwitch.new({
 	name = "SwitchBottom",
 	room = "Hallway",
 	client = mqtt_client,
@@ -413,7 +414,7 @@ automation.device_manager:add(HueSwitch.new({
 	end,
 	battery_callback = check_battery,
 }))
-automation.device_manager:add(HueSwitch.new({
+device_manager:add(HueSwitch.new({
 	name = "SwitchTop",
 	room = "Hallway",
 	client = mqtt_client,
@@ -484,7 +485,7 @@ local hallway_storage = LightBrightness.new({
 	end,
 })
 turn_off_when_away(hallway_storage)
-automation.device_manager:add(hallway_storage)
+device_manager:add(hallway_storage)
 
 local hallway_bottom_lights = HueGroup.new({
 	identifier = "hallway_bottom_lights",
@@ -493,7 +494,7 @@ local hallway_bottom_lights = HueGroup.new({
 	group_id = 81,
 	scene_id = "3qWKxGVadXFFG4o",
 })
-automation.device_manager:add(hallway_bottom_lights)
+device_manager:add(hallway_bottom_lights)
 
 hallway_light_automation.group = {
 	set_on = function(on)
@@ -528,7 +529,7 @@ setmetatable(frontdoor_presence, {
 	end,
 })
 
-automation.device_manager:add(IkeaRemote.new({
+device_manager:add(IkeaRemote.new({
 	name = "Remote",
 	room = "Hallway",
 	client = mqtt_client,
@@ -554,7 +555,7 @@ local hallway_frontdoor = ContactSensor.new({
 	end,
 	battery_callback = check_battery,
 })
-automation.device_manager:add(hallway_frontdoor)
+device_manager:add(hallway_frontdoor)
 hallway_light_automation.door = hallway_frontdoor
 
 local hallway_trash = ContactSensor.new({
@@ -568,7 +569,7 @@ local hallway_trash = ContactSensor.new({
 	end,
 	battery_callback = check_battery,
 })
-automation.device_manager:add(hallway_trash)
+device_manager:add(hallway_trash)
 hallway_light_automation.trash = hallway_trash
 
 local guest_light = LightOnOff.new({
@@ -578,14 +579,14 @@ local guest_light = LightOnOff.new({
 	client = mqtt_client,
 })
 turn_off_when_away(guest_light)
-automation.device_manager:add(guest_light)
+device_manager:add(guest_light)
 
 local bedroom_air_filter = AirFilter.new({
 	name = "Air Filter",
 	room = "Bedroom",
 	url = "http://10.0.0.103",
 })
-automation.device_manager:add(bedroom_air_filter)
+device_manager:add(bedroom_air_filter)
 
 local bedroom_lights = HueGroup.new({
 	identifier = "bedroom_lights",
@@ -594,7 +595,7 @@ local bedroom_lights = HueGroup.new({
 	group_id = 3,
 	scene_id = "PvRs-lGD4VRytL9",
 })
-automation.device_manager:add(bedroom_lights)
+device_manager:add(bedroom_lights)
 local bedroom_lights_relax = HueGroup.new({
 	identifier = "bedroom_lights",
 	ip = hue_ip,
@@ -602,9 +603,9 @@ local bedroom_lights_relax = HueGroup.new({
 	group_id = 3,
 	scene_id = "60tfTyR168v2csz",
 })
-automation.device_manager:add(bedroom_lights_relax)
+device_manager:add(bedroom_lights_relax)
 
-automation.device_manager:add(HueSwitch.new({
+device_manager:add(HueSwitch.new({
 	name = "Switch",
 	room = "Bedroom",
 	client = mqtt_client,
@@ -618,7 +619,7 @@ automation.device_manager:add(HueSwitch.new({
 	battery_callback = check_battery,
 }))
 
-automation.device_manager:add(ContactSensor.new({
+device_manager:add(ContactSensor.new({
 	name = "Balcony",
 	room = "Living Room",
 	sensor_type = "Door",
@@ -626,21 +627,21 @@ automation.device_manager:add(ContactSensor.new({
 	client = mqtt_client,
 	battery_callback = check_battery,
 }))
-automation.device_manager:add(ContactSensor.new({
+device_manager:add(ContactSensor.new({
 	name = "Window",
 	room = "Living Room",
 	topic = mqtt_z2m("living/window"),
 	client = mqtt_client,
 	battery_callback = check_battery,
 }))
-automation.device_manager:add(ContactSensor.new({
+device_manager:add(ContactSensor.new({
 	name = "Window",
 	room = "Bedroom",
 	topic = mqtt_z2m("bedroom/window"),
 	client = mqtt_client,
 	battery_callback = check_battery,
 }))
-automation.device_manager:add(ContactSensor.new({
+device_manager:add(ContactSensor.new({
 	name = "Window",
 	room = "Guest Room",
 	topic = mqtt_z2m("guest/window"),
@@ -655,9 +656,9 @@ local storage_light = LightBrightness.new({
 	client = mqtt_client,
 })
 turn_off_when_away(storage_light)
-automation.device_manager:add(storage_light)
+device_manager:add(storage_light)
 
-automation.device_manager:add(ContactSensor.new({
+device_manager:add(ContactSensor.new({
 	name = "Door",
 	room = "Storage",
 	sensor_type = "Door",
@@ -673,10 +674,10 @@ automation.device_manager:add(ContactSensor.new({
 	battery_callback = check_battery,
 }))
 
-automation.device_manager:schedule("0 0 19 * * *", function()
+device_manager:schedule("0 0 19 * * *", function()
 	bedroom_air_filter:set_on(true)
 end)
-automation.device_manager:schedule("0 0 20 * * *", function()
+device_manager:schedule("0 0 20 * * *", function()
 	bedroom_air_filter:set_on(false)
 end)
 

@@ -130,8 +130,9 @@ async fn app() -> anyhow::Result<()> {
     })?;
 
     automation.set("new_mqtt_client", new_mqtt_client)?;
-    automation.set("device_manager", device_manager.clone())?;
     lua.globals().set("automation", automation)?;
+
+    lua.register_module("device_manager", device_manager.clone())?;
 
     let utils = lua.create_table()?;
     let get_env = lua.create_function(|_lua, name: String| {
