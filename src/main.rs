@@ -1,4 +1,6 @@
 #![feature(iter_intersperse)]
+mod config;
+mod secret;
 mod web;
 
 use std::net::SocketAddr;
@@ -6,6 +8,7 @@ use std::path::Path;
 use std::process;
 use std::time::{SystemTime, UNIX_EPOCH};
 
+use ::config::{Environment, File};
 use automation_lib::config::{FulfillmentConfig, MqttConfig};
 use automation_lib::device_manager::DeviceManager;
 use automation_lib::helpers;
@@ -14,6 +17,7 @@ use axum::extract::{FromRef, State};
 use axum::http::StatusCode;
 use axum::routing::post;
 use axum::{Json, Router};
+use config::Config;
 use dotenvy::dotenv;
 use google_home::{GoogleHome, Request, Response};
 use mlua::LuaSerdeExt;
@@ -21,6 +25,8 @@ use rumqttc::AsyncClient;
 use tokio::net::TcpListener;
 use tracing::{debug, error, info, warn};
 use web::{ApiError, User};
+
+use crate::secret::EnvironmentSecretFile;
 
 #[derive(Clone)]
 struct AppState {
@@ -69,7 +75,21 @@ async fn app() -> anyhow::Result<()> {
     dotenv().ok();
 
     tracing_subscriber::fmt::init();
-    // console_subscriber::init();
+
+    let config: Config = ::config::Config::builder()
+        .add_source(
+            File::with_name(&format!("{}.toml", std::env!("CARGO_PKG_NAME"))).required(false),
+        )
+        .add_source(
+            Environment::default()
+                .prefix(std::env!("CARGO_PKG_NAME"))
+                .separator("__"),
+        )
+        .add_source(EnvironmentSecretFile::default())
+        .build()
+        .unwrap()
+        .try_deserialize()
+        .unwrap();
 
     info!("Starting automation_rs...");
 
@@ -133,11 +153,10 @@ async fn app() -> anyhow::Result<()> {
 
     lua.register_module("device_manager", device_manager.clone())?;
 
+    lua.register_module("variables", lua.to_value(&config.variables)?)?;
+    lua.register_module("secrets", lua.to_value(&config.secrets)?)?;
+
     let utils = lua.create_table()?;
-    let get_env = lua.create_function(|_lua, name: String| {
-        std::env::var(name).map_err(mlua::ExternalError::into_lua_err)
-    })?;
-    utils.set("get_env", get_env)?;
     let get_hostname = lua.create_function(|_lua, ()| {
         hostname::get()
             .map(|name| name.to_str().unwrap_or("unknown").to_owned())
@@ -151,17 +170,13 @@ async fn app() -> anyhow::Result<()> {
             .as_millis())
     })?;
     utils.set("get_epoch", get_epoch)?;
-
     lua.register_module("utils", utils)?;
 
     automation_devices::register_with_lua(&lua)?;
     helpers::register_with_lua(&lua)?;
 
-    // TODO: Make this not hardcoded
-    let config_filename = std::env::var("AUTOMATION_CONFIG").unwrap_or("./config.lua".into());
-    let config_path = Path::new(&config_filename);
-
-    let fulfillment_config: mlua::Value = lua.load(config_path).eval_async().await?;
+    let entrypoint = Path::new(&config.entrypoint);
+    let fulfillment_config: mlua::Value = lua.load(entrypoint).eval_async().await?;
     let fulfillment_config: FulfillmentConfig = lua.from_value(fulfillment_config)?;
 
     // Create google home fulfillment route

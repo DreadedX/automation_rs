@@ -69,6 +69,10 @@ async-trait = { workspace = true }
 automation_devices = { workspace = true }
 automation_lib = { workspace = true }
 axum = { workspace = true }
+config = { version = "0.15.15", default-features = false, features = [
+  "async",
+  "toml",
+] }
 dotenvy = { workspace = true }
 google_home = { workspace = true }
 hostname = { workspace = true }

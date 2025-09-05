@@ -1,15 +1,12 @@
 local device_manager = require("device_manager")
 local utils = require("utils")
+local secrets = require("secrets")
+local debug = require("variables").debug or false
 
 print(_VERSION)
 
 local host = utils.get_hostname()
 print("Running @" .. host)
-
-local debug, value = pcall(utils.get_env, "DEBUG")
-if debug and value ~= "true" then
-	debug = false
-end
 
 local function mqtt_z2m(topic)
 	return "zigbee2mqtt/" .. topic
@@ -28,12 +25,12 @@ local mqtt_client = require("mqtt").new({
 	port = 8883,
 	client_name = "automation-" .. host,
 	username = "mqtt",
-	password = utils.get_env("MQTT_PASSWORD"),
+	password = secrets.mqtt_password,
 	tls = host == "zeus" or host == "hephaestus",
 })
 
 local ntfy = Ntfy.new({
-	topic = utils.get_env("NTFY_TOPIC"),
+	topic = secrets.ntfy_topic,
 })
 device_manager:add(ntfy)
 
@@ -147,7 +144,7 @@ on_light:add(function(light)
 end)
 
 local hue_ip = "10.0.0.102"
-local hue_token = utils.get_env("HUE_TOKEN")
+local hue_token = secrets.hue_token
 
 local hue_bridge = HueBridge.new({
 	identifier = "hue_bridge",
