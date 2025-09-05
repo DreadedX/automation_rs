@@ -1,6 +1,7 @@
 #![feature(iter_intersperse)]
 mod config;
 mod secret;
+mod version;
 mod web;
 
 use std::net::SocketAddr;
@@ -27,6 +28,7 @@ use tracing::{debug, error, info, warn};
 use web::{ApiError, User};
 
 use crate::secret::EnvironmentSecretFile;
+use crate::version::VERSION;
 
 #[derive(Clone)]
 struct AppState {
@@ -76,6 +78,8 @@ async fn app() -> anyhow::Result<()> {
 
     tracing_subscriber::fmt::init();
 
+    info!(version = VERSION, "automation_rs");
+
     let config: Config = ::config::Config::builder()
         .add_source(
             File::with_name(&format!("{}.toml", std::env!("CARGO_PKG_NAME"))).required(false),
@@ -90,8 +94,6 @@ async fn app() -> anyhow::Result<()> {
         .unwrap()
         .try_deserialize()
         .unwrap();
-
-    info!("Starting automation_rs...");
 
     // Setup the device handler
     let device_manager = DeviceManager::new().await;
