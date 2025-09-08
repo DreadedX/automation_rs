@@ -425,49 +425,57 @@ device_manager:add(HueSwitch.new({
 local hallway_light_automation = {
 	timeout = Timeout.new(),
 	forced = false,
-	switch_callback = function(self, on)
-		self.timeout:cancel()
-		self.group.set_on(on)
-		self.forced = on
-	end,
-	door_callback = function(self, open)
-		if open then
+	switch_callback = function(self)
+		return function(_, on)
 			self.timeout:cancel()
-
-			self.group.set_on(true)
-		elseif not self.forced then
-			self.timeout:start(debug and 10 or 2 * 60, function()
-				if self.trash == nil or self.trash:open_percent() == 0 then
-					self.group.set_on(false)
-				end
-			end)
+			self.group.set_on(on)
+			self.forced = on
 		end
 	end,
-	trash_callback = function(self, open)
-		if open then
-			self.group.set_on(true)
-		else
-			if
-				not self.timeout:is_waiting()
-				and (self.door == nil or self.door:open_percent() == 0)
-				and not self.forced
-			then
-				self.group.set_on(false)
+	door_callback = function(self)
+		return function(_, open)
+			if open then
+				self.timeout:cancel()
+
+				self.group.set_on(true)
+			elseif not self.forced then
+				self.timeout:start(debug and 10 or 2 * 60, function()
+					if self.trash == nil or self.trash:open_percent() == 0 then
+						self.group.set_on(false)
+					end
+				end)
 			end
 		end
 	end,
-	light_callback = function(self, on)
-		if
-			on
-			and (self.trash == nil or self.trash:open_percent()) == 0
-			and (self.door == nil or self.door:open_percent() == 0)
-		then
-			-- If the door and trash are not open, that means the light got turned on manually
-			self.timeout:cancel()
-			self.forced = true
-		elseif not on then
-			-- The light is never forced when it is off
-			self.forced = false
+	trash_callback = function(self)
+		return function(_, open)
+			if open then
+				self.group.set_on(true)
+			else
+				if
+					not self.timeout:is_waiting()
+					and (self.door == nil or self.door:open_percent() == 0)
+					and not self.forced
+				then
+					self.group.set_on(false)
+				end
+			end
+		end
+	end,
+	light_callback = function(self)
+		return function(_, state)
+			if
+				state.on
+				and (self.trash == nil or self.trash:open_percent()) == 0
+				and (self.door == nil or self.door:open_percent() == 0)
+			then
+				-- If the door and trash are not open, that means the light got turned on manually
+				self.timeout:cancel()
+				self.forced = true
+			elseif not state.on then
+				-- The light is never forced when it is off
+				self.forced = false
+			end
 		end
 	end,
 }
@@ -477,9 +485,7 @@ local hallway_storage = LightBrightness.new({
 	room = "Hallway",
 	topic = mqtt_z2m("hallway/storage"),
 	client = mqtt_client,
-	callback = function(_, state)
-		hallway_light_automation:light_callback(state.state)
-	end,
+	callback = hallway_light_automation:light_callback(),
 })
 turn_off_when_away(hallway_storage)
 device_manager:add(hallway_storage)
@@ -504,13 +510,12 @@ hallway_light_automation.group = {
 	end,
 }
 
-local frontdoor_presence = {
-	timeout = Timeout.new(),
-}
-setmetatable(frontdoor_presence, {
-	__call = function(self, open)
+local function presence(duration)
+	local timeout = Timeout.new()
+
+	return function(_, open)
 		if open then
-			self.timeout:cancel()
+			timeout:cancel()
 
 			if not presence_system:overall_presence() then
 				mqtt_client:send_message(mqtt_automation("presence/contact/frontdoor"), {
@@ -519,21 +524,19 @@ setmetatable(frontdoor_presence, {
 				})
 			end
 		else
-			self.timeout:start(debug and 10 or 15 * 60, function()
+			timeout:start(duration, function()
 				mqtt_client:send_message(mqtt_automation("presence/contact/frontdoor"), nil)
 			end)
 		end
-	end,
-})
+	end
+end
 
 device_manager:add(IkeaRemote.new({
 	name = "Remote",
 	room = "Hallway",
 	client = mqtt_client,
 	topic = mqtt_z2m("hallway/remote"),
-	callback = function(_, on)
-		hallway_light_automation:switch_callback(on)
-	end,
+	callback = hallway_light_automation:switch_callback(),
 	battery_callback = check_battery,
 }))
 local hallway_frontdoor = ContactSensor.new({
@@ -546,10 +549,10 @@ local hallway_frontdoor = ContactSensor.new({
 		topic = mqtt_automation("presence/contact/frontdoor"),
 		timeout = debug and 10 or 15 * 60,
 	},
-	callback = function(_, open)
-		hallway_light_automation:door_callback(open)
-		frontdoor_presence(open)
-	end,
+	callback = {
+		presence(debug and 10 or 15 * 60),
+		hallway_light_automation:door_callback(),
+	},
 	battery_callback = check_battery,
 })
 device_manager:add(hallway_frontdoor)
@@ -561,9 +564,7 @@ local hallway_trash = ContactSensor.new({
 	sensor_type = "Drawer",
 	topic = mqtt_z2m("hallway/trash"),
 	client = mqtt_client,
-	callback = function(_, open)
-		hallway_light_automation:trash_callback(open)
-	end,
+	callback = hallway_light_automation:trash_callback(),
 	battery_callback = check_battery,
 })
 device_manager:add(hallway_trash)
