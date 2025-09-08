@@ -29,7 +29,7 @@ impl mlua::UserData for Timeout {
 
         methods.add_async_method(
             "start",
-            async |_lua, this, (timeout, callback): (f32, ActionCallback<mlua::Value, bool>)| {
+            async |_lua, this, (timeout, callback): (f32, ActionCallback<()>)| {
                 if let Some(handle) = this.state.write().await.handle.take() {
                     handle.abort();
                 }
@@ -42,7 +42,7 @@ impl mlua::UserData for Timeout {
                     async move {
                         tokio::time::sleep(timeout).await;
 
-                        callback.call(&mlua::Nil, &false).await;
+                        callback.call(()).await;
                     }
                 }));
 

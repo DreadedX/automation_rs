@@ -21,7 +21,7 @@ pub struct Config {
     pub max: isize,
 
     #[device_config(from_lua, default)]
-    pub callback: ActionCallback<LightSensor, bool>,
+    pub callback: ActionCallback<(LightSensor, bool)>,
 
     #[device_config(from_lua)]
     pub client: WrappedAsyncClient,
@@ -114,7 +114,7 @@ impl OnMqtt for LightSensor {
 
             self.config
                 .callback
-                .call(self, &!self.state().await.is_dark)
+                .call((self.clone(), !self.state().await.is_dark))
                 .await;
         }
     }

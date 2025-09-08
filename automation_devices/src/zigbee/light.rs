@@ -34,7 +34,7 @@ pub struct Config<T: LightState> {
     pub mqtt: MqttDeviceConfig,
 
     #[device_config(from_lua, default)]
-    pub callback: ActionCallback<Light<T>, T>,
+    pub callback: ActionCallback<(Light<T>, T)>,
 
     #[device_config(from_lua)]
     pub client: WrappedAsyncClient,
@@ -165,7 +165,7 @@ impl OnMqtt for Light<StateOnOff> {
 
             self.config
                 .callback
-                .call(self, self.state().await.deref())
+                .call((self.clone(), self.state().await.clone()))
                 .await;
         }
     }
@@ -204,7 +204,7 @@ impl OnMqtt for Light<StateBrightness> {
 
             self.config
                 .callback
-                .call(self, self.state().await.deref())
+                .call((self.clone(), self.state().await.clone()))
                 .await;
         }
     }
@@ -245,7 +245,7 @@ impl OnMqtt for Light<StateColorTemperature> {
 
             self.config
                 .callback
-                .call(self, self.state().await.deref())
+                .call((self.clone(), self.state().await.clone()))
                 .await;
         }
     }

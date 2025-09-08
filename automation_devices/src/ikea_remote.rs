@@ -24,9 +24,9 @@ pub struct Config {
     pub client: WrappedAsyncClient,
 
     #[device_config(from_lua, default)]
-    pub callback: ActionCallback<IkeaRemote, bool>,
+    pub callback: ActionCallback<(IkeaRemote, bool)>,
     #[device_config(from_lua, default)]
-    pub battery_callback: ActionCallback<IkeaRemote, f32>,
+    pub battery_callback: ActionCallback<(IkeaRemote, f32)>,
 }
 
 #[derive(Debug, Clone, LuaDevice)]
@@ -88,12 +88,15 @@ impl OnMqtt for IkeaRemote {
                 };
 
                 if let Some(on) = on {
-                    self.config.callback.call(self, &on).await;
+                    self.config.callback.call((self.clone(), on)).await;
                 }
             }
 
             if let Some(battery) = message.battery {
-                self.config.battery_callback.call(self, &battery).await;
+                self.config
+                    .battery_callback
+                    .call((self.clone(), battery))
+                    .await;
             }
         }
     }

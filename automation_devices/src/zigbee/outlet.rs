@@ -51,7 +51,7 @@ pub struct Config<T: OutletState> {
     pub outlet_type: OutletType,
 
     #[device_config(from_lua, default)]
-    pub callback: ActionCallback<Outlet<T>, T>,
+    pub callback: ActionCallback<(Outlet<T>, T)>,
 
     #[device_config(from_lua)]
     pub client: WrappedAsyncClient,
@@ -155,7 +155,7 @@ impl OnMqtt for Outlet<StateOnOff> {
 
             self.config
                 .callback
-                .call(self, self.state().await.deref())
+                .call((self.clone(), self.state().await.clone()))
                 .await;
         }
     }
@@ -192,7 +192,7 @@ impl OnMqtt for Outlet<StatePower> {
 
             self.config
                 .callback
-                .call(self, self.state().await.deref())
+                .call((self.clone(), self.state().await.clone()))
                 .await;
         }
     }

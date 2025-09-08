@@ -21,7 +21,7 @@ pub struct Config {
     pub threshold: f32,
 
     #[device_config(from_lua, default)]
-    pub done_callback: ActionCallback<Washer, ()>,
+    pub done_callback: ActionCallback<Washer>,
 
     #[device_config(from_lua)]
     pub client: WrappedAsyncClient,
@@ -109,7 +109,7 @@ impl OnMqtt for Washer {
 
             self.state_mut().await.running = 0;
 
-            self.config.done_callback.call(self, &()).await;
+            self.config.done_callback.call(self.clone()).await;
         } else if power < self.config.threshold {
             // Prevent false positives
             self.state_mut().await.running = 0;

@@ -21,19 +21,19 @@ pub struct Config {
     pub client: WrappedAsyncClient,
 
     #[device_config(from_lua, default)]
-    pub left_callback: ActionCallback<HueSwitch, ()>,
+    pub left_callback: ActionCallback<HueSwitch>,
 
     #[device_config(from_lua, default)]
-    pub right_callback: ActionCallback<HueSwitch, ()>,
+    pub right_callback: ActionCallback<HueSwitch>,
 
     #[device_config(from_lua, default)]
-    pub left_hold_callback: ActionCallback<HueSwitch, ()>,
+    pub left_hold_callback: ActionCallback<HueSwitch>,
 
     #[device_config(from_lua, default)]
-    pub right_hold_callback: ActionCallback<HueSwitch, ()>,
+    pub right_hold_callback: ActionCallback<HueSwitch>,
 
     #[device_config(from_lua, default)]
-    pub battery_callback: ActionCallback<HueSwitch, f32>,
+    pub battery_callback: ActionCallback<(HueSwitch, f32)>,
 }
 
 #[derive(Debug, Copy, Clone, Deserialize)]
@@ -104,19 +104,21 @@ impl OnMqtt for HueSwitch {
                 );
 
                 match action {
-                    Action::LeftPressRelease => self.config.left_callback.call(self, &()).await,
-                    Action::RightPressRelease => self.config.right_callback.call(self, &()).await,
-                    Action::LeftHold => self.config.left_hold_callback.call(self, &()).await,
-                    Action::RightHold => self.config.right_hold_callback.call(self, &()).await,
+                    Action::LeftPressRelease => self.config.left_callback.call(self.clone()).await,
+                    Action::RightPressRelease => {
+                        self.config.right_callback.call(self.clone()).await
+                    }
+                    Action::LeftHold => self.config.left_hold_callback.call(self.clone()).await,
+                    Action::RightHold => self.config.right_hold_callback.call(self.clone()).await,
                     // If there is no hold action, the switch will act like a normal release
                     Action::RightHoldRelease => {
-                        if !self.config.right_hold_callback.is_set() {
-                            self.config.right_callback.call(self, &()).await
+                        if self.config.right_hold_callback.is_empty() {
+                            self.config.right_callback.call(self.clone()).await
                         }
                     }
                     Action::LeftHoldRelease => {
-                        if !self.config.left_hold_callback.is_set() {
-                            self.config.left_callback.call(self, &()).await
+                        if self.config.left_hold_callback.is_empty() {
+                            self.config.left_callback.call(self.clone()).await
                         }
                     }
                     _ => {}
@@ -124,7 +126,10 @@ impl OnMqtt for HueSwitch {
             }
 
             if let Some(battery) = message.battery {
-                self.config.battery_callback.call(self, &battery).await;
+                self.config
+                    .battery_callback
+                    .call((self.clone(), battery))
+                    .await;
             }
         }
     }

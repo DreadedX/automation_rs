@@ -1,34 +1,28 @@
 use std::marker::PhantomData;
 
 use futures::future::try_join_all;
-use mlua::{FromLua, IntoLua, LuaSerdeExt};
-use serde::Serialize;
+use mlua::{FromLua, IntoLuaMulti};
 
 #[derive(Debug, Clone)]
-struct Internal {
+pub struct ActionCallback<P> {
     callbacks: Vec<mlua::Function>,
-    lua: mlua::Lua,
+    _parameters: PhantomData<P>,
 }
 
-#[derive(Debug, Clone)]
-pub struct ActionCallback<T, S> {
-    internal: Option<Internal>,
-    _this: PhantomData<T>,
-    _state: PhantomData<S>,
-}
-
-impl<T, S> Default for ActionCallback<T, S> {
+// NOTE: For some reason the derive macro combined with PhantomData leads to issues where it
+// requires all types part of P to implement default, even if they never actually get constructed.
+// By manually implemented Default it works fine.
+impl<P> Default for ActionCallback<P> {
     fn default() -> Self {
         Self {
-            internal: None,
-            _this: PhantomData::<T>,
-            _state: PhantomData::<S>,
+            callbacks: Default::default(),
+            _parameters: Default::default(),
         }
     }
 }
 
-impl<T, S> FromLua for ActionCallback<T, S> {
-    fn from_lua(value: mlua::Value, lua: &mlua::Lua) -> mlua::Result<Self> {
+impl<P> FromLua for ActionCallback<P> {
+    fn from_lua(value: mlua::Value, _lua: &mlua::Lua) -> mlua::Result<Self> {
         let callbacks = match value {
             mlua::Value::Function(f) => vec![f],
             mlua::Value::Table(table) => table
@@ -49,40 +43,28 @@ impl<T, S> FromLua for ActionCallback<T, S> {
         };
 
         Ok(ActionCallback {
-            internal: Some(Internal {
-                callbacks,
-                lua: lua.clone(),
-            }),
-            _this: PhantomData::<T>,
-            _state: PhantomData::<S>,
+            callbacks,
+            _parameters: PhantomData::<P>,
         })
     }
 }
 
 // TODO: Return proper error here
-impl<T, S> ActionCallback<T, S>
+impl<P> ActionCallback<P>
 where
-    T: IntoLua + Sync + Send + Clone + 'static,
-    S: Serialize,
+    P: IntoLuaMulti + Sync + Clone,
 {
-    pub async fn call(&self, this: &T, state: &S) {
-        let Some(internal) = self.internal.as_ref() else {
-            return;
-        };
-
-        let state = internal.lua.to_value(state).unwrap();
-
+    pub async fn call(&self, parameters: P) {
         try_join_all(
-            internal
-                .callbacks
+            self.callbacks
                 .iter()
-                .map(async |f| f.call_async::<()>((this.clone(), state.clone())).await),
+                .map(async |f| f.call_async::<()>(parameters.clone()).await),
         )
         .await
         .unwrap();
     }
 
-    pub fn is_set(&self) -> bool {
-        self.internal.is_some()
+    pub fn is_empty(&self) -> bool {
+        self.callbacks.is_empty()
     }
 }

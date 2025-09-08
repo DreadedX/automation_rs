@@ -20,7 +20,7 @@ pub struct Config {
     pub mqtt: MqttDeviceConfig,
 
     #[device_config(from_lua, default)]
-    pub callback: ActionCallback<Presence, bool>,
+    pub callback: ActionCallback<(Presence, bool)>,
 
     #[device_config(from_lua)]
     pub client: WrappedAsyncClient,
@@ -118,7 +118,10 @@ impl OnMqtt for Presence {
             debug!("Overall presence updated: {overall_presence}");
             self.state_mut().await.current_overall_presence = overall_presence;
 
-            self.config.callback.call(self, &overall_presence).await;
+            self.config
+                .callback
+                .call((self.clone(), overall_presence))
+                .await;
         }
     }
 }
