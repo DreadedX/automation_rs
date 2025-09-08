@@ -1,4 +1,5 @@
 #![allow(incomplete_features)]
+#![feature(iterator_try_collect)]
 
 pub mod action_callback;
 pub mod config;
