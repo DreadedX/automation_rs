@@ -5,7 +5,7 @@ use serde::Serialize;
 
 #[derive(Debug, Clone)]
 struct Internal {
-    uuid: uuid::Uuid,
+    value: mlua::Value,
     lua: mlua::Lua,
 }
 
@@ -28,12 +28,9 @@ impl<T, S> Default for ActionCallback<T, S> {
 
 impl<T, S> FromLua for ActionCallback<T, S> {
     fn from_lua(value: mlua::Value, lua: &mlua::Lua) -> mlua::Result<Self> {
-        let uuid = uuid::Uuid::new_v4();
-        lua.set_named_registry_value(&uuid.to_string(), value)?;
-
         Ok(ActionCallback {
             internal: Some(Internal {
-                uuid,
+                value,
                 lua: lua.clone(),
             }),
             _this: PhantomData::<T>,
@@ -55,11 +52,7 @@ where
 
         let state = internal.lua.to_value(state).unwrap();
 
-        let callback: mlua::Value = internal
-            .lua
-            .named_registry_value(&internal.uuid.to_string())
-            .unwrap();
-        match callback {
+        match &internal.value {
             mlua::Value::Function(f) => f.call_async::<()>((this.clone(), state)).await.unwrap(),
             _ => todo!("Only functions are currently supported"),
         }
