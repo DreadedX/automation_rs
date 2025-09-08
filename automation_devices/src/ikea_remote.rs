@@ -23,7 +23,7 @@ pub struct Config {
     #[device_config(from_lua)]
     pub client: WrappedAsyncClient,
 
-    #[device_config(from_lua)]
+    #[device_config(from_lua, default)]
     pub callback: ActionCallback<IkeaRemote, bool>,
     #[device_config(from_lua, default)]
     pub battery_callback: ActionCallback<IkeaRemote, f32>,
