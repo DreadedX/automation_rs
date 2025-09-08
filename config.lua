@@ -545,10 +545,6 @@ local hallway_frontdoor = ContactSensor.new({
 	sensor_type = "Door",
 	topic = mqtt_z2m("hallway/frontdoor"),
 	client = mqtt_client,
-	presence = {
-		topic = mqtt_automation("presence/contact/frontdoor"),
-		timeout = debug and 10 or 15 * 60,
-	},
 	callback = {
 		presence(debug and 10 or 15 * 60),
 		hallway_light_automation:door_callback(),
