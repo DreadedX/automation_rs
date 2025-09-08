@@ -10,7 +10,7 @@ use automation_lib::device::{Device, LuaDeviceCreate};
 use automation_lib::event::OnMqtt;
 use automation_lib::helpers::serialization::state_deserializer;
 use automation_lib::mqtt::WrappedAsyncClient;
-use automation_macro::{LuaDevice, LuaDeviceConfig};
+use automation_macro::{LuaDevice, LuaDeviceConfig, LuaSerialize};
 use google_home::device;
 use google_home::errors::ErrorCode;
 use google_home::traits::OnOff;
@@ -57,7 +57,7 @@ pub struct Config<T: OutletState> {
     pub client: WrappedAsyncClient,
 }
 
-#[derive(Debug, Clone, Default, Serialize, Deserialize)]
+#[derive(Debug, Clone, Default, Serialize, Deserialize, LuaSerialize)]
 pub struct StateOnOff {
     #[serde(deserialize_with = "state_deserializer")]
     state: bool,
@@ -65,7 +65,7 @@ pub struct StateOnOff {
 
 impl OutletState for StateOnOff {}
 
-#[derive(Debug, Clone, Default, Serialize, Deserialize)]
+#[derive(Debug, Clone, Default, Serialize, Deserialize, LuaSerialize)]
 pub struct StatePower {
     #[serde(deserialize_with = "state_deserializer")]
     state: bool,
