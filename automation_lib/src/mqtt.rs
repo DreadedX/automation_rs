@@ -28,7 +28,13 @@ impl mlua::UserData for WrappedAsyncClient {
         methods.add_async_method(
             "send_message",
             async |_lua, this, (topic, message): (String, mlua::Value)| {
-                let message = serde_json::to_string(&message).unwrap();
+                // serde_json converts nil => "null", but we actually want nil to send an empty
+                // message
+                let message = if message.is_nil() {
+                    "".into()
+                } else {
+                    serde_json::to_string(&message).unwrap()
+                };
 
                 debug!("message = {message}");
 

@@ -520,7 +520,7 @@ setmetatable(frontdoor_presence, {
 			end
 		else
 			self.timeout:start(debug and 10 or 15 * 60, function()
-				mqtt_client:send_message(mqtt_automation("presence/contact/frontdoor"), {})
+				mqtt_client:send_message(mqtt_automation("presence/contact/frontdoor"), nil)
 			end)
 		end
 	end,
