@@ -2,7 +2,7 @@ use std::net::SocketAddr;
 
 use anyhow::Result;
 use async_trait::async_trait;
-use automation_macro::{LuaDevice, LuaDeviceConfig};
+use automation_macro::{Device, LuaDeviceConfig};
 use google_home::errors::ErrorCode;
 use google_home::traits::OnOff;
 use tracing::{error, trace, warn};
@@ -19,8 +19,8 @@ pub struct Config {
     pub scene_id: String,
 }
 
-#[derive(Debug, Clone, LuaDevice)]
-#[traits(OnOff)]
+#[derive(Debug, Clone, Device)]
+#[device(traits(OnOff))]
 pub struct HueGroup {
     config: Config,
 }

@@ -8,7 +8,7 @@ use automation_lib::error::DeviceConfigError;
 use automation_lib::event::OnMqtt;
 use automation_lib::messages::ContactMessage;
 use automation_lib::mqtt::WrappedAsyncClient;
-use automation_macro::{LuaDevice, LuaDeviceConfig};
+use automation_macro::{Device, LuaDeviceConfig};
 use google_home::device;
 use google_home::errors::{DeviceError, ErrorCode};
 use google_home::traits::OpenClose;
@@ -48,8 +48,8 @@ struct State {
     is_closed: bool,
 }
 
-#[derive(Debug, Clone, LuaDevice)]
-#[traits(OpenClose)]
+#[derive(Debug, Clone, Device)]
+#[device(traits(OpenClose))]
 pub struct ContactSensor {
     config: Config,
     state: Arc<RwLock<State>>,

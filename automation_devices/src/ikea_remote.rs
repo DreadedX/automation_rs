@@ -5,7 +5,7 @@ use automation_lib::device::{Device, LuaDeviceCreate};
 use automation_lib::event::OnMqtt;
 use automation_lib::messages::{RemoteAction, RemoteMessage};
 use automation_lib::mqtt::WrappedAsyncClient;
-use automation_macro::{LuaDevice, LuaDeviceConfig};
+use automation_macro::{Device, LuaDeviceConfig};
 use rumqttc::{Publish, matches};
 use tracing::{debug, error, trace};
 
@@ -29,7 +29,7 @@ pub struct Config {
     pub battery_callback: ActionCallback<(IkeaRemote, f32)>,
 }
 
-#[derive(Debug, Clone, LuaDevice)]
+#[derive(Debug, Clone, Device)]
 pub struct IkeaRemote {
     config: Config,
 }

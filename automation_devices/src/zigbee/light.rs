@@ -10,7 +10,7 @@ use automation_lib::device::{Device, LuaDeviceCreate};
 use automation_lib::event::OnMqtt;
 use automation_lib::helpers::serialization::state_deserializer;
 use automation_lib::mqtt::WrappedAsyncClient;
-use automation_macro::{LuaDevice, LuaDeviceConfig, LuaSerialize};
+use automation_macro::{Device, LuaDeviceConfig, LuaSerialize};
 use google_home::device;
 use google_home::errors::ErrorCode;
 use google_home::traits::{Brightness, Color, ColorSetting, ColorTemperatureRange, OnOff};
@@ -88,10 +88,10 @@ impl From<StateColorTemperature> for StateBrightness {
     }
 }
 
-#[derive(Debug, Clone, LuaDevice)]
-#[traits(<StateOnOff>: OnOff)]
-#[traits(<StateBrightness>: OnOff, Brightness)]
-#[traits(<StateColorTemperature>: OnOff, Brightness, ColorSetting)]
+#[derive(Debug, Clone, Device)]
+#[device(traits(OnOff for <StateOnOff>, <StateBrightness>, <StateColorTemperature>))]
+#[device(traits(Brightness for <StateBrightness>, <StateColorTemperature>))]
+#[device(traits(ColorSetting for <StateColorTemperature>))]
 pub struct Light<T: LightState> {
     config: Config<T>,
 

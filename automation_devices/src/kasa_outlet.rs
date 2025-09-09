@@ -4,7 +4,7 @@ use std::str::Utf8Error;
 
 use async_trait::async_trait;
 use automation_lib::device::{Device, LuaDeviceCreate};
-use automation_macro::{LuaDevice, LuaDeviceConfig};
+use automation_macro::{Device, LuaDeviceConfig};
 use bytes::{Buf, BufMut};
 use google_home::errors::{self, DeviceError};
 use google_home::traits::OnOff;
@@ -21,8 +21,8 @@ pub struct Config {
     pub addr: SocketAddr,
 }
 
-#[derive(Debug, Clone, LuaDevice)]
-#[traits(OnOff)]
+#[derive(Debug, Clone, Device)]
+#[device(traits(OnOff))]
 pub struct KasaOutlet {
     config: Config,
 }

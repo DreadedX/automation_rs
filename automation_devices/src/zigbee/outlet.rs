@@ -10,7 +10,7 @@ use automation_lib::device::{Device, LuaDeviceCreate};
 use automation_lib::event::OnMqtt;
 use automation_lib::helpers::serialization::state_deserializer;
 use automation_lib::mqtt::WrappedAsyncClient;
-use automation_macro::{LuaDevice, LuaDeviceConfig, LuaSerialize};
+use automation_macro::{Device, LuaDeviceConfig, LuaSerialize};
 use google_home::device;
 use google_home::errors::ErrorCode;
 use google_home::traits::OnOff;
@@ -80,9 +80,8 @@ impl From<StatePower> for StateOnOff {
     }
 }
 
-#[derive(Debug, Clone, LuaDevice)]
-#[traits(<StateOnOff>: OnOff)]
-#[traits(<StatePower>: OnOff)]
+#[derive(Debug, Clone, Device)]
+#[device(traits(OnOff for <StateOnOff>, <StatePower>))]
 pub struct Outlet<T: OutletState> {
     config: Config<T>,
 

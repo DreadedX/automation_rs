@@ -4,7 +4,7 @@ use std::convert::Infallible;
 use async_trait::async_trait;
 use automation_lib::device::{Device, LuaDeviceCreate};
 use automation_lib::lua::traits::AddAdditionalMethods;
-use automation_macro::{LuaDevice, LuaDeviceConfig};
+use automation_macro::{Device, LuaDeviceConfig};
 use mlua::LuaSerdeExt;
 use serde::{Deserialize, Serialize};
 use serde_repr::*;
@@ -118,8 +118,8 @@ pub struct Config {
     pub topic: String,
 }
 
-#[derive(Debug, Clone, LuaDevice)]
-#[traits(AddAdditionalMethods)]
+#[derive(Debug, Clone, Device)]
+#[device(traits(AddAdditionalMethods))]
 pub struct Ntfy {
     config: Config,
 }

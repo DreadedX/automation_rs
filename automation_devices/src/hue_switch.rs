@@ -4,7 +4,7 @@ use automation_lib::config::{InfoConfig, MqttDeviceConfig};
 use automation_lib::device::{Device, LuaDeviceCreate};
 use automation_lib::event::OnMqtt;
 use automation_lib::mqtt::WrappedAsyncClient;
-use automation_macro::{LuaDevice, LuaDeviceConfig};
+use automation_macro::{Device, LuaDeviceConfig};
 use rumqttc::{Publish, matches};
 use serde::Deserialize;
 use tracing::{debug, trace, warn};
@@ -55,7 +55,7 @@ struct State {
     battery: Option<f32>,
 }
 
-#[derive(Debug, Clone, LuaDevice)]
+#[derive(Debug, Clone, Device)]
 pub struct HueSwitch {
     config: Config,
 }

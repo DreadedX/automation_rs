@@ -9,7 +9,7 @@ use automation_lib::event::OnMqtt;
 use automation_lib::lua::traits::AddAdditionalMethods;
 use automation_lib::messages::PresenceMessage;
 use automation_lib::mqtt::WrappedAsyncClient;
-use automation_macro::{LuaDevice, LuaDeviceConfig};
+use automation_macro::{Device, LuaDeviceConfig};
 use rumqttc::Publish;
 use tokio::sync::{RwLock, RwLockReadGuard, RwLockWriteGuard};
 use tracing::{debug, trace, warn};
@@ -34,8 +34,8 @@ pub struct State {
     current_overall_presence: bool,
 }
 
-#[derive(Debug, Clone, LuaDevice)]
-#[traits(AddAdditionalMethods)]
+#[derive(Debug, Clone, Device)]
+#[device(traits(AddAdditionalMethods))]
 pub struct Presence {
     config: Config,
     state: Arc<RwLock<State>>,
