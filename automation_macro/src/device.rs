@@ -8,6 +8,7 @@ use syn::{Attribute, DeriveInput, Token, parenthesized};
 
 enum Attr {
     Trait(TraitAttr),
+    AddMethods(AddMethodsAttr),
 }
 
 impl Parse for Attr {
@@ -19,7 +20,13 @@ impl Parse for Attr {
 
         let attr = match ident.to_string().as_str() {
             "traits" => Attr::Trait(attr.parse()?),
-            _ => return Err(syn::Error::new(ident.span(), "Expected 'traits'")),
+            "add_methods" => Attr::AddMethods(attr.parse()?),
+            _ => {
+                return Err(syn::Error::new(
+                    ident.span(),
+                    "Expected 'traits' or 'add_methods'",
+                ));
+            }
         };
 
         Ok(attr)
@@ -98,23 +105,38 @@ impl Parse for Generics {
     }
 }
 
+#[derive(Clone)]
+struct AddMethodsAttr(syn::Path);
+
+impl Parse for AddMethodsAttr {
+    fn parse(input: ParseStream) -> syn::Result<Self> {
+        Ok(Self(input.parse()?))
+    }
+}
+
+impl ToTokens for AddMethodsAttr {
+    fn to_tokens(&self, tokens: &mut TokenStream2) {
+        let Self(path) = self;
+
+        tokens.extend(quote! {
+            #path
+        });
+    }
+}
+
 struct Implementation {
     generics: Option<syn::AngleBracketedGenericArguments>,
     traits: Traits,
-}
-
-impl From<(Option<syn::AngleBracketedGenericArguments>, Traits)> for Implementation {
-    fn from(value: (Option<syn::AngleBracketedGenericArguments>, Traits)) -> Self {
-        Self {
-            generics: value.0,
-            traits: value.1,
-        }
-    }
+    add_methods: Vec<AddMethodsAttr>,
 }
 
 impl quote::ToTokens for Implementation {
     fn to_tokens(&self, tokens: &mut TokenStream2) {
-        let Self { generics, traits } = &self;
+        let Self {
+            generics,
+            traits,
+            add_methods,
+        } = &self;
 
         tokens.extend(quote! {
             #generics {
@@ -135,6 +157,10 @@ impl quote::ToTokens for Implementation {
                     methods.add_async_method("get_id", async |_lua, this, _: ()| { Ok(this.get_id()) });
 
 					#traits
+
+					#(
+						#add_methods(methods);
+					)*
                 }
             }
         });
@@ -145,6 +171,7 @@ struct Implementations(Vec<Implementation>);
 
 impl From<Vec<Attr>> for Implementations {
     fn from(attributes: Vec<Attr>) -> Self {
+        let mut add_methods = Vec::new();
         let mut all = Traits::default();
         let mut implementations: HashMap<_, Traits> = HashMap::new();
         for attribute in attributes {
@@ -161,6 +188,7 @@ impl From<Vec<Attr>> for Implementations {
                         all.extend(&attribute.traits);
                     }
                 }
+                Attr::AddMethods(attribute) => add_methods.push(attribute),
             }
         }
 
@@ -172,7 +200,16 @@ impl From<Vec<Attr>> for Implementations {
             }
         }
 
-        Self(implementations.into_iter().map(Into::into).collect())
+        Self(
+            implementations
+                .into_iter()
+                .map(|(generics, traits)| Implementation {
+                    generics,
+                    traits,
+                    add_methods: add_methods.clone(),
+                })
+                .collect(),
+        )
     }
 }
 
