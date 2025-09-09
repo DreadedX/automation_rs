@@ -31,33 +31,33 @@ pub use self::wake_on_lan::WakeOnLAN;
 pub use self::washer::Washer;
 
 macro_rules! register_device {
-    ($lua:expr, $device:ty) => {
-        $lua.globals()
-            .set(stringify!($device), $lua.create_proxy::<$device>()?)?;
+    ($lua:expr, $table:expr, $device:ty) => {
+        $table.set(stringify!($device), $lua.create_proxy::<$device>()?)?;
     };
 }
 
 pub fn create_module(lua: &mlua::Lua) -> mlua::Result<mlua::Table> {
-    register_device!(lua, AirFilter);
-    register_device!(lua, ContactSensor);
-    register_device!(lua, HueBridge);
-    register_device!(lua, HueGroup);
-    register_device!(lua, HueSwitch);
-    register_device!(lua, IkeaRemote);
-    register_device!(lua, KasaOutlet);
-    register_device!(lua, LightBrightness);
-    register_device!(lua, LightColorTemperature);
-    register_device!(lua, LightOnOff);
-    register_device!(lua, LightSensor);
-    register_device!(lua, Ntfy);
-    register_device!(lua, OutletOnOff);
-    register_device!(lua, OutletPower);
-    register_device!(lua, Presence);
-    register_device!(lua, WakeOnLAN);
-    register_device!(lua, Washer);
+    let devices = lua.create_table()?;
 
-    // For now return an empty table and keep the devices in the global table
-    lua.create_table()
+    register_device!(lua, devices, AirFilter);
+    register_device!(lua, devices, ContactSensor);
+    register_device!(lua, devices, HueBridge);
+    register_device!(lua, devices, HueGroup);
+    register_device!(lua, devices, HueSwitch);
+    register_device!(lua, devices, IkeaRemote);
+    register_device!(lua, devices, KasaOutlet);
+    register_device!(lua, devices, LightBrightness);
+    register_device!(lua, devices, LightColorTemperature);
+    register_device!(lua, devices, LightOnOff);
+    register_device!(lua, devices, LightSensor);
+    register_device!(lua, devices, Ntfy);
+    register_device!(lua, devices, OutletOnOff);
+    register_device!(lua, devices, OutletPower);
+    register_device!(lua, devices, Presence);
+    register_device!(lua, devices, WakeOnLAN);
+    register_device!(lua, devices, Washer);
+
+    Ok(devices)
 }
 
 inventory::submit! {Module::new("devices", create_module)}
