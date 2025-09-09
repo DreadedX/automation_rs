@@ -6,7 +6,6 @@ use automation_lib::action_callback::ActionCallback;
 use automation_lib::config::MqttDeviceConfig;
 use automation_lib::device::{Device, LuaDeviceCreate};
 use automation_lib::event::OnMqtt;
-use automation_lib::lua::traits::AddAdditionalMethods;
 use automation_lib::messages::PresenceMessage;
 use automation_lib::mqtt::WrappedAsyncClient;
 use automation_macro::{Device, LuaDeviceConfig};
@@ -35,7 +34,7 @@ pub struct State {
 }
 
 #[derive(Debug, Clone, Device)]
-#[device(traits(AddAdditionalMethods))]
+#[device(add_methods(Self::add_methods))]
 pub struct Presence {
     config: Config,
     state: Arc<RwLock<State>>,
@@ -48,6 +47,12 @@ impl Presence {
 
     async fn state_mut(&self) -> RwLockWriteGuard<'_, State> {
         self.state.write().await
+    }
+
+    fn add_methods<M: mlua::UserDataMethods<Self>>(methods: &mut M) {
+        methods.add_async_method("overall_presence", async |_lua, this, ()| {
+            Ok(this.state().await.current_overall_presence)
+        });
     }
 }
 
@@ -123,16 +128,5 @@ impl OnMqtt for Presence {
                 .call((self.clone(), overall_presence))
                 .await;
         }
-    }
-}
-
-impl AddAdditionalMethods for Presence {
-    fn add_methods<M: mlua::UserDataMethods<Self>>(methods: &mut M)
-    where
-        Self: Sized + 'static,
-    {
-        methods.add_async_method("overall_presence", async |_lua, this, ()| {
-            Ok(this.state().await.current_overall_presence)
-        });
     }
 }

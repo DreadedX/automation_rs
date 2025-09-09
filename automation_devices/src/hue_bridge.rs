@@ -3,7 +3,6 @@ use std::net::SocketAddr;
 
 use async_trait::async_trait;
 use automation_lib::device::{Device, LuaDeviceCreate};
-use automation_lib::lua::traits::AddAdditionalMethods;
 use automation_macro::{Device, LuaDeviceConfig};
 use mlua::LuaSerdeExt;
 use serde::{Deserialize, Serialize};
@@ -32,7 +31,7 @@ pub struct Config {
 }
 
 #[derive(Debug, Clone, Device)]
-#[device(traits(AddAdditionalMethods))]
+#[device(add_methods(Self::add_methods))]
 pub struct HueBridge {
     config: Config,
 }
@@ -84,19 +83,8 @@ impl HueBridge {
             }
         }
     }
-}
 
-impl Device for HueBridge {
-    fn get_id(&self) -> String {
-        self.config.identifier.clone()
-    }
-}
-
-impl AddAdditionalMethods for HueBridge {
-    fn add_methods<M: mlua::UserDataMethods<Self>>(methods: &mut M)
-    where
-        Self: Sized + 'static,
-    {
+    fn add_methods<M: mlua::UserDataMethods<Self>>(methods: &mut M) {
         methods.add_async_method(
             "set_flag",
             async |lua, this, (flag, value): (mlua::Value, bool)| {
@@ -107,5 +95,11 @@ impl AddAdditionalMethods for HueBridge {
                 Ok(())
             },
         );
+    }
+}
+
+impl Device for HueBridge {
+    fn get_id(&self) -> String {
+        self.config.identifier.clone()
     }
 }

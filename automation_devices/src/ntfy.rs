@@ -3,7 +3,6 @@ use std::convert::Infallible;
 
 use async_trait::async_trait;
 use automation_lib::device::{Device, LuaDeviceCreate};
-use automation_lib::lua::traits::AddAdditionalMethods;
 use automation_macro::{Device, LuaDeviceConfig};
 use mlua::LuaSerdeExt;
 use serde::{Deserialize, Serialize};
@@ -119,9 +118,24 @@ pub struct Config {
 }
 
 #[derive(Debug, Clone, Device)]
-#[device(traits(AddAdditionalMethods))]
+#[device(add_methods(Self::add_methods))]
 pub struct Ntfy {
     config: Config,
+}
+
+impl Ntfy {
+    fn add_methods<M: mlua::UserDataMethods<Self>>(methods: &mut M) {
+        methods.add_async_method(
+            "send_notification",
+            async |lua, this, notification: mlua::Value| {
+                let notification: Notification = lua.from_value(notification)?;
+
+                this.send(notification).await;
+
+                Ok(())
+            },
+        );
+    }
 }
 
 #[async_trait]
@@ -160,23 +174,5 @@ impl Ntfy {
                 warn!("Received status {status} when sending notification");
             }
         }
-    }
-}
-
-impl AddAdditionalMethods for Ntfy {
-    fn add_methods<M: mlua::UserDataMethods<Self>>(methods: &mut M)
-    where
-        Self: Sized + 'static,
-    {
-        methods.add_async_method(
-            "send_notification",
-            async |lua, this, notification: mlua::Value| {
-                let notification: Notification = lua.from_value(notification)?;
-
-                this.send(notification).await;
-
-                Ok(())
-            },
-        );
     }
 }
