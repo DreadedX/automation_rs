@@ -11,6 +11,7 @@ dyn-clone = { workspace = true }
 futures = { workspace = true }
 google_home = { workspace = true }
 indexmap = { workspace = true }
+inventory = { workspace = true }
 mlua = { workspace = true }
 rumqttc = { workspace = true }
 serde = { workspace = true }

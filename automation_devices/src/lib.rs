@@ -12,6 +12,7 @@ mod wake_on_lan;
 mod washer;
 mod zigbee;
 
+use automation_lib::Module;
 use automation_lib::device::{Device, LuaDeviceCreate};
 use zigbee::light::{LightBrightness, LightColorTemperature, LightOnOff};
 use zigbee::outlet::{OutletOnOff, OutletPower};
@@ -36,7 +37,7 @@ macro_rules! register_device {
     };
 }
 
-pub fn register_with_lua(lua: &mlua::Lua) -> mlua::Result<()> {
+pub fn create_module(lua: &mlua::Lua) -> mlua::Result<mlua::Table> {
     register_device!(lua, AirFilter);
     register_device!(lua, ContactSensor);
     register_device!(lua, HueBridge);
@@ -55,5 +56,8 @@ pub fn register_with_lua(lua: &mlua::Lua) -> mlua::Result<()> {
     register_device!(lua, WakeOnLAN);
     register_device!(lua, Washer);
 
-    Ok(())
+    // For now return an empty table and keep the devices in the global table
+    lua.create_table()
 }
+
+inventory::submit! {Module::new("devices", create_module)}

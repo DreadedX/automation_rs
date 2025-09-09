@@ -13,6 +13,7 @@ bytes = { workspace = true }
 dyn-clone = { workspace = true }
 eui48 = { workspace = true }
 google_home = { workspace = true }
+inventory = { workspace = true }
 mlua = { workspace = true }
 reqwest = { workspace = true }
 rumqttc = { workspace = true }

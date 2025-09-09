@@ -12,8 +12,8 @@ use std::time::{SystemTime, UNIX_EPOCH};
 use ::config::{Environment, File};
 use automation_lib::config::{FulfillmentConfig, MqttConfig};
 use automation_lib::device_manager::DeviceManager;
-use automation_lib::helpers;
 use automation_lib::mqtt::{self, WrappedAsyncClient};
+use automation_lib::{Module, helpers};
 use axum::extract::{FromRef, State};
 use axum::http::StatusCode;
 use axum::routing::post;
@@ -29,6 +29,9 @@ use web::{ApiError, User};
 
 use crate::secret::EnvironmentSecretFile;
 use crate::version::VERSION;
+
+// Force automation_devices to link so that it gets registered as a module
+extern crate automation_devices;
 
 #[derive(Clone)]
 struct AppState {
@@ -138,6 +141,13 @@ async fn app() -> anyhow::Result<()> {
     })?;
     lua.globals().set("print", print)?;
 
+    debug!("Loading modules...");
+    for module in inventory::iter::<Module> {
+        debug!(name = module.get_name(), "Registering");
+        let table = module.register(&lua)?;
+        lua.register_module(module.get_name(), table)?;
+    }
+
     let mqtt = lua.create_table()?;
     let event_channel = device_manager.event_channel();
     let mqtt_new = lua.create_function(move |lua, config: mlua::Value| {
@@ -174,7 +184,6 @@ async fn app() -> anyhow::Result<()> {
     utils.set("get_epoch", get_epoch)?;
     lua.register_module("utils", utils)?;
 
-    automation_devices::register_with_lua(&lua)?;
     helpers::register_with_lua(&lua)?;
 
     let entrypoint = Path::new(&config.entrypoint);
