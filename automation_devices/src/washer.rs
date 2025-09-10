@@ -38,6 +38,7 @@ pub struct Washer {
     config: Config,
     state: Arc<RwLock<State>>,
 }
+crate::register_device!(Washer);
 
 impl Washer {
     async fn state(&self) -> RwLockReadGuard<'_, State> {

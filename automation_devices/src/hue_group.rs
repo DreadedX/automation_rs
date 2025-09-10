@@ -24,6 +24,7 @@ pub struct Config {
 pub struct HueGroup {
     config: Config,
 }
+crate::register_device!(HueGroup);
 
 // Couple of helper function to get the correct urls
 #[async_trait]

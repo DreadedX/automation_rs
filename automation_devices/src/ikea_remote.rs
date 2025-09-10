@@ -33,6 +33,7 @@ pub struct Config {
 pub struct IkeaRemote {
     config: Config,
 }
+crate::register_device!(IkeaRemote);
 
 impl Device for IkeaRemote {
     fn get_id(&self) -> String {

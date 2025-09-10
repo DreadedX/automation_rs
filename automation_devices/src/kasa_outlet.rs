@@ -26,6 +26,7 @@ pub struct Config {
 pub struct KasaOutlet {
     config: Config,
 }
+crate::register_device!(KasaOutlet);
 
 #[async_trait]
 impl LuaDeviceCreate for KasaOutlet {

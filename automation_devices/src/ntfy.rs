@@ -97,6 +97,7 @@ pub struct Config {
 pub struct Ntfy {
     config: Config,
 }
+crate::register_device!(Ntfy);
 
 impl Ntfy {
     fn add_methods<M: mlua::UserDataMethods<Self>>(methods: &mut M) {

@@ -59,6 +59,7 @@ struct State {
 pub struct HueSwitch {
     config: Config,
 }
+crate::register_device!(HueSwitch);
 
 impl Device for HueSwitch {
     fn get_id(&self) -> String {

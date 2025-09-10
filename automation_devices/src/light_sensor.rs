@@ -39,6 +39,7 @@ pub struct LightSensor {
     config: Config,
     state: Arc<RwLock<State>>,
 }
+crate::register_device!(LightSensor);
 
 impl LightSensor {
     async fn state(&self) -> RwLockReadGuard<'_, State> {

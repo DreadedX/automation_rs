@@ -54,6 +54,7 @@ pub struct ContactSensor {
     config: Config,
     state: Arc<RwLock<State>>,
 }
+crate::register_device!(ContactSensor);
 
 impl ContactSensor {
     async fn state(&self) -> RwLockReadGuard<'_, State> {

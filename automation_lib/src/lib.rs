@@ -37,9 +37,8 @@ impl Module {
 }
 
 pub fn load_modules(lua: &mlua::Lua) -> mlua::Result<()> {
-    debug!("Loading modules...");
     for module in inventory::iter::<Module> {
-        debug!(name = module.get_name(), "Registering");
+        debug!(name = module.get_name(), "Loading module");
         let table = module.register(lua)?;
         lua.register_module(module.get_name(), table)?;
     }

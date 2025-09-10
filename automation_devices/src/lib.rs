@@ -14,48 +14,51 @@ mod zigbee;
 
 use automation_lib::Module;
 use automation_lib::device::{Device, LuaDeviceCreate};
-use zigbee::light::{LightBrightness, LightColorTemperature, LightOnOff};
-use zigbee::outlet::{OutletOnOff, OutletPower};
-
-pub use self::air_filter::AirFilter;
-pub use self::contact_sensor::ContactSensor;
-pub use self::hue_bridge::HueBridge;
-pub use self::hue_group::HueGroup;
-pub use self::hue_switch::HueSwitch;
-pub use self::ikea_remote::IkeaRemote;
-pub use self::kasa_outlet::KasaOutlet;
-pub use self::light_sensor::LightSensor;
-pub use self::ntfy::*;
-pub use self::presence::Presence;
-pub use self::wake_on_lan::WakeOnLAN;
-pub use self::washer::Washer;
+use tracing::debug;
 
 macro_rules! register_device {
-    ($lua:expr, $table:expr, $device:ty) => {
-        $table.set(stringify!($device), $lua.create_proxy::<$device>()?)?;
+    ($device:ty) => {
+        ::inventory::submit!(crate::RegisteredDevice::new(
+            stringify!($device),
+            ::mlua::Lua::create_proxy::<$device>
+        ));
     };
 }
+
+pub(crate) use register_device;
+
+type RegisterFn = fn(lua: &mlua::Lua) -> mlua::Result<mlua::AnyUserData>;
+
+pub struct RegisteredDevice {
+    name: &'static str,
+    register_fn: RegisterFn,
+}
+
+impl RegisteredDevice {
+    pub const fn new(name: &'static str, register_fn: RegisterFn) -> Self {
+        Self { name, register_fn }
+    }
+
+    pub const fn get_name(&self) -> &'static str {
+        self.name
+    }
+
+    pub fn register(&self, lua: &mlua::Lua) -> mlua::Result<mlua::AnyUserData> {
+        (self.register_fn)(lua)
+    }
+}
+
+inventory::collect!(RegisteredDevice);
 
 pub fn create_module(lua: &mlua::Lua) -> mlua::Result<mlua::Table> {
     let devices = lua.create_table()?;
 
-    register_device!(lua, devices, AirFilter);
-    register_device!(lua, devices, ContactSensor);
-    register_device!(lua, devices, HueBridge);
-    register_device!(lua, devices, HueGroup);
-    register_device!(lua, devices, HueSwitch);
-    register_device!(lua, devices, IkeaRemote);
-    register_device!(lua, devices, KasaOutlet);
-    register_device!(lua, devices, LightBrightness);
-    register_device!(lua, devices, LightColorTemperature);
-    register_device!(lua, devices, LightOnOff);
-    register_device!(lua, devices, LightSensor);
-    register_device!(lua, devices, Ntfy);
-    register_device!(lua, devices, OutletOnOff);
-    register_device!(lua, devices, OutletPower);
-    register_device!(lua, devices, Presence);
-    register_device!(lua, devices, WakeOnLAN);
-    register_device!(lua, devices, Washer);
+    debug!("Loading devices...");
+    for device in inventory::iter::<RegisteredDevice> {
+        debug!(name = device.get_name(), "Registering device");
+        let proxy = device.register(lua)?;
+        devices.set(device.get_name(), proxy)?;
+    }
 
     Ok(devices)
 }

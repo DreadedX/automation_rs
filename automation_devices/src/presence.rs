@@ -39,6 +39,7 @@ pub struct Presence {
     config: Config,
     state: Arc<RwLock<State>>,
 }
+crate::register_device!(Presence);
 
 impl Presence {
     async fn state(&self) -> RwLockReadGuard<'_, State> {

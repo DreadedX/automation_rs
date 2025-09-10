@@ -35,6 +35,7 @@ pub struct Config {
 pub struct HueBridge {
     config: Config,
 }
+crate::register_device!(HueBridge);
 
 #[derive(Debug, Serialize)]
 struct FlagMessage {

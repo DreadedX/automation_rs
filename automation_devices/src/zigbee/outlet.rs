@@ -89,7 +89,10 @@ pub struct Outlet<T: OutletState> {
 }
 
 pub type OutletOnOff = Outlet<StateOnOff>;
+crate::register_device!(OutletOnOff);
+
 pub type OutletPower = Outlet<StatePower>;
+crate::register_device!(OutletPower);
 
 impl<T: OutletState> Outlet<T> {
     async fn state(&self) -> RwLockReadGuard<'_, T> {

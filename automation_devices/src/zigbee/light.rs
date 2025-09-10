@@ -99,8 +99,13 @@ pub struct Light<T: LightState> {
 }
 
 pub type LightOnOff = Light<StateOnOff>;
+crate::register_device!(LightOnOff);
+
 pub type LightBrightness = Light<StateBrightness>;
+crate::register_device!(LightBrightness);
+
 pub type LightColorTemperature = Light<StateColorTemperature>;
+crate::register_device!(LightColorTemperature);
 
 impl<T: LightState> Light<T> {
     async fn state(&self) -> RwLockReadGuard<'_, T> {

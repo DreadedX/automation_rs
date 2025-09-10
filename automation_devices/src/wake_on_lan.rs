@@ -32,6 +32,7 @@ pub struct Config {
 pub struct WakeOnLAN {
     config: Config,
 }
+crate::register_device!(WakeOnLAN);
 
 #[async_trait]
 impl LuaDeviceCreate for WakeOnLAN {

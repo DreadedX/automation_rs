@@ -24,6 +24,7 @@ pub struct Config {
 pub struct AirFilter {
     config: Config,
 }
+crate::register_device!(AirFilter);
 
 #[derive(Debug, Error)]
 pub enum Error {
