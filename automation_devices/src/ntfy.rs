@@ -71,31 +71,6 @@ impl Notification {
         }
     }
 
-    pub fn set_title(mut self, title: &str) -> Self {
-        self.title = Some(title.into());
-        self
-    }
-
-    pub fn set_message(mut self, message: &str) -> Self {
-        self.message = Some(message.into());
-        self
-    }
-
-    pub fn add_tag(mut self, tag: &str) -> Self {
-        self.tags.push(tag.into());
-        self
-    }
-
-    pub fn set_priority(mut self, priority: Priority) -> Self {
-        self.priority = Some(priority);
-        self
-    }
-
-    pub fn add_action(mut self, action: Action) -> Self {
-        self.actions.push(action);
-        self
-    }
-
     fn finalize(self, topic: &str) -> NotificationFinal {
         NotificationFinal {
             topic: topic.into(),
