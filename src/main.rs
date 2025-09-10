@@ -7,12 +7,10 @@ mod web;
 use std::net::SocketAddr;
 use std::path::Path;
 use std::process;
-use std::time::{SystemTime, UNIX_EPOCH};
 
 use ::config::{Environment, File};
 use automation_lib::config::{FulfillmentConfig, MqttConfig};
 use automation_lib::device_manager::DeviceManager;
-use automation_lib::helpers;
 use automation_lib::mqtt::{self, WrappedAsyncClient};
 use axum::extract::{FromRef, State};
 use axum::http::StatusCode;
@@ -162,24 +160,6 @@ async fn app() -> anyhow::Result<()> {
 
     lua.register_module("variables", lua.to_value(&config.variables)?)?;
     lua.register_module("secrets", lua.to_value(&config.secrets)?)?;
-
-    let utils = lua.create_table()?;
-    let get_hostname = lua.create_function(|_lua, ()| {
-        hostname::get()
-            .map(|name| name.to_str().unwrap_or("unknown").to_owned())
-            .map_err(mlua::ExternalError::into_lua_err)
-    })?;
-    utils.set("get_hostname", get_hostname)?;
-    let get_epoch = lua.create_function(|_lua, ()| {
-        Ok(SystemTime::now()
-            .duration_since(UNIX_EPOCH)
-            .expect("Time is after UNIX EPOCH")
-            .as_millis())
-    })?;
-    utils.set("get_epoch", get_epoch)?;
-    lua.register_module("utils", utils)?;
-
-    helpers::register_with_lua(&lua)?;
 
     let entrypoint = Path::new(&config.entrypoint);
     let fulfillment_config: mlua::Value = lua.load(entrypoint).eval_async().await?;

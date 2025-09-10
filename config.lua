@@ -259,7 +259,7 @@ device_manager:add(devices.IkeaRemote.new({
 }))
 
 local function kettle_timeout()
-	local timeout = Timeout.new()
+	local timeout = utils.Timeout.new()
 
 	return function(self, state)
 		if state.state and state.power < 100 then
@@ -308,7 +308,7 @@ device_manager:add(devices.IkeaRemote.new({
 }))
 
 local function off_timeout(duration)
-	local timeout = Timeout.new()
+	local timeout = utils.Timeout.new()
 
 	return function(self, state)
 		if state.state then
@@ -371,7 +371,7 @@ local workbench_light = devices.LightColorTemperature.new({
 turn_off_when_away(workbench_light)
 device_manager:add(workbench_light)
 
-local delay_color_temp = Timeout.new()
+local delay_color_temp = utils.Timeout.new()
 device_manager:add(devices.IkeaRemote.new({
 	name = "Remote",
 	room = "Workbench",
@@ -424,7 +424,7 @@ device_manager:add(devices.HueSwitch.new({
 }))
 
 local hallway_light_automation = {
-	timeout = Timeout.new(),
+	timeout = utils.Timeout.new(),
 	forced = false,
 	switch_callback = function(self)
 		return function(_, on)
@@ -512,7 +512,7 @@ hallway_light_automation.group = {
 }
 
 local function presence(duration)
-	local timeout = Timeout.new()
+	local timeout = utils.Timeout.new()
 
 	return function(_, open)
 		if open then
