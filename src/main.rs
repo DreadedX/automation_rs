@@ -154,12 +154,12 @@ async fn app() -> anyhow::Result<()> {
         Ok(WrappedAsyncClient(client))
     })?;
     mqtt.set("new", mqtt_new)?;
-    lua.register_module("mqtt", mqtt)?;
+    lua.register_module("automation:mqtt", mqtt)?;
 
-    lua.register_module("device_manager", device_manager.clone())?;
+    lua.register_module("automation:device_manager", device_manager.clone())?;
 
-    lua.register_module("variables", lua.to_value(&config.variables)?)?;
-    lua.register_module("secrets", lua.to_value(&config.secrets)?)?;
+    lua.register_module("automation:variables", lua.to_value(&config.variables)?)?;
+    lua.register_module("automation:secrets", lua.to_value(&config.secrets)?)?;
 
     let entrypoint = Path::new(&config.entrypoint);
     let fulfillment_config: mlua::Value = lua.load(entrypoint).eval_async().await?;

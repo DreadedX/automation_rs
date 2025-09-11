@@ -1,8 +1,8 @@
-local devices = require("devices")
-local device_manager = require("device_manager")
-local utils = require("utils")
-local secrets = require("secrets")
-local debug = require("variables").debug or false
+local devices = require("automation:devices")
+local device_manager = require("automation:device_manager")
+local utils = require("automation:utils")
+local secrets = require("automation:secrets")
+local debug = require("automation:variables").debug or false
 
 print(_VERSION)
 
@@ -21,7 +21,7 @@ local fulfillment = {
 	openid_url = "https://login.huizinga.dev/api/oidc",
 }
 
-local mqtt_client = require("mqtt").new({
+local mqtt_client = require("automation:mqtt").new({
 	host = ((host == "zeus" or host == "hephaestus") and "olympus.lan.huizinga.dev") or "mosquitto",
 	port = 8883,
 	client_name = "automation-" .. host,
