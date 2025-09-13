@@ -48,9 +48,7 @@ struct NotificationFinal {
 
 #[derive(Debug, Serialize, Clone, Deserialize)]
 pub struct Notification {
-    #[serde(skip_serializing_if = "Option::is_none")]
-    title: Option<String>,
-    #[serde(skip_serializing_if = "Option::is_none")]
+    title: String,
     message: Option<String>,
     #[serde(skip_serializing_if = "Vec::is_empty", default = "Default::default")]
     tags: Vec<String>,
@@ -61,27 +59,11 @@ pub struct Notification {
 }
 
 impl Notification {
-    pub fn new() -> Self {
-        Self {
-            title: None,
-            message: None,
-            tags: Vec::new(),
-            priority: None,
-            actions: Vec::new(),
-        }
-    }
-
     fn finalize(self, topic: &str) -> NotificationFinal {
         NotificationFinal {
             topic: topic.into(),
             inner: self,
         }
-    }
-}
-
-impl Default for Notification {
-    fn default() -> Self {
-        Self::new()
     }
 }
 
