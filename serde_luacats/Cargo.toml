@@ -1,0 +1,8 @@
+[package]
+name = "serde_luacats"
+version = "0.1.0"
+edition = "2024"
+
+[dependencies]
+insta = "1.43.2"
+serde = { workspace = true }

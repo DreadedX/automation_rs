@@ -10,7 +10,7 @@ members = [
   "automation_lib",
   "automation_macro",
   "google_home/google_home",
-  "google_home/google_home_macro",
+  "google_home/google_home_macro", "serde_luacats",
 ]
 
 [workspace.dependencies]
