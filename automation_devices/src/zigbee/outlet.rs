@@ -81,7 +81,7 @@ impl From<StatePower> for StateOnOff {
 }
 
 #[derive(Debug, Clone, Device)]
-#[device(traits(OnOff for <StateOnOff>, <StatePower>))]
+#[device(traits(OnOff for OutletOnOff, OutletPower))]
 pub struct Outlet<T: OutletState> {
     config: Config<T>,
 
@@ -131,7 +131,7 @@ impl<T: OutletState> Device for Outlet<T> {
 }
 
 #[async_trait]
-impl OnMqtt for Outlet<StateOnOff> {
+impl OnMqtt for OutletOnOff {
     async fn on_mqtt(&self, message: Publish) {
         // Check if the message is from the device itself or from a remote
         if matches(&message.topic, &self.config.mqtt.topic) {
@@ -164,7 +164,7 @@ impl OnMqtt for Outlet<StateOnOff> {
 }
 
 #[async_trait]
-impl OnMqtt for Outlet<StatePower> {
+impl OnMqtt for OutletPower {
     async fn on_mqtt(&self, message: Publish) {
         // Check if the message is from the deviec itself or from a remote
         if matches(&message.topic, &self.config.mqtt.topic) {

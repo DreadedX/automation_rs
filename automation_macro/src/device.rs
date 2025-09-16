@@ -35,14 +35,14 @@ impl Parse for Attr {
 
 struct TraitAttr {
     traits: Traits,
-    generics: Generics,
+    aliases: Aliases,
 }
 
 impl Parse for TraitAttr {
     fn parse(input: ParseStream) -> syn::Result<Self> {
         Ok(Self {
             traits: input.parse()?,
-            generics: input.parse()?,
+            aliases: input.parse()?,
         })
     }
 }
@@ -78,15 +78,15 @@ impl ToTokens for Traits {
 }
 
 #[derive(Default)]
-struct Generics(Vec<syn::AngleBracketedGenericArguments>);
+struct Aliases(Vec<syn::Ident>);
 
-impl Generics {
-    fn has_generics(&self) -> bool {
+impl Aliases {
+    fn has_aliases(&self) -> bool {
         !self.0.is_empty()
     }
 }
 
-impl Parse for Generics {
+impl Parse for Aliases {
     fn parse(input: ParseStream) -> syn::Result<Self> {
         if !input.peek(Token![for]) {
             if input.is_empty() {
@@ -100,7 +100,7 @@ impl Parse for Generics {
 
         input
             .call(Punctuated::<_, Token![,]>::parse_separated_nonempty)
-            .map(|generics| generics.into_iter().collect())
+            .map(|aliases| aliases.into_iter().collect())
             .map(Self)
     }
 }
@@ -125,7 +125,7 @@ impl ToTokens for AddMethodsAttr {
 }
 
 struct Implementation {
-    generics: Option<syn::AngleBracketedGenericArguments>,
+    name: syn::Ident,
     traits: Traits,
     add_methods: Vec<AddMethodsAttr>,
 }
@@ -133,13 +133,13 @@ struct Implementation {
 impl quote::ToTokens for Implementation {
     fn to_tokens(&self, tokens: &mut TokenStream2) {
         let Self {
-            generics,
+            name,
             traits,
             add_methods,
         } = &self;
 
         tokens.extend(quote! {
-            #generics {
+            impl mlua::UserData for #name {
                 fn add_methods<M: mlua::UserDataMethods<Self>>(methods: &mut M) {
                     methods.add_async_function("new", async |_lua, config| {
                         let device: Self = LuaDeviceCreate::create(config)
@@ -169,18 +169,18 @@ impl quote::ToTokens for Implementation {
 
 struct Implementations(Vec<Implementation>);
 
-impl From<Vec<Attr>> for Implementations {
-    fn from(attributes: Vec<Attr>) -> Self {
+impl Implementations {
+    fn from_attr(attributes: Vec<Attr>, name: syn::Ident) -> Self {
         let mut add_methods = Vec::new();
         let mut all = Traits::default();
         let mut implementations: HashMap<_, Traits> = HashMap::new();
         for attribute in attributes {
             match attribute {
                 Attr::Trait(attribute) => {
-                    if attribute.generics.has_generics() {
-                        for generic in &attribute.generics.0 {
+                    if attribute.aliases.has_aliases() {
+                        for alias in &attribute.aliases.0 {
                             implementations
-                                .entry(Some(generic.clone()))
+                                .entry(Some(alias.clone()))
                                 .or_default()
                                 .extend(&attribute.traits);
                         }
@@ -203,8 +203,8 @@ impl From<Vec<Attr>> for Implementations {
         Self(
             implementations
                 .into_iter()
-                .map(|(generics, traits)| Implementation {
-                    generics,
+                .map(|(alias, traits)| Implementation {
+                    name: alias.unwrap_or(name.clone()),
                     traits,
                     add_methods: add_methods.clone(),
                 })
@@ -213,9 +213,7 @@ impl From<Vec<Attr>> for Implementations {
     }
 }
 
-pub fn device(input: &DeriveInput) -> TokenStream2 {
-    let name = &input.ident;
-
+pub fn device(input: DeriveInput) -> TokenStream2 {
     let Implementations(imp) = match input
         .attrs
         .iter()
@@ -223,13 +221,13 @@ pub fn device(input: &DeriveInput) -> TokenStream2 {
         .map(Attribute::parse_args)
         .try_collect::<Vec<_>>()
     {
-        Ok(result) => result.into(),
+        Ok(attr) => Implementations::from_attr(attr, input.ident),
         Err(err) => return err.into_compile_error(),
     };
 
     quote! {
         #(
-            impl mlua::UserData for #name #imp
+            #imp
         )*
     }
 }

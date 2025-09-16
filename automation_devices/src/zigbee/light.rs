@@ -89,9 +89,9 @@ impl From<StateColorTemperature> for StateBrightness {
 }
 
 #[derive(Debug, Clone, Device)]
-#[device(traits(OnOff for <StateOnOff>, <StateBrightness>, <StateColorTemperature>))]
-#[device(traits(Brightness for <StateBrightness>, <StateColorTemperature>))]
-#[device(traits(ColorSetting for <StateColorTemperature>))]
+#[device(traits(OnOff for LightOnOff, LightBrightness, LightColorTemperature))]
+#[device(traits(Brightness for LightBrightness, LightColorTemperature))]
+#[device(traits(ColorSetting for LightColorTemperature))]
 pub struct Light<T: LightState> {
     config: Config<T>,
 
@@ -144,7 +144,7 @@ impl<T: LightState> Device for Light<T> {
 }
 
 #[async_trait]
-impl OnMqtt for Light<StateOnOff> {
+impl OnMqtt for LightOnOff {
     async fn on_mqtt(&self, message: Publish) {
         // Check if the message is from the device itself or from a remote
         if matches(&message.topic, &self.config.mqtt.topic) {
@@ -177,7 +177,7 @@ impl OnMqtt for Light<StateOnOff> {
 }
 
 #[async_trait]
-impl OnMqtt for Light<StateBrightness> {
+impl OnMqtt for LightBrightness {
     async fn on_mqtt(&self, message: Publish) {
         // Check if the message is from the deviec itself or from a remote
         if matches(&message.topic, &self.config.mqtt.topic) {
@@ -216,7 +216,7 @@ impl OnMqtt for Light<StateBrightness> {
 }
 
 #[async_trait]
-impl OnMqtt for Light<StateColorTemperature> {
+impl OnMqtt for LightColorTemperature {
     async fn on_mqtt(&self, message: Publish) {
         // Check if the message is from the deviec itself or from a remote
         if matches(&message.topic, &self.config.mqtt.topic) {

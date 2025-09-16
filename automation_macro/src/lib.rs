@@ -69,5 +69,5 @@ pub fn lua_serialize(input: proc_macro::TokenStream) -> proc_macro::TokenStream 
 #[proc_macro_derive(Device, attributes(device))]
 pub fn device(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
     let ast = parse_macro_input!(input as DeriveInput);
-    device::device(&ast).into()
+    device::device(ast).into()
 }
