@@ -8,18 +8,22 @@ use automation_macro::{Device, LuaDeviceConfig};
 use bytes::{Buf, BufMut};
 use google_home::errors::{self, DeviceError};
 use google_home::traits::OnOff;
+use lua_typed::Typed;
 use serde::{Deserialize, Serialize};
 use thiserror::Error;
 use tokio::io::{AsyncReadExt, AsyncWriteExt};
 use tokio::net::TcpStream;
 use tracing::trace;
 
-#[derive(Debug, Clone, LuaDeviceConfig)]
+#[derive(Debug, Clone, LuaDeviceConfig, Typed)]
+#[typed(as = "KasaOutletConfig")]
 pub struct Config {
     pub identifier: String,
     #[device_config(rename("ip"), with(|ip| SocketAddr::new(ip, 9999)))]
+    #[typed(as = "ip")]
     pub addr: SocketAddr,
 }
+crate::register_type!(Config);
 
 #[derive(Debug, Clone, Device)]
 #[device(traits(OnOff))]

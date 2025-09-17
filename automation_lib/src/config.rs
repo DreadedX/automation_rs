@@ -1,6 +1,7 @@
 use std::net::{Ipv4Addr, SocketAddr};
 use std::time::Duration;
 
+use lua_typed::Typed;
 use rumqttc::{MqttOptions, Transport};
 use serde::Deserialize;
 
@@ -52,7 +53,7 @@ fn default_fulfillment_port() -> u16 {
     7878
 }
 
-#[derive(Debug, Clone, Deserialize)]
+#[derive(Debug, Clone, Deserialize, Typed)]
 pub struct InfoConfig {
     pub name: String,
     pub room: Option<String>,
@@ -68,7 +69,7 @@ impl InfoConfig {
     }
 }
 
-#[derive(Debug, Clone, Deserialize)]
+#[derive(Debug, Clone, Deserialize, Typed)]
 pub struct MqttDeviceConfig {
     pub topic: String,
 }

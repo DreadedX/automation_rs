@@ -47,7 +47,7 @@ impl Parse for TraitAttr {
     }
 }
 
-#[derive(Default)]
+#[derive(Default, Clone)]
 struct Traits(Vec<syn::Ident>);
 
 impl Traits {
@@ -65,13 +65,27 @@ impl Parse for Traits {
     }
 }
 
-impl ToTokens for Traits {
+struct TraitsAddMethods(Traits);
+impl ToTokens for TraitsAddMethods {
     fn to_tokens(&self, tokens: &mut TokenStream2) {
-        let Self(traits) = &self;
+        let Self(Traits(traits)) = &self;
 
         tokens.extend(quote! {
             #(
-                ::automation_lib::lua::traits::#traits::add_methods(methods);
+                ::automation_lib::lua::traits::#traits::<Self>::add_methods(methods);
+            )*
+        });
+    }
+}
+
+struct TraitsGenerateDefinitions(Traits);
+impl ToTokens for TraitsGenerateDefinitions {
+    fn to_tokens(&self, tokens: &mut TokenStream2) {
+        let Self(Traits(traits)) = &self;
+
+        tokens.extend(quote! {
+            #(
+                output += &::automation_lib::lua::traits::#traits::<Self>::generate_definitions();
             )*
         });
     }
@@ -138,9 +152,12 @@ impl quote::ToTokens for Implementation {
             add_methods,
         } = &self;
 
+        let traits_add_methods = TraitsAddMethods(traits.clone());
+        let traits_generate_definitions = TraitsGenerateDefinitions(traits.clone());
+
         tokens.extend(quote! {
-            impl mlua::UserData for #name {
-                fn add_methods<M: mlua::UserDataMethods<Self>>(methods: &mut M) {
+            impl ::mlua::UserData for #name {
+                fn add_methods<M: ::mlua::UserDataMethods<Self>>(methods: &mut M) {
                     methods.add_async_function("new", async |_lua, config| {
                         let device: Self = LuaDeviceCreate::create(config)
                             .await
@@ -156,13 +173,39 @@ impl quote::ToTokens for Implementation {
 
                     methods.add_async_method("get_id", async |_lua, this, _: ()| { Ok(this.get_id()) });
 
-					#traits
+					#traits_add_methods
 
 					#(
 						#add_methods(methods);
 					)*
                 }
             }
+
+			impl ::lua_typed::Typed for #name {
+				fn type_name() -> String {
+					stringify!(#name).into()
+				}
+
+				fn generate_header() -> std::option::Option<::std::string::String> {
+					let type_name = <Self as ::lua_typed::Typed>::type_name();
+					Some(format!("---@class {type_name}\nlocal {type_name}\n"))
+				}
+
+				fn generate_members() -> Option<String> {
+					let mut output = String::new();
+
+					#traits_generate_definitions
+
+					let type_name = <Self as ::lua_typed::Typed>::type_name();
+					output += &format!("devices.{type_name} = {{}}\n");
+					let config_name = <<Self as ::automation_lib::device::LuaDeviceCreate>::Config as ::lua_typed::Typed>::type_name();
+					output += &format!("---@param config {config_name}\n");
+					output += &format!("---@return {type_name}\n");
+					output += &format!("function devices.{type_name}.new(config) end\n");
+
+					Some(output)
+				}
+			}
         });
     }
 }

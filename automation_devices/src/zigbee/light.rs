@@ -15,6 +15,7 @@ use google_home::device;
 use google_home::errors::ErrorCode;
 use google_home::traits::{Brightness, Color, ColorSetting, ColorTemperatureRange, OnOff};
 use google_home::types::Type;
+use lua_typed::Typed;
 use rumqttc::{Publish, matches};
 use serde::{Deserialize, Serialize};
 use serde_json::json;
@@ -38,6 +39,13 @@ pub struct Config<T: LightState> {
 
     #[device_config(from_lua)]
     pub client: WrappedAsyncClient,
+}
+
+// TODO: Fix the derive macro so this is supported
+impl<T: LightState> Typed for Config<T> {
+    fn type_name() -> String {
+        "LightConfig".into()
+    }
 }
 
 #[derive(Debug, Clone, Default, Serialize, Deserialize, LuaSerialize)]

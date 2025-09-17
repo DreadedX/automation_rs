@@ -1,11 +1,18 @@
+use std::marker::PhantomData;
 use std::ops::Deref;
+
+use lua_typed::Typed;
 
 // TODO: Enable and disable functions based on query_only and command_only
 
-pub trait OnOff {
-    fn add_methods<M: mlua::UserDataMethods<Self>>(methods: &mut M)
+pub struct OnOff<T> {
+    _phantom: PhantomData<T>,
+}
+
+impl<T: google_home::traits::OnOff + Typed> OnOff<T> {
+    pub fn add_methods<M: mlua::UserDataMethods<T>>(methods: &mut M)
     where
-        Self: Sized + google_home::traits::OnOff + 'static,
+        T: Sized + 'static,
     {
         methods.add_async_method("set_on", async |_lua, this, on: bool| {
             this.deref().set_on(on).await.unwrap();
@@ -17,13 +24,27 @@ pub trait OnOff {
             Ok(this.deref().on().await.unwrap())
         });
     }
-}
-impl<T> OnOff for T where T: google_home::traits::OnOff {}
 
-pub trait Brightness {
-    fn add_methods<M: mlua::UserDataMethods<Self>>(methods: &mut M)
+    pub fn generate_definitions() -> String {
+        let type_name = T::type_name();
+        let mut output = String::new();
+
+        output +=
+            &format!("---@async\n---@param on boolean\nfunction {type_name}:set_on(on) end\n");
+        output += &format!("---@async\n---@return boolean\nfunction {type_name}:on() end\n");
+
+        output
+    }
+}
+
+pub struct Brightness<T> {
+    _phantom: PhantomData<T>,
+}
+
+impl<T: google_home::traits::Brightness + Typed> Brightness<T> {
+    pub fn add_methods<M: mlua::UserDataMethods<T>>(methods: &mut M)
     where
-        Self: Sized + google_home::traits::Brightness + 'static,
+        T: Sized + 'static,
     {
         methods.add_async_method("set_brightness", async |_lua, this, brightness: u8| {
             this.set_brightness(brightness).await.unwrap();
@@ -35,13 +56,29 @@ pub trait Brightness {
             Ok(this.brightness().await.unwrap())
         });
     }
-}
-impl<T> Brightness for T where T: google_home::traits::Brightness {}
 
-pub trait ColorSetting {
-    fn add_methods<M: mlua::UserDataMethods<Self>>(methods: &mut M)
+    pub fn generate_definitions() -> String {
+        let type_name = T::type_name();
+        let mut output = String::new();
+
+        output += &format!(
+            "---@async\n---@param brightness integer\nfunction {type_name}:set_brightness(brightness) end\n"
+        );
+        output +=
+            &format!("---@async\n---@return integer\nfunction {type_name}:brightness() end\n");
+
+        output
+    }
+}
+
+pub struct ColorSetting<T> {
+    _phantom: PhantomData<T>,
+}
+
+impl<T: google_home::traits::ColorSetting + Typed> ColorSetting<T> {
+    pub fn add_methods<M: mlua::UserDataMethods<T>>(methods: &mut M)
     where
-        Self: Sized + google_home::traits::ColorSetting + 'static,
+        T: Sized + 'static,
     {
         methods.add_async_method(
             "set_color_temperature",
@@ -58,13 +95,30 @@ pub trait ColorSetting {
             Ok(this.color().await.temperature)
         });
     }
-}
-impl<T> ColorSetting for T where T: google_home::traits::ColorSetting {}
 
-pub trait OpenClose {
-    fn add_methods<M: mlua::UserDataMethods<Self>>(methods: &mut M)
+    pub fn generate_definitions() -> String {
+        let type_name = T::type_name();
+        let mut output = String::new();
+
+        output += &format!(
+            "---@async\n---@param temperature integer\nfunction {type_name}:set_color_temperature(temperature) end\n"
+        );
+        output += &format!(
+            "---@async\n---@return integer\nfunction {type_name}:color_temperature() end\n"
+        );
+
+        output
+    }
+}
+
+pub struct OpenClose<T> {
+    _phantom: PhantomData<T>,
+}
+
+impl<T: google_home::traits::OpenClose + Typed> OpenClose<T> {
+    pub fn add_methods<M: mlua::UserDataMethods<T>>(methods: &mut M)
     where
-        Self: Sized + google_home::traits::OpenClose + 'static,
+        T: Sized + 'static,
     {
         methods.add_async_method("set_open_percent", async |_lua, this, open_percent: u8| {
             this.set_open_percent(open_percent).await.unwrap();
@@ -76,5 +130,17 @@ pub trait OpenClose {
             Ok(this.open_percent().await.unwrap())
         });
     }
+
+    pub fn generate_definitions() -> String {
+        let type_name = T::type_name();
+        let mut output = String::new();
+
+        output += &format!(
+            "---@async\n---@param open_percent integer\nfunction {type_name}:set_open_percent(open_percent) end\n"
+        );
+        output +=
+            &format!("---@async\n---@return integer\nfunction {type_name}:open_percent() end\n");
+
+        output
+    }
 }
-impl<T> OpenClose for T where T: google_home::traits::OpenClose {}

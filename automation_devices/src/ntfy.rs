@@ -4,12 +4,13 @@ use std::convert::Infallible;
 use async_trait::async_trait;
 use automation_lib::device::{Device, LuaDeviceCreate};
 use automation_macro::{Device, LuaDeviceConfig};
+use lua_typed::Typed;
 use mlua::LuaSerdeExt;
 use serde::{Deserialize, Serialize};
 use serde_repr::*;
 use tracing::{error, trace, warn};
 
-#[derive(Debug, Serialize_repr, Deserialize, Clone, Copy)]
+#[derive(Debug, Serialize_repr, Deserialize, Clone, Copy, Typed)]
 #[repr(u8)]
 #[serde(rename_all = "snake_case")]
 pub enum Priority {
@@ -19,34 +20,37 @@ pub enum Priority {
     High,
     Max,
 }
+crate::register_type!(Priority);
 
-#[derive(Debug, Serialize, Deserialize, Clone)]
+#[derive(Debug, Serialize, Deserialize, Clone, Typed)]
 #[serde(rename_all = "snake_case", tag = "action")]
 pub enum ActionType {
     Broadcast {
         #[serde(skip_serializing_if = "HashMap::is_empty")]
+        #[serde(default)]
         extras: HashMap<String, String>,
     },
     // View,
     // Http
 }
 
-#[derive(Debug, Serialize, Deserialize, Clone)]
+#[derive(Debug, Serialize, Deserialize, Clone, Typed)]
 pub struct Action {
     #[serde(flatten)]
     pub action: ActionType,
     pub label: String,
     pub clear: Option<bool>,
 }
+crate::register_type!(Action);
 
-#[derive(Serialize, Deserialize)]
+#[derive(Serialize, Deserialize, Typed)]
 struct NotificationFinal {
     topic: String,
     #[serde(flatten)]
     inner: Notification,
 }
 
-#[derive(Debug, Serialize, Clone, Deserialize)]
+#[derive(Debug, Serialize, Clone, Deserialize, Typed)]
 pub struct Notification {
     title: String,
     message: Option<String>,
@@ -57,6 +61,7 @@ pub struct Notification {
     #[serde(skip_serializing_if = "Vec::is_empty", default = "Default::default")]
     actions: Vec<Action>,
 }
+crate::register_type!(Notification);
 
 impl Notification {
     fn finalize(self, topic: &str) -> NotificationFinal {
@@ -67,12 +72,15 @@ impl Notification {
     }
 }
 
-#[derive(Debug, Clone, LuaDeviceConfig)]
+#[derive(Debug, Clone, LuaDeviceConfig, Typed)]
+#[typed(as = "NtfyConfig")]
 pub struct Config {
     #[device_config(default("https://ntfy.sh".into()))]
+    #[serde(default)]
     pub url: String,
     pub topic: String,
 }
+crate::register_type!(Config);
 
 #[derive(Debug, Clone, Device)]
 #[device(add_methods(Self::add_methods))]
@@ -95,6 +103,24 @@ impl Ntfy {
         );
     }
 }
+
+// impl Typed for Ntfy {
+//     fn type_name() -> String {
+//         "Ntfy".into()
+//     }
+//
+//     fn generate_header() -> Option<String> {
+//         let type_name = <Self as Typed>::type_name();
+//         Some(format!("---@class {type_name}\nlocal {type_name}\n"))
+//     }
+//
+//     fn generate_members() -> Option<String> {
+//         Some(format!(
+//             "---@async\n---@param notification Notification\nfunction {}:send_notification(notification) end\n",
+//             <Self as Typed>::type_name(),
+//         ))
+//     }
+// }
 
 #[async_trait]
 impl LuaDeviceCreate for Ntfy {

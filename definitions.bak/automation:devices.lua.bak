@@ -1,0 +1,42 @@
+---@meta
+
+local devices
+
+---@class Action
+---@field action
+---| "broadcast"
+---| "view"
+---@field extras table<string, string> | nil
+---@field label string | nil
+---@field clear boolean|nil
+
+---@alias Priority
+---| "min"
+---| "low"
+---| "default"
+---| "high"
+---| "max"
+
+---@class Notification
+---@field title string
+---@field message string | nil
+-- NOTE: It might be possible to specify this down to the actual possible values
+---@field tags string[] | nil
+---@field priority Priority | nil
+---@field actions Action[] | nil
+
+---@class Ntfy
+local Ntfy
+---@async
+---@param notification Notification
+function Ntfy:send_notification(notification) end
+
+---@class NtfyConfig
+---@field topic string
+
+devices.Ntfy = {}
+---@param config NtfyConfig
+---@return Ntfy
+function devices.Ntfy.new(config) end
+
+return devices

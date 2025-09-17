@@ -13,35 +13,45 @@ use google_home::device;
 use google_home::errors::{DeviceError, ErrorCode};
 use google_home::traits::OpenClose;
 use google_home::types::Type;
+use lua_typed::Typed;
 use serde::Deserialize;
 use tokio::sync::{RwLock, RwLockReadGuard, RwLockWriteGuard};
 use tracing::{debug, error, trace};
 
-#[derive(Debug, Clone, Deserialize, PartialEq, Eq, Copy)]
+#[derive(Debug, Clone, Deserialize, PartialEq, Eq, Copy, Typed)]
 pub enum SensorType {
     Door,
     Drawer,
     Window,
 }
+crate::register_type!(SensorType);
 
-#[derive(Debug, Clone, LuaDeviceConfig)]
+#[derive(Debug, Clone, LuaDeviceConfig, Typed)]
+#[typed(as = "ContactSensorConfig")]
 pub struct Config {
     #[device_config(flatten)]
+    #[serde(flatten)]
     pub info: InfoConfig,
     #[device_config(flatten)]
+    #[serde(flatten)]
     pub mqtt: MqttDeviceConfig,
 
     #[device_config(default(SensorType::Window))]
+    #[serde(default)]
     pub sensor_type: SensorType,
 
     #[device_config(from_lua, default)]
+    #[serde(default)]
     pub callback: ActionCallback<(ContactSensor, bool)>,
     #[device_config(from_lua, default)]
+    #[serde(default)]
     pub battery_callback: ActionCallback<(ContactSensor, f32)>,
 
     #[device_config(from_lua)]
+    #[serde(default)]
     pub client: WrappedAsyncClient,
 }
+crate::register_type!(Config);
 
 #[derive(Debug)]
 struct State {

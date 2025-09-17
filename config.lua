@@ -2,17 +2,21 @@ local devices = require("automation:devices")
 local device_manager = require("automation:device_manager")
 local utils = require("automation:utils")
 local secrets = require("automation:secrets")
-local debug = require("automation:variables").debug or false
+local debug = require("automation:variables").debug and true or false
 
 print(_VERSION)
 
 local host = utils.get_hostname()
 print("Running @" .. host)
 
+--- @param topic string
+--- @return string
 local function mqtt_z2m(topic)
 	return "zigbee2mqtt/" .. topic
 end
 
+--- @param topic string
+--- @return string
 local function mqtt_automation(topic)
 	return "automation/" .. topic
 end
@@ -72,6 +76,7 @@ local on_presence = {
 	end,
 }
 
+--- @type Presence
 local presence_system = devices.Presence.new({
 	topic = mqtt_automation("presence/+/#"),
 	client = mqtt_client,
@@ -272,6 +277,7 @@ local function kettle_timeout()
 	end
 end
 
+--- @type OutletPower
 local kettle = devices.OutletPower.new({
 	outlet_type = "Kettle",
 	name = "Kettle",
@@ -362,6 +368,7 @@ local workbench_outlet = devices.OutletOnOff.new({
 turn_off_when_away(workbench_outlet)
 device_manager:add(workbench_outlet)
 
+--- @type LightColorTemperature
 local workbench_light = devices.LightColorTemperature.new({
 	name = "Light",
 	room = "Workbench",
