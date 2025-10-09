@@ -110,6 +110,35 @@ on_presence:add(function(presence)
 	})
 end)
 
+local window_sensors = {
+	add = function(self, f)
+		self[#self + 1] = f
+	end,
+}
+on_presence:add(function(presence)
+	if not presence then
+		local open = {}
+		for _, sensor in ipairs(window_sensors) do
+			if sensor:open_percent() > 0 then
+				local id = sensor:get_id()
+				print("Open window detected: " .. id)
+				table.insert(open, id)
+			end
+		end
+
+		if #open > 0 then
+			local message = table.concat(open, "\n")
+
+			ntfy:send_notification({
+				title = "Windows are open",
+				message = message,
+				tags = { "window" },
+				priority = "high",
+			})
+		end
+	end
+end)
+
 local function turn_off_when_away(device)
 	on_presence:add(function(presence)
 		if not presence then
@@ -553,6 +582,7 @@ local hallway_frontdoor = devices.ContactSensor.new({
 	battery_callback = check_battery,
 })
 device_manager:add(hallway_frontdoor)
+window_sensors:add(hallway_frontdoor)
 hallway_light_automation.door = hallway_frontdoor
 
 local hallway_trash = devices.ContactSensor.new({
@@ -614,35 +644,43 @@ device_manager:add(devices.HueSwitch.new({
 	battery_callback = check_battery,
 }))
 
-device_manager:add(devices.ContactSensor.new({
+local balcony = devices.ContactSensor.new({
 	name = "Balcony",
 	room = "Living Room",
 	sensor_type = "Door",
 	topic = mqtt_z2m("living/balcony"),
 	client = mqtt_client,
 	battery_callback = check_battery,
-}))
-device_manager:add(devices.ContactSensor.new({
+})
+device_manager:add(balcony)
+window_sensors:add(balcony)
+local living_window = devices.ContactSensor.new({
 	name = "Window",
 	room = "Living Room",
 	topic = mqtt_z2m("living/window"),
 	client = mqtt_client,
 	battery_callback = check_battery,
-}))
-device_manager:add(devices.ContactSensor.new({
+})
+device_manager:add(living_window)
+window_sensors:add(living_window)
+local bedroom_window = devices.ContactSensor.new({
 	name = "Window",
 	room = "Bedroom",
 	topic = mqtt_z2m("bedroom/window"),
 	client = mqtt_client,
 	battery_callback = check_battery,
-}))
-device_manager:add(devices.ContactSensor.new({
+})
+device_manager:add(bedroom_window)
+window_sensors:add(bedroom_window)
+local guest_window = devices.ContactSensor.new({
 	name = "Window",
 	room = "Guest Room",
 	topic = mqtt_z2m("guest/window"),
 	client = mqtt_client,
 	battery_callback = check_battery,
-}))
+})
+device_manager:add(guest_window)
+window_sensors:add(guest_window)
 
 local storage_light = devices.LightBrightness.new({
 	name = "Light",
