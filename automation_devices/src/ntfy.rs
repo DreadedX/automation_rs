@@ -90,7 +90,7 @@ pub struct Config {
 crate::register_type!(Config);
 
 #[derive(Debug, Clone, Device)]
-#[device(add_methods(Self::add_methods))]
+#[device(add_methods = Self::add_methods)]
 pub struct Ntfy {
     config: Config,
 }

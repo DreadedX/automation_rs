@@ -4,6 +4,7 @@ use proc_macro2::TokenStream as TokenStream2;
 use quote::{ToTokens, quote};
 use syn::parse::{Parse, ParseStream};
 use syn::punctuated::Punctuated;
+use syn::spanned::Spanned;
 use syn::{Attribute, DeriveInput, Token, parenthesized};
 
 enum Attr {
@@ -11,25 +12,25 @@ enum Attr {
     AddMethods(AddMethodsAttr),
 }
 
-impl Parse for Attr {
-    fn parse(input: ParseStream) -> syn::Result<Self> {
-        let ident: syn::Ident = input.parse()?;
-
-        let attr;
-        _ = parenthesized!(attr in input);
-
-        let attr = match ident.to_string().as_str() {
-            "traits" => Attr::Trait(attr.parse()?),
-            "add_methods" => Attr::AddMethods(attr.parse()?),
-            _ => {
-                return Err(syn::Error::new(
-                    ident.span(),
-                    "Expected 'traits' or 'add_methods'",
-                ));
+impl Attr {
+    fn parse(attr: &Attribute) -> syn::Result<Self> {
+        let mut parsed = None;
+        attr.parse_nested_meta(|meta| {
+            if meta.path.is_ident("traits") {
+                let input;
+                _ = parenthesized!(input in meta.input);
+                parsed = Some(Attr::Trait(input.parse()?));
+            } else if meta.path.is_ident("add_methods") {
+                let value = meta.value()?;
+                parsed = Some(Attr::AddMethods(value.parse()?));
+            } else {
+                return Err(syn::Error::new(meta.path.span(), "Unknown attribute"));
             }
-        };
 
-        Ok(attr)
+            Ok(())
+        })?;
+
+        Ok(parsed.expect("Parsed should be set"))
     }
 }
 
@@ -249,7 +250,7 @@ pub fn device(input: DeriveInput) -> TokenStream2 {
         .attrs
         .iter()
         .filter(|attr| attr.path().is_ident("device"))
-        .map(Attribute::parse_args)
+        .map(Attr::parse)
         .try_collect::<Vec<_>>()
     {
         Ok(attr) => Implementations::from_attr(attr, input.ident),

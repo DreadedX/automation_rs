@@ -64,7 +64,7 @@ pub fn lua_serialize(input: proc_macro::TokenStream) -> proc_macro::TokenStream 
 /// ```
 /// It can then be registered with:
 /// ```rust
-/// #[device(add_methods(top_secret))]
+/// #[device(add_methods = top_secret)]
 /// ```
 #[proc_macro_derive(Device, attributes(device))]
 pub fn device(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
