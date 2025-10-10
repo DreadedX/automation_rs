@@ -15,6 +15,7 @@ use google_home::device;
 use google_home::errors::ErrorCode;
 use google_home::traits::{Brightness, Color, ColorSetting, ColorTemperatureRange, OnOff};
 use google_home::types::Type;
+use lua_typed::Typed;
 use rumqttc::{Publish, matches};
 use serde::{Deserialize, Serialize};
 use serde_json::json;
@@ -22,33 +23,47 @@ use tokio::sync::{RwLock, RwLockReadGuard, RwLockWriteGuard};
 use tracing::{debug, trace, warn};
 
 pub trait LightState:
-    Debug + Clone + Default + Sync + Send + Serialize + Into<StateOnOff> + 'static
+    Debug + Clone + Default + Sync + Send + Serialize + Into<StateOnOff> + Typed + 'static
 {
 }
 
-#[derive(Debug, Clone, LuaDeviceConfig)]
-pub struct Config<T: LightState> {
+#[derive(Debug, Clone, LuaDeviceConfig, Typed)]
+#[typed(as = "ConfigLight")]
+pub struct Config<T: LightState>
+where
+    Light<T>: Typed,
+{
     #[device_config(flatten)]
+    #[typed(flatten)]
     pub info: InfoConfig,
     #[device_config(flatten)]
+    #[typed(flatten)]
     pub mqtt: MqttDeviceConfig,
 
     #[device_config(from_lua, default)]
+    #[typed(default)]
     pub callback: ActionCallback<(Light<T>, T)>,
 
     #[device_config(from_lua)]
+    #[typed(default)]
     pub client: WrappedAsyncClient,
 }
+crate::register_type!(Config<StateOnOff>);
+crate::register_type!(Config<StateBrightness>);
+crate::register_type!(Config<StateColorTemperature>);
 
-#[derive(Debug, Clone, Default, Serialize, Deserialize, LuaSerialize)]
+#[derive(Debug, Clone, Default, Serialize, Deserialize, LuaSerialize, Typed)]
+#[typed(as = "LightStateOnOff")]
 pub struct StateOnOff {
     #[serde(deserialize_with = "state_deserializer")]
     state: bool,
 }
 
 impl LightState for StateOnOff {}
+crate::register_type!(StateOnOff);
 
-#[derive(Debug, Clone, Default, Serialize, Deserialize, LuaSerialize)]
+#[derive(Debug, Clone, Default, Serialize, Deserialize, LuaSerialize, Typed)]
+#[typed(as = "LightStateBrightness")]
 pub struct StateBrightness {
     #[serde(deserialize_with = "state_deserializer")]
     state: bool,
@@ -56,6 +71,7 @@ pub struct StateBrightness {
 }
 
 impl LightState for StateBrightness {}
+crate::register_type!(StateBrightness);
 
 impl From<StateBrightness> for StateOnOff {
     fn from(state: StateBrightness) -> Self {
@@ -63,13 +79,15 @@ impl From<StateBrightness> for StateOnOff {
     }
 }
 
-#[derive(Debug, Clone, Default, Serialize, Deserialize, LuaSerialize)]
+#[derive(Debug, Clone, Default, Serialize, Deserialize, LuaSerialize, Typed)]
+#[typed(as = "LightStateColorTemperature")]
 pub struct StateColorTemperature {
     #[serde(deserialize_with = "state_deserializer")]
     state: bool,
     brightness: f32,
     color_temp: u32,
 }
+crate::register_type!(StateColorTemperature);
 
 impl LightState for StateColorTemperature {}
 
@@ -92,7 +110,10 @@ impl From<StateColorTemperature> for StateBrightness {
 #[device(traits(OnOff for LightOnOff, LightBrightness, LightColorTemperature))]
 #[device(traits(Brightness for LightBrightness, LightColorTemperature))]
 #[device(traits(ColorSetting for LightColorTemperature))]
-pub struct Light<T: LightState> {
+pub struct Light<T: LightState>
+where
+    Light<T>: Typed,
+{
     config: Config<T>,
 
     state: Arc<RwLock<T>>,
@@ -107,7 +128,10 @@ crate::register_device!(LightBrightness);
 pub type LightColorTemperature = Light<StateColorTemperature>;
 crate::register_device!(LightColorTemperature);
 
-impl<T: LightState> Light<T> {
+impl<T: LightState> Light<T>
+where
+    Light<T>: Typed,
+{
     async fn state(&self) -> RwLockReadGuard<'_, T> {
         self.state.read().await
     }
@@ -118,7 +142,10 @@ impl<T: LightState> Light<T> {
 }
 
 #[async_trait]
-impl<T: LightState> LuaDeviceCreate for Light<T> {
+impl<T: LightState> LuaDeviceCreate for Light<T>
+where
+    Light<T>: Typed,
+{
     type Config = Config<T>;
     type Error = rumqttc::ClientError;
 
@@ -137,7 +164,10 @@ impl<T: LightState> LuaDeviceCreate for Light<T> {
     }
 }
 
-impl<T: LightState> Device for Light<T> {
+impl<T: LightState> Device for Light<T>
+where
+    Light<T>: Typed,
+{
     fn get_id(&self) -> String {
         self.config.info.identifier()
     }
@@ -257,7 +287,10 @@ impl OnMqtt for LightColorTemperature {
 }
 
 #[async_trait]
-impl<T: LightState> google_home::Device for Light<T> {
+impl<T: LightState> google_home::Device for Light<T>
+where
+    Light<T>: Typed,
+{
     fn get_device_type(&self) -> Type {
         Type::Light
     }
@@ -288,6 +321,7 @@ impl<T: LightState> google_home::Device for Light<T> {
 impl<T> OnOff for Light<T>
 where
     T: LightState,
+    Light<T>: Typed,
 {
     async fn on(&self) -> Result<bool, ErrorCode> {
         let state = self.state().await;
@@ -327,6 +361,7 @@ impl<T> Brightness for Light<T>
 where
     T: LightState,
     T: Into<StateBrightness>,
+    Light<T>: Typed,
 {
     async fn brightness(&self) -> Result<u8, ErrorCode> {
         let state = self.state().await;
@@ -368,6 +403,7 @@ impl<T> ColorSetting for Light<T>
 where
     T: LightState,
     T: Into<StateColorTemperature>,
+    Light<T>: Typed,
 {
     fn color_temperature_range(&self) -> ColorTemperatureRange {
         ColorTemperatureRange {

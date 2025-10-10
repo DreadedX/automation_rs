@@ -4,14 +4,16 @@ use std::convert::Infallible;
 use async_trait::async_trait;
 use automation_lib::device::{Device, LuaDeviceCreate};
 use automation_macro::{Device, LuaDeviceConfig};
+use lua_typed::Typed;
 use mlua::LuaSerdeExt;
 use serde::{Deserialize, Serialize};
 use serde_repr::*;
 use tracing::{error, trace, warn};
 
-#[derive(Debug, Serialize_repr, Deserialize, Clone, Copy)]
+#[derive(Debug, Serialize_repr, Deserialize, Clone, Copy, Typed)]
 #[repr(u8)]
 #[serde(rename_all = "snake_case")]
+#[typed(rename_all = "snake_case")]
 pub enum Priority {
     Min = 1,
     Low,
@@ -19,44 +21,54 @@ pub enum Priority {
     High,
     Max,
 }
+crate::register_type!(Priority);
 
-#[derive(Debug, Serialize, Deserialize, Clone)]
+#[derive(Debug, Serialize, Deserialize, Clone, Typed)]
 #[serde(rename_all = "snake_case", tag = "action")]
+#[typed(rename_all = "snake_case", tag = "action")]
 pub enum ActionType {
     Broadcast {
         #[serde(skip_serializing_if = "HashMap::is_empty")]
+        #[serde(default)]
+        #[typed(default)]
         extras: HashMap<String, String>,
     },
     // View,
     // Http
 }
 
-#[derive(Debug, Serialize, Deserialize, Clone)]
+#[derive(Debug, Serialize, Deserialize, Clone, Typed)]
 pub struct Action {
     #[serde(flatten)]
+    #[typed(flatten)]
     pub action: ActionType,
     pub label: String,
     pub clear: Option<bool>,
 }
+crate::register_type!(Action);
 
-#[derive(Serialize, Deserialize)]
+#[derive(Serialize, Deserialize, Typed)]
 struct NotificationFinal {
     topic: String,
     #[serde(flatten)]
+    #[typed(flatten)]
     inner: Notification,
 }
 
-#[derive(Debug, Serialize, Clone, Deserialize)]
+#[derive(Debug, Serialize, Clone, Deserialize, Typed)]
 pub struct Notification {
     title: String,
     message: Option<String>,
     #[serde(skip_serializing_if = "Vec::is_empty", default = "Default::default")]
+    #[typed(default)]
     tags: Vec<String>,
     #[serde(skip_serializing_if = "Option::is_none")]
     priority: Option<Priority>,
     #[serde(skip_serializing_if = "Vec::is_empty", default = "Default::default")]
+    #[typed(default)]
     actions: Vec<Action>,
 }
+crate::register_type!(Notification);
 
 impl Notification {
     fn finalize(self, topic: &str) -> NotificationFinal {
@@ -67,12 +79,15 @@ impl Notification {
     }
 }
 
-#[derive(Debug, Clone, LuaDeviceConfig)]
+#[derive(Debug, Clone, LuaDeviceConfig, Typed)]
+#[typed(as = "NtfyConfig")]
 pub struct Config {
     #[device_config(default("https://ntfy.sh".into()))]
+    #[typed(default)]
     pub url: String,
     pub topic: String,
 }
+crate::register_type!(Config);
 
 #[derive(Debug, Clone, Device)]
 #[device(add_methods(Self::add_methods))]

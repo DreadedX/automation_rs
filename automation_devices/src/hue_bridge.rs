@@ -4,6 +4,7 @@ use std::net::SocketAddr;
 use async_trait::async_trait;
 use automation_lib::device::{Device, LuaDeviceCreate};
 use automation_macro::{Device, LuaDeviceConfig};
+use lua_typed::Typed;
 use mlua::LuaSerdeExt;
 use serde::{Deserialize, Serialize};
 use tracing::{error, trace, warn};
@@ -15,20 +16,24 @@ pub enum Flag {
     Darkness,
 }
 
-#[derive(Debug, Clone, Deserialize)]
+#[derive(Debug, Clone, Deserialize, Typed)]
 pub struct FlagIDs {
     presence: isize,
     darkness: isize,
 }
+crate::register_type!(FlagIDs);
 
-#[derive(Debug, LuaDeviceConfig, Clone)]
+#[derive(Debug, LuaDeviceConfig, Clone, Typed)]
+#[typed(as = "HueBridgeConfig")]
 pub struct Config {
     pub identifier: String,
     #[device_config(rename("ip"), with(|ip| SocketAddr::new(ip, 80)))]
+    #[typed(as = "ip")]
     pub addr: SocketAddr,
     pub login: String,
     pub flags: FlagIDs,
 }
+crate::register_type!(Config);
 
 #[derive(Debug, Clone, Device)]
 #[device(add_methods(Self::add_methods))]

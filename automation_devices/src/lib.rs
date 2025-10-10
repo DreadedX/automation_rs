@@ -22,20 +22,22 @@ macro_rules! register_device {
             stringify!($device),
             ::mlua::Lua::create_proxy::<$device>
         ));
+
+        crate::register_type!($device);
     };
 }
 
 pub(crate) use register_device;
 
-type RegisterFn = fn(lua: &mlua::Lua) -> mlua::Result<mlua::AnyUserData>;
+type RegisterDeviceFn = fn(lua: &mlua::Lua) -> mlua::Result<mlua::AnyUserData>;
 
 pub struct RegisteredDevice {
     name: &'static str,
-    register_fn: RegisterFn,
+    register_fn: RegisterDeviceFn,
 }
 
 impl RegisteredDevice {
-    pub const fn new(name: &'static str, register_fn: RegisterFn) -> Self {
+    pub const fn new(name: &'static str, register_fn: RegisterDeviceFn) -> Self {
         Self { name, register_fn }
     }
 
@@ -64,3 +66,28 @@ pub fn create_module(lua: &mlua::Lua) -> mlua::Result<mlua::Table> {
 }
 
 inventory::submit! {Module::new("devices", create_module)}
+
+macro_rules! register_type {
+    ($ty:ty) => {
+        ::inventory::submit!(crate::RegisteredType(
+            <$ty as ::lua_typed::Typed>::generate_full
+        ));
+    };
+}
+
+pub(crate) use register_type;
+
+type RegisterTypeFn = fn() -> Option<String>;
+
+pub struct RegisteredType(RegisterTypeFn);
+
+inventory::collect!(RegisteredType);
+
+pub fn generate_definitions() {
+    println!("---@meta\n\nlocal devices\n");
+    for ty in inventory::iter::<RegisteredType> {
+        let def = ty.0().unwrap();
+        println!("{def}");
+    }
+    println!("return devices")
+}

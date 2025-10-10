@@ -6,28 +6,36 @@ use automation_lib::event::OnMqtt;
 use automation_lib::messages::{RemoteAction, RemoteMessage};
 use automation_lib::mqtt::WrappedAsyncClient;
 use automation_macro::{Device, LuaDeviceConfig};
+use lua_typed::Typed;
 use rumqttc::{Publish, matches};
 use tracing::{debug, error, trace};
 
-#[derive(Debug, Clone, LuaDeviceConfig)]
+#[derive(Debug, Clone, LuaDeviceConfig, Typed)]
+#[typed(as = "IkeaRemoteConfig")]
 pub struct Config {
     #[device_config(flatten)]
+    #[typed(flatten)]
     pub info: InfoConfig,
 
     #[device_config(default)]
+    #[typed(default)]
     pub single_button: bool,
 
     #[device_config(flatten)]
+    #[typed(flatten)]
     pub mqtt: MqttDeviceConfig,
 
     #[device_config(from_lua)]
     pub client: WrappedAsyncClient,
 
     #[device_config(from_lua, default)]
+    #[typed(default)]
     pub callback: ActionCallback<(IkeaRemote, bool)>,
     #[device_config(from_lua, default)]
+    #[typed(default)]
     pub battery_callback: ActionCallback<(IkeaRemote, f32)>,
 }
+crate::register_type!(Config);
 
 #[derive(Debug, Clone, Device)]
 pub struct IkeaRemote {

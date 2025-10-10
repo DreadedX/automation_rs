@@ -8,24 +8,29 @@ use automation_lib::event::OnMqtt;
 use automation_lib::messages::PowerMessage;
 use automation_lib::mqtt::WrappedAsyncClient;
 use automation_macro::{Device, LuaDeviceConfig};
+use lua_typed::Typed;
 use rumqttc::Publish;
 use tokio::sync::{RwLock, RwLockReadGuard, RwLockWriteGuard};
 use tracing::{debug, error, trace};
 
-#[derive(Debug, Clone, LuaDeviceConfig)]
+#[derive(Debug, Clone, LuaDeviceConfig, Typed)]
+#[typed(as = "WasherConfig")]
 pub struct Config {
     pub identifier: String,
     #[device_config(flatten)]
+    #[typed(flatten)]
     pub mqtt: MqttDeviceConfig,
     // Power in Watt
     pub threshold: f32,
 
     #[device_config(from_lua, default)]
+    #[typed(default)]
     pub done_callback: ActionCallback<Washer>,
 
     #[device_config(from_lua)]
     pub client: WrappedAsyncClient,
 }
+crate::register_type!(Config);
 
 #[derive(Debug)]
 pub struct State {

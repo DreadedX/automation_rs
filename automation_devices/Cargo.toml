@@ -14,6 +14,7 @@ dyn-clone = { workspace = true }
 eui48 = { workspace = true }
 google_home = { workspace = true }
 inventory = { workspace = true }
+lua_typed = { workspace = true }
 mlua = { workspace = true }
 reqwest = { workspace = true }
 rumqttc = { workspace = true }

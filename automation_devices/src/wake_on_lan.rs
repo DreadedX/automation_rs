@@ -12,21 +12,27 @@ use google_home::device;
 use google_home::errors::ErrorCode;
 use google_home::traits::{self, Scene};
 use google_home::types::Type;
+use lua_typed::Typed;
 use rumqttc::Publish;
 use tracing::{debug, error, trace};
 
-#[derive(Debug, Clone, LuaDeviceConfig)]
+#[derive(Debug, Clone, LuaDeviceConfig, Typed)]
+#[typed(as = "WolConfig")]
 pub struct Config {
     #[device_config(flatten)]
+    #[typed(flatten)]
     pub info: InfoConfig,
     #[device_config(flatten)]
+    #[typed(flatten)]
     pub mqtt: MqttDeviceConfig,
     pub mac_address: MacAddress,
     #[device_config(default(Ipv4Addr::new(255, 255, 255, 255)))]
+    #[typed(default)]
     pub broadcast_ip: Ipv4Addr,
     #[device_config(from_lua)]
     pub client: WrappedAsyncClient,
 }
+crate::register_type!(Config);
 
 #[derive(Debug, Clone, Device)]
 pub struct WakeOnLAN {

@@ -163,6 +163,12 @@ impl quote::ToTokens for Implementation {
                     )*
                 }
             }
+
+            impl ::lua_typed::Typed for #name {
+                fn type_name() -> String {
+                    stringify!(#name).into()
+                }
+            }
         });
     }
 }

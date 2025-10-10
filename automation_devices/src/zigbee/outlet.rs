@@ -15,6 +15,7 @@ use google_home::device;
 use google_home::errors::ErrorCode;
 use google_home::traits::OnOff;
 use google_home::types::Type;
+use lua_typed::Typed;
 use rumqttc::{Publish, matches};
 use serde::{Deserialize, Serialize};
 use serde_json::json;
@@ -22,15 +23,16 @@ use tokio::sync::{RwLock, RwLockReadGuard, RwLockWriteGuard};
 use tracing::{debug, trace, warn};
 
 pub trait OutletState:
-    Debug + Clone + Default + Sync + Send + Serialize + Into<StateOnOff> + 'static
+    Debug + Clone + Default + Sync + Send + Serialize + Into<StateOnOff> + Typed + 'static
 {
 }
 
-#[derive(Debug, Clone, Deserialize, PartialEq, Eq, Copy)]
+#[derive(Debug, Clone, Deserialize, PartialEq, Eq, Copy, Typed)]
 pub enum OutletType {
     Outlet,
     Kettle,
 }
+crate::register_type!(OutletType);
 
 impl From<OutletType> for Type {
     fn from(outlet: OutletType) -> Self {
@@ -41,36 +43,50 @@ impl From<OutletType> for Type {
     }
 }
 
-#[derive(Debug, Clone, LuaDeviceConfig)]
-pub struct Config<T: OutletState> {
+#[derive(Debug, Clone, LuaDeviceConfig, Typed)]
+#[typed(as = "ConfigOutlet")]
+pub struct Config<T: OutletState>
+where
+    Outlet<T>: Typed,
+{
     #[device_config(flatten)]
+    #[typed(flatten)]
     pub info: InfoConfig,
     #[device_config(flatten)]
+    #[typed(flatten)]
     pub mqtt: MqttDeviceConfig,
     #[device_config(default(OutletType::Outlet))]
+    #[typed(default)]
     pub outlet_type: OutletType,
 
     #[device_config(from_lua, default)]
+    #[typed(default)]
     pub callback: ActionCallback<(Outlet<T>, T)>,
 
     #[device_config(from_lua)]
     pub client: WrappedAsyncClient,
 }
+crate::register_type!(Config<StateOnOff>);
+crate::register_type!(Config<StatePower>);
 
-#[derive(Debug, Clone, Default, Serialize, Deserialize, LuaSerialize)]
+#[derive(Debug, Clone, Default, Serialize, Deserialize, LuaSerialize, Typed)]
+#[typed(as = "OutletStateOnOff")]
 pub struct StateOnOff {
     #[serde(deserialize_with = "state_deserializer")]
     state: bool,
 }
+crate::register_type!(StateOnOff);
 
 impl OutletState for StateOnOff {}
 
-#[derive(Debug, Clone, Default, Serialize, Deserialize, LuaSerialize)]
+#[derive(Debug, Clone, Default, Serialize, Deserialize, LuaSerialize, Typed)]
+#[typed(as = "OutletStatePower")]
 pub struct StatePower {
     #[serde(deserialize_with = "state_deserializer")]
     state: bool,
     power: f64,
 }
+crate::register_type!(StatePower);
 
 impl OutletState for StatePower {}
 
@@ -82,7 +98,10 @@ impl From<StatePower> for StateOnOff {
 
 #[derive(Debug, Clone, Device)]
 #[device(traits(OnOff for OutletOnOff, OutletPower))]
-pub struct Outlet<T: OutletState> {
+pub struct Outlet<T: OutletState>
+where
+    Outlet<T>: Typed,
+{
     config: Config<T>,
 
     state: Arc<RwLock<T>>,
@@ -94,7 +113,10 @@ crate::register_device!(OutletOnOff);
 pub type OutletPower = Outlet<StatePower>;
 crate::register_device!(OutletPower);
 
-impl<T: OutletState> Outlet<T> {
+impl<T: OutletState> Outlet<T>
+where
+    Outlet<T>: Typed,
+{
     async fn state(&self) -> RwLockReadGuard<'_, T> {
         self.state.read().await
     }
@@ -105,7 +127,10 @@ impl<T: OutletState> Outlet<T> {
 }
 
 #[async_trait]
-impl<T: OutletState> LuaDeviceCreate for Outlet<T> {
+impl<T: OutletState> LuaDeviceCreate for Outlet<T>
+where
+    Outlet<T>: Typed,
+{
     type Config = Config<T>;
     type Error = rumqttc::ClientError;
 
@@ -124,7 +149,10 @@ impl<T: OutletState> LuaDeviceCreate for Outlet<T> {
     }
 }
 
-impl<T: OutletState> Device for Outlet<T> {
+impl<T: OutletState> Device for Outlet<T>
+where
+    Outlet<T>: Typed,
+{
     fn get_id(&self) -> String {
         self.config.info.identifier()
     }
@@ -201,7 +229,10 @@ impl OnMqtt for OutletPower {
 }
 
 #[async_trait]
-impl<T: OutletState> google_home::Device for Outlet<T> {
+impl<T: OutletState> google_home::Device for Outlet<T>
+where
+    Outlet<T>: Typed,
+{
     fn get_device_type(&self) -> Type {
         self.config.outlet_type.into()
     }
@@ -232,6 +263,7 @@ impl<T: OutletState> google_home::Device for Outlet<T> {
 impl<T> OnOff for Outlet<T>
 where
     T: OutletState,
+    Outlet<T>: Typed,
 {
     async fn on(&self) -> Result<bool, ErrorCode> {
         let state = self.state().await;

@@ -9,21 +9,26 @@ use automation_lib::event::OnMqtt;
 use automation_lib::messages::PresenceMessage;
 use automation_lib::mqtt::WrappedAsyncClient;
 use automation_macro::{Device, LuaDeviceConfig};
+use lua_typed::Typed;
 use rumqttc::Publish;
 use tokio::sync::{RwLock, RwLockReadGuard, RwLockWriteGuard};
 use tracing::{debug, trace, warn};
 
-#[derive(Debug, Clone, LuaDeviceConfig)]
+#[derive(Debug, Clone, LuaDeviceConfig, Typed)]
+#[typed(as = "PresenceConfig")]
 pub struct Config {
     #[device_config(flatten)]
+    #[typed(flatten)]
     pub mqtt: MqttDeviceConfig,
 
     #[device_config(from_lua, default)]
+    #[typed(default)]
     pub callback: ActionCallback<(Presence, bool)>,
 
     #[device_config(from_lua)]
     pub client: WrappedAsyncClient,
 }
+crate::register_type!(Config);
 
 pub const DEFAULT_PRESENCE: bool = false;
 

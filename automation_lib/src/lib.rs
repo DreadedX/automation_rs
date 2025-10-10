@@ -1,5 +1,6 @@
 #![allow(incomplete_features)]
 #![feature(iterator_try_collect)]
+#![feature(with_negative_coherence)]
 
 use tracing::debug;
 

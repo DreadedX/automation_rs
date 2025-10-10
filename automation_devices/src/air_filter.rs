@@ -9,15 +9,19 @@ use google_home::traits::{
     TemperatureUnit,
 };
 use google_home::types::Type;
+use lua_typed::Typed;
 use thiserror::Error;
 use tracing::{debug, trace};
 
-#[derive(Debug, Clone, LuaDeviceConfig)]
+#[derive(Debug, Clone, LuaDeviceConfig, Typed)]
+#[typed(as = "AirFilterConfig")]
 pub struct Config {
     #[device_config(flatten)]
+    #[typed(flatten)]
     pub info: InfoConfig,
     pub url: String,
 }
+crate::register_type!(Config);
 
 #[derive(Debug, Clone, Device)]
 #[device(traits(OnOff))]

@@ -1,5 +1,6 @@
 use std::ops::{Deref, DerefMut};
 
+use lua_typed::Typed;
 use mlua::FromLua;
 use rumqttc::{AsyncClient, Event, EventLoop, Incoming};
 use tracing::{debug, warn};
@@ -8,6 +9,12 @@ use crate::event::{self, EventChannel};
 
 #[derive(Debug, Clone, FromLua)]
 pub struct WrappedAsyncClient(pub AsyncClient);
+
+impl Typed for WrappedAsyncClient {
+    fn type_name() -> String {
+        "AsyncClient".into()
+    }
+}
 
 impl Deref for WrappedAsyncClient {
     type Target = AsyncClient;

@@ -1,12 +1,30 @@
 use std::marker::PhantomData;
 
 use futures::future::try_join_all;
+use lua_typed::Typed;
 use mlua::{FromLua, IntoLuaMulti};
 
 #[derive(Debug, Clone)]
 pub struct ActionCallback<P> {
     callbacks: Vec<mlua::Function>,
     _parameters: PhantomData<P>,
+}
+
+impl<A: Typed> Typed for ActionCallback<A> {
+    fn type_name() -> String {
+        let type_name = A::type_name();
+        format!("fun(_: {type_name}) | fun(_: {type_name})[]")
+    }
+}
+
+impl<A: Typed, B: Typed> Typed for ActionCallback<(A, B)> {
+    fn type_name() -> String {
+        let type_name_a = A::type_name();
+        let type_name_b = B::type_name();
+        format!(
+            "fun(_: {type_name_a}, _: {type_name_b}) | fun(_: {type_name_a}, _: {type_name_b})[]"
+        )
+    }
 }
 
 // NOTE: For some reason the derive macro combined with PhantomData leads to issues where it

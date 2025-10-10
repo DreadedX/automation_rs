@@ -5,36 +5,46 @@ use automation_lib::device::{Device, LuaDeviceCreate};
 use automation_lib::event::OnMqtt;
 use automation_lib::mqtt::WrappedAsyncClient;
 use automation_macro::{Device, LuaDeviceConfig};
+use lua_typed::Typed;
 use rumqttc::{Publish, matches};
 use serde::Deserialize;
 use tracing::{debug, trace, warn};
 
-#[derive(Debug, Clone, LuaDeviceConfig)]
+#[derive(Debug, Clone, LuaDeviceConfig, Typed)]
+#[typed(as = "HueSwitchConfig")]
 pub struct Config {
     #[device_config(flatten)]
+    #[typed(flatten)]
     pub info: InfoConfig,
 
     #[device_config(flatten)]
+    #[typed(flatten)]
     pub mqtt: MqttDeviceConfig,
 
     #[device_config(from_lua)]
     pub client: WrappedAsyncClient,
 
     #[device_config(from_lua, default)]
+    #[typed(default)]
     pub left_callback: ActionCallback<HueSwitch>,
 
     #[device_config(from_lua, default)]
+    #[typed(default)]
     pub right_callback: ActionCallback<HueSwitch>,
 
     #[device_config(from_lua, default)]
+    #[typed(default)]
     pub left_hold_callback: ActionCallback<HueSwitch>,
 
     #[device_config(from_lua, default)]
+    #[typed(default)]
     pub right_hold_callback: ActionCallback<HueSwitch>,
 
     #[device_config(from_lua, default)]
+    #[typed(default)]
     pub battery_callback: ActionCallback<(HueSwitch, f32)>,
 }
+crate::register_type!(Config);
 
 #[derive(Debug, Copy, Clone, Deserialize)]
 #[serde(rename_all = "snake_case")]

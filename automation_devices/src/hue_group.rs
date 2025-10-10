@@ -5,19 +5,23 @@ use async_trait::async_trait;
 use automation_macro::{Device, LuaDeviceConfig};
 use google_home::errors::ErrorCode;
 use google_home::traits::OnOff;
+use lua_typed::Typed;
 use tracing::{error, trace, warn};
 
 use super::{Device, LuaDeviceCreate};
 
-#[derive(Debug, Clone, LuaDeviceConfig)]
+#[derive(Debug, Clone, LuaDeviceConfig, Typed)]
+#[typed(as = "HueGroupConfig")]
 pub struct Config {
     pub identifier: String,
     #[device_config(rename("ip"), with(|ip| SocketAddr::new(ip, 80)))]
+    #[typed(as = "ip")]
     pub addr: SocketAddr,
     pub login: String,
     pub group_id: isize,
     pub scene_id: String,
 }
+crate::register_type!(Config);
 
 #[derive(Debug, Clone, Device)]
 #[device(traits(OnOff))]
