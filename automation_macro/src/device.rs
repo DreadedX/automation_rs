@@ -138,6 +138,12 @@ impl quote::ToTokens for Implementation {
             add_methods,
         } = &self;
 
+        let interfaces: String = traits
+            .0
+            .iter()
+            .map(|tr| format!(", Interface{tr}"))
+            .collect();
+
         tokens.extend(quote! {
             impl mlua::UserData for #name {
                 fn add_methods<M: mlua::UserDataMethods<Self>>(methods: &mut M) {
@@ -167,6 +173,25 @@ impl quote::ToTokens for Implementation {
             impl ::lua_typed::Typed for #name {
                 fn type_name() -> String {
                     stringify!(#name).into()
+                }
+
+                fn generate_header() -> std::option::Option<::std::string::String> {
+                    let type_name = <Self as ::lua_typed::Typed>::type_name();
+                    Some(format!("---@class {type_name}: InterfaceDevice{}\nlocal {type_name}\n", #interfaces))
+                }
+
+                fn generate_members() -> Option<String> {
+                    let mut output = String::new();
+
+                    let type_name = <Self as ::lua_typed::Typed>::type_name();
+                    output += &format!("devices.{type_name} = {{}}\n");
+                    let config_name = <<Self as ::automation_lib::device::LuaDeviceCreate>::Config as ::lua_typed::Typed>::type_name();
+                    output += &format!("---@param config {config_name}\n");
+                    output += &format!("---@return {type_name}\n");
+                    output += &format!("function devices.{type_name}.new(config) end\n");
+
+
+                    Some(output)
                 }
             }
         });
