@@ -154,13 +154,13 @@ impl quote::ToTokens for Implementation {
                         Ok(b)
                     });
 
-                    methods.add_async_method("get_id", async |_lua, this, _: ()| { Ok(this.get_id()) });
+                    ::automation_lib::lua::traits::Device::add_methods(methods);
 
-					#traits
+                    #traits
 
-					#(
-						#add_methods(methods);
-					)*
+                    #(
+                        #add_methods(methods);
+                    )*
                 }
             }
         });

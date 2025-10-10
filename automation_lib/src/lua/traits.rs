@@ -2,6 +2,16 @@ use std::ops::Deref;
 
 // TODO: Enable and disable functions based on query_only and command_only
 
+pub trait Device {
+    fn add_methods<M: mlua::UserDataMethods<Self>>(methods: &mut M)
+    where
+        Self: Sized + crate::device::Device + 'static,
+    {
+        methods.add_async_method("get_id", async |_lua, this, _: ()| Ok(this.get_id()));
+    }
+}
+impl<T> Device for T where T: crate::device::Device {}
+
 pub trait OnOff {
     fn add_methods<M: mlua::UserDataMethods<Self>>(methods: &mut M)
     where
