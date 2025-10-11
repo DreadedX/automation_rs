@@ -128,8 +128,6 @@ impl quote::ToTokens for Implementation {
         } = &self;
         let Traits(traits) = traits;
 
-        let interfaces: String = traits.iter().map(|tr| format!(", Interface{tr}")).collect();
-
         tokens.extend(quote! {
             impl mlua::UserData for #name {
                 fn add_methods<M: mlua::UserDataMethods<Self>>(methods: &mut M) {
@@ -165,7 +163,22 @@ impl quote::ToTokens for Implementation {
 
                 fn generate_header() -> std::option::Option<::std::string::String> {
                     let type_name = <Self as ::lua_typed::Typed>::type_name();
-                    Some(format!("---@class {type_name}: InterfaceDevice{}\nlocal {type_name}\n", #interfaces))
+                    let mut output = String::new();
+
+                    let interfaces: String = [
+                        <::automation_lib::lua::traits::Device as ::automation_lib::lua::traits::PartialUserData<#name>>::interface_name(),
+                        #(
+                            <::automation_lib::lua::traits::#traits as ::automation_lib::lua::traits::PartialUserData<#name>>::interface_name(),
+                        )*
+                    ].into_iter().flatten().intersperse(", ").collect();
+
+                    let interfaces = if interfaces.is_empty() {
+                        "".into()
+                    } else {
+                        format!(": {interfaces}")
+                    };
+
+                    Some(format!("---@class {type_name}{interfaces}\nlocal {type_name}"))
                 }
 
                 fn generate_members() -> Option<String> {

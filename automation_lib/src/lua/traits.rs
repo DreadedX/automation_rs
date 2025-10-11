@@ -4,6 +4,10 @@ use std::ops::Deref;
 
 pub trait PartialUserData<T> {
     fn add_methods<M: mlua::UserDataMethods<T>>(methods: &mut M);
+
+    fn interface_name() -> Option<&'static str> {
+        None
+    }
 }
 
 pub struct Device;
@@ -14,6 +18,10 @@ where
 {
     fn add_methods<M: mlua::UserDataMethods<T>>(methods: &mut M) {
         methods.add_async_method("get_id", async |_lua, this, _: ()| Ok(this.get_id()));
+    }
+
+    fn interface_name() -> Option<&'static str> {
+        Some("DeviceInterface")
     }
 }
 
@@ -34,6 +42,10 @@ where
             Ok(this.deref().on().await.unwrap())
         });
     }
+
+    fn interface_name() -> Option<&'static str> {
+        Some("OnOffInterface")
+    }
 }
 
 pub struct Brightness;
@@ -52,6 +64,10 @@ where
         methods.add_async_method("brightness", async |_lua, this, _: ()| {
             Ok(this.brightness().await.unwrap())
         });
+    }
+
+    fn interface_name() -> Option<&'static str> {
+        Some("BrightnessInterface")
     }
 }
 
@@ -77,6 +93,10 @@ where
             Ok(this.color().await.temperature)
         });
     }
+
+    fn interface_name() -> Option<&'static str> {
+        Some("ColorSettingInterface")
+    }
 }
 
 pub struct OpenClose;
@@ -95,5 +115,9 @@ where
         methods.add_async_method("open_percent", async |_lua, this, _: ()| {
             Ok(this.open_percent().await.unwrap())
         });
+    }
+
+    fn interface_name() -> Option<&'static str> {
+        Some("OpenCloseInterface")
     }
 }

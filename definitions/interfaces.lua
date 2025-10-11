@@ -1,42 +1,42 @@
 --- @meta
 
----@class InterfaceDevice
-local InterfaceDevice
+---@class DeviceInterface
+local DeviceInterface
 ---@return string
-function InterfaceDevice:get_id() end
+function DeviceInterface:get_id() end
 
----@class InterfaceOnOff: InterfaceDevice
-local InterfaceOnOff
+---@class OnOffInterface: DeviceInterface
+local OnOffInterface
 ---@async
 ---@param on boolean
-function InterfaceOnOff:set_on(on) end
+function OnOffInterface:set_on(on) end
 ---@async
 ---@return boolean
-function InterfaceOnOff:on() end
+function OnOffInterface:on() end
 
----@class InterfaceBrightness: InterfaceDevice
-local InterfaceBrightness
+---@class BrightnessInterface: DeviceInterface
+local BrightnessInterface
 ---@async
 ---@param brightness integer
-function InterfaceBrightness:set_brightness(brightness) end
+function BrightnessInterface:set_brightness(brightness) end
 ---@async
 ---@return integer
-function InterfaceBrightness:brightness() end
+function BrightnessInterface:brightness() end
 
----@class InterfaceColorSetting: InterfaceDevice
-local InterfaceColorSetting
+---@class ColorSettingInterface: DeviceInterface
+local ColorSettingInterface
 ---@async
 ---@param temperature integer
-function InterfaceColorSetting:set_color_temperature(temperature) end
+function ColorSettingInterface:set_color_temperature(temperature) end
 ---@async
 ---@return integer
-function InterfaceColorSetting:color_temperature() end
+function ColorSettingInterface:color_temperature() end
 
----@class InterfaceOpenClose: InterfaceDevice
-local InterfaceOpenClose
+---@class OpenCloseInterface: DeviceInterface
+local OpenCloseInterface
 ---@async
 ---@param open_percent integer
-function InterfaceOpenClose:set_open_percent(open_percent) end
+function OpenCloseInterface:set_open_percent(open_percent) end
 ---@async
 ---@return integer
-function InterfaceOpenClose:open_percent() end
+function OpenCloseInterface:open_percent() end

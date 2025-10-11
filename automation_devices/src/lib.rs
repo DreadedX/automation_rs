@@ -1,3 +1,4 @@
+#![feature(iter_intersperse)]
 mod air_filter;
 mod contact_sensor;
 mod hue_bridge;
