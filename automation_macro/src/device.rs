@@ -66,18 +66,6 @@ impl Parse for Traits {
     }
 }
 
-impl ToTokens for Traits {
-    fn to_tokens(&self, tokens: &mut TokenStream2) {
-        let Self(traits) = &self;
-
-        tokens.extend(quote! {
-            #(
-                ::automation_lib::lua::traits::#traits::add_methods(methods);
-            )*
-        });
-    }
-}
-
 #[derive(Default)]
 struct Aliases(Vec<syn::Ident>);
 
@@ -138,12 +126,9 @@ impl quote::ToTokens for Implementation {
             traits,
             add_methods,
         } = &self;
+        let Traits(traits) = traits;
 
-        let interfaces: String = traits
-            .0
-            .iter()
-            .map(|tr| format!(", Interface{tr}"))
-            .collect();
+        let interfaces: String = traits.iter().map(|tr| format!(", Interface{tr}")).collect();
 
         tokens.extend(quote! {
             impl mlua::UserData for #name {
@@ -161,9 +146,11 @@ impl quote::ToTokens for Implementation {
                         Ok(b)
                     });
 
-                    ::automation_lib::lua::traits::Device::add_methods(methods);
+                    <::automation_lib::lua::traits::Device as ::automation_lib::lua::traits::PartialUserData<#name>>::add_methods(methods);
 
-                    #traits
+                    #(
+                        <::automation_lib::lua::traits::#traits as ::automation_lib::lua::traits::PartialUserData<#name>>::add_methods(methods);
+                    )*
 
                     #(
                         #add_methods(methods);

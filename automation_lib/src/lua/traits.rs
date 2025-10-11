@@ -2,21 +2,28 @@ use std::ops::Deref;
 
 // TODO: Enable and disable functions based on query_only and command_only
 
-pub trait Device {
-    fn add_methods<M: mlua::UserDataMethods<Self>>(methods: &mut M)
-    where
-        Self: Sized + crate::device::Device + 'static,
-    {
+pub trait PartialUserData<T> {
+    fn add_methods<M: mlua::UserDataMethods<T>>(methods: &mut M);
+}
+
+pub struct Device;
+
+impl<T> PartialUserData<T> for Device
+where
+    T: crate::device::Device + 'static,
+{
+    fn add_methods<M: mlua::UserDataMethods<T>>(methods: &mut M) {
         methods.add_async_method("get_id", async |_lua, this, _: ()| Ok(this.get_id()));
     }
 }
-impl<T> Device for T where T: crate::device::Device {}
 
-pub trait OnOff {
-    fn add_methods<M: mlua::UserDataMethods<Self>>(methods: &mut M)
-    where
-        Self: Sized + google_home::traits::OnOff + 'static,
-    {
+pub struct OnOff;
+
+impl<T> PartialUserData<T> for OnOff
+where
+    T: google_home::traits::OnOff + 'static,
+{
+    fn add_methods<M: mlua::UserDataMethods<T>>(methods: &mut M) {
         methods.add_async_method("set_on", async |_lua, this, on: bool| {
             this.deref().set_on(on).await.unwrap();
 
@@ -28,13 +35,14 @@ pub trait OnOff {
         });
     }
 }
-impl<T> OnOff for T where T: google_home::traits::OnOff {}
 
-pub trait Brightness {
-    fn add_methods<M: mlua::UserDataMethods<Self>>(methods: &mut M)
-    where
-        Self: Sized + google_home::traits::Brightness + 'static,
-    {
+pub struct Brightness;
+
+impl<T> PartialUserData<T> for Brightness
+where
+    T: google_home::traits::Brightness + 'static,
+{
+    fn add_methods<M: mlua::UserDataMethods<T>>(methods: &mut M) {
         methods.add_async_method("set_brightness", async |_lua, this, brightness: u8| {
             this.set_brightness(brightness).await.unwrap();
 
@@ -46,13 +54,14 @@ pub trait Brightness {
         });
     }
 }
-impl<T> Brightness for T where T: google_home::traits::Brightness {}
 
-pub trait ColorSetting {
-    fn add_methods<M: mlua::UserDataMethods<Self>>(methods: &mut M)
-    where
-        Self: Sized + google_home::traits::ColorSetting + 'static,
-    {
+pub struct ColorSetting;
+
+impl<T> PartialUserData<T> for ColorSetting
+where
+    T: google_home::traits::ColorSetting + 'static,
+{
+    fn add_methods<M: mlua::UserDataMethods<T>>(methods: &mut M) {
         methods.add_async_method(
             "set_color_temperature",
             async |_lua, this, temperature: u32| {
@@ -69,13 +78,14 @@ pub trait ColorSetting {
         });
     }
 }
-impl<T> ColorSetting for T where T: google_home::traits::ColorSetting {}
 
-pub trait OpenClose {
-    fn add_methods<M: mlua::UserDataMethods<Self>>(methods: &mut M)
-    where
-        Self: Sized + google_home::traits::OpenClose + 'static,
-    {
+pub struct OpenClose;
+
+impl<T> PartialUserData<T> for OpenClose
+where
+    T: google_home::traits::OpenClose + 'static,
+{
+    fn add_methods<M: mlua::UserDataMethods<T>>(methods: &mut M) {
         methods.add_async_method("set_open_percent", async |_lua, this, open_percent: u8| {
             this.set_open_percent(open_percent).await.unwrap();
 
@@ -87,4 +97,3 @@ pub trait OpenClose {
         });
     }
 }
-impl<T> OpenClose for T where T: google_home::traits::OpenClose {}
