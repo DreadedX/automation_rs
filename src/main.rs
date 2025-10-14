@@ -17,7 +17,6 @@ use axum::http::StatusCode;
 use axum::routing::post;
 use axum::{Json, Router};
 use config::Config;
-use dotenvy::dotenv;
 use google_home::{GoogleHome, Request, Response};
 use mlua::LuaSerdeExt;
 use rumqttc::AsyncClient;
@@ -75,8 +74,6 @@ async fn fulfillment(
 }
 
 async fn app() -> anyhow::Result<()> {
-    dotenv().ok();
-
     tracing_subscriber::fmt::init();
 
     info!(version = VERSION, "automation_rs");
