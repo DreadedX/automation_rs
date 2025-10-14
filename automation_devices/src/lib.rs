@@ -20,7 +20,7 @@ use tracing::debug;
 macro_rules! register_device {
     ($device:ty) => {
         ::inventory::submit!(crate::RegisteredDevice::new(
-            stringify!($device),
+            <$device as ::lua_typed::Typed>::type_name,
             ::mlua::Lua::create_proxy::<$device>
         ));
 
@@ -30,20 +30,24 @@ macro_rules! register_device {
 
 pub(crate) use register_device;
 
+type DeviceNameFn = fn() -> String;
 type RegisterDeviceFn = fn(lua: &mlua::Lua) -> mlua::Result<mlua::AnyUserData>;
 
 pub struct RegisteredDevice {
-    name: &'static str,
+    name_fn: DeviceNameFn,
     register_fn: RegisterDeviceFn,
 }
 
 impl RegisteredDevice {
-    pub const fn new(name: &'static str, register_fn: RegisterDeviceFn) -> Self {
-        Self { name, register_fn }
+    pub const fn new(name_fn: DeviceNameFn, register_fn: RegisterDeviceFn) -> Self {
+        Self {
+            name_fn,
+            register_fn,
+        }
     }
 
-    pub const fn get_name(&self) -> &'static str {
-        self.name
+    pub fn get_name(&self) -> String {
+        (self.name_fn)()
     }
 
     pub fn register(&self, lua: &mlua::Lua) -> mlua::Result<mlua::AnyUserData> {
@@ -58,9 +62,10 @@ pub fn create_module(lua: &mlua::Lua) -> mlua::Result<mlua::Table> {
 
     debug!("Loading devices...");
     for device in inventory::iter::<RegisteredDevice> {
-        debug!(name = device.get_name(), "Registering device");
+        let name = device.get_name();
+        debug!(name, "Registering device");
         let proxy = device.register(lua)?;
-        devices.set(device.get_name(), proxy)?;
+        devices.set(name, proxy)?;
     }
 
     Ok(devices)
