@@ -8,6 +8,10 @@ pub trait PartialUserData<T> {
     fn interface_name() -> Option<&'static str> {
         None
     }
+
+    fn definitions() -> Option<String> {
+        None
+    }
 }
 
 pub struct Device;

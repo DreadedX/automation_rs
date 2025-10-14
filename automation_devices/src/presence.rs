@@ -6,6 +6,7 @@ use automation_lib::action_callback::ActionCallback;
 use automation_lib::config::MqttDeviceConfig;
 use automation_lib::device::{Device, LuaDeviceCreate};
 use automation_lib::event::OnMqtt;
+use automation_lib::lua::traits::PartialUserData;
 use automation_lib::messages::PresenceMessage;
 use automation_lib::mqtt::WrappedAsyncClient;
 use automation_macro::{Device, LuaDeviceConfig};
@@ -39,12 +40,28 @@ pub struct State {
 }
 
 #[derive(Debug, Clone, Device)]
-#[device(add_methods = Self::add_methods)]
+#[device(extra_user_data = OverallPresence)]
 pub struct Presence {
     config: Config,
     state: Arc<RwLock<State>>,
 }
 crate::register_device!(Presence);
+
+struct OverallPresence;
+impl PartialUserData<Presence> for OverallPresence {
+    fn add_methods<M: mlua::UserDataMethods<Presence>>(methods: &mut M) {
+        methods.add_async_method("overall_presence", async |_lua, this, ()| {
+            Ok(this.state().await.current_overall_presence)
+        });
+    }
+
+    fn definitions() -> Option<String> {
+        Some(format!(
+            "---@async\n---@return boolean\nfunction {}:overall_presence() end\n",
+            <Presence as Typed>::type_name(),
+        ))
+    }
+}
 
 impl Presence {
     async fn state(&self) -> RwLockReadGuard<'_, State> {
@@ -53,12 +70,6 @@ impl Presence {
 
     async fn state_mut(&self) -> RwLockWriteGuard<'_, State> {
         self.state.write().await
-    }
-
-    fn add_methods<M: mlua::UserDataMethods<Self>>(methods: &mut M) {
-        methods.add_async_method("overall_presence", async |_lua, this, ()| {
-            Ok(this.state().await.current_overall_presence)
-        });
     }
 }
 

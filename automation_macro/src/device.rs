@@ -1,7 +1,7 @@
 use std::collections::HashMap;
 
 use proc_macro2::TokenStream as TokenStream2;
-use quote::{ToTokens, quote};
+use quote::quote;
 use syn::parse::{Parse, ParseStream};
 use syn::punctuated::Punctuated;
 use syn::spanned::Spanned;
@@ -9,7 +9,7 @@ use syn::{Attribute, DeriveInput, Token, parenthesized};
 
 enum Attr {
     Trait(TraitAttr),
-    AddMethods(AddMethodsAttr),
+    ExtraUserData(ExtraUserDataAttr),
 }
 
 impl Attr {
@@ -20,9 +20,9 @@ impl Attr {
                 let input;
                 _ = parenthesized!(input in meta.input);
                 parsed = Some(Attr::Trait(input.parse()?));
-            } else if meta.path.is_ident("add_methods") {
+            } else if meta.path.is_ident("extra_user_data") {
                 let value = meta.value()?;
-                parsed = Some(Attr::AddMethods(value.parse()?));
+                parsed = Some(Attr::ExtraUserData(value.parse()?));
             } else {
                 return Err(syn::Error::new(meta.path.span(), "Unknown attribute"));
             }
@@ -95,28 +95,18 @@ impl Parse for Aliases {
 }
 
 #[derive(Clone)]
-struct AddMethodsAttr(syn::Path);
+struct ExtraUserDataAttr(syn::Ident);
 
-impl Parse for AddMethodsAttr {
+impl Parse for ExtraUserDataAttr {
     fn parse(input: ParseStream) -> syn::Result<Self> {
         Ok(Self(input.parse()?))
-    }
-}
-
-impl ToTokens for AddMethodsAttr {
-    fn to_tokens(&self, tokens: &mut TokenStream2) {
-        let Self(path) = self;
-
-        tokens.extend(quote! {
-            #path
-        });
     }
 }
 
 struct Implementation {
     name: syn::Ident,
     traits: Traits,
-    add_methods: Vec<AddMethodsAttr>,
+    extra_user_data: Vec<ExtraUserDataAttr>,
 }
 
 impl quote::ToTokens for Implementation {
@@ -124,9 +114,10 @@ impl quote::ToTokens for Implementation {
         let Self {
             name,
             traits,
-            add_methods,
+            extra_user_data,
         } = &self;
         let Traits(traits) = traits;
+        let extra_user_data: Vec<_> = extra_user_data.iter().map(|tr| tr.0.clone()).collect();
 
         tokens.extend(quote! {
             impl mlua::UserData for #name {
@@ -151,7 +142,7 @@ impl quote::ToTokens for Implementation {
                     )*
 
                     #(
-                        #add_methods(methods);
+                        <#extra_user_data as ::automation_lib::lua::traits::PartialUserData<#name>>::add_methods(methods);
                     )*
                 }
             }
@@ -178,7 +169,7 @@ impl quote::ToTokens for Implementation {
                         format!(": {interfaces}")
                     };
 
-                    Some(format!("---@class {type_name}{interfaces}\nlocal {type_name}"))
+                    Some(format!("---@class {type_name}{interfaces}\nlocal {type_name}\n"))
                 }
 
                 fn generate_members() -> Option<String> {
@@ -190,6 +181,15 @@ impl quote::ToTokens for Implementation {
                     output += &format!("---@param config {config_name}\n");
                     output += &format!("---@return {type_name}\n");
                     output += &format!("function devices.{type_name}.new(config) end\n");
+
+                    output += &<::automation_lib::lua::traits::Device as ::automation_lib::lua::traits::PartialUserData<#name>>::definitions().unwrap_or("".into());
+
+                    #(
+                        output += &<::automation_lib::lua::traits::#traits as ::automation_lib::lua::traits::PartialUserData<#name>>::definitions().unwrap_or("".into());
+                    )*
+                    #(
+                        output += &<#extra_user_data as ::automation_lib::lua::traits::PartialUserData<#name>>::definitions().unwrap_or("".into());
+                    )*
 
 
                     Some(output)
@@ -220,7 +220,7 @@ impl Implementations {
                         all.extend(&attribute.traits);
                     }
                 }
-                Attr::AddMethods(attribute) => add_methods.push(attribute),
+                Attr::ExtraUserData(attribute) => add_methods.push(attribute),
             }
         }
 
@@ -238,7 +238,7 @@ impl Implementations {
                 .map(|(alias, traits)| Implementation {
                     name: alias.unwrap_or(name.clone()),
                     traits,
-                    add_methods: add_methods.clone(),
+                    extra_user_data: add_methods.clone(),
                 })
                 .collect(),
         )

@@ -3,6 +3,7 @@ use std::convert::Infallible;
 
 use async_trait::async_trait;
 use automation_lib::device::{Device, LuaDeviceCreate};
+use automation_lib::lua::traits::PartialUserData;
 use automation_macro::{Device, LuaDeviceConfig};
 use lua_typed::Typed;
 use mlua::LuaSerdeExt;
@@ -90,14 +91,15 @@ pub struct Config {
 crate::register_type!(Config);
 
 #[derive(Debug, Clone, Device)]
-#[device(add_methods = Self::add_methods)]
+#[device(extra_user_data = SendNotification)]
 pub struct Ntfy {
     config: Config,
 }
 crate::register_device!(Ntfy);
 
-impl Ntfy {
-    fn add_methods<M: mlua::UserDataMethods<Self>>(methods: &mut M) {
+struct SendNotification;
+impl PartialUserData<Ntfy> for SendNotification {
+    fn add_methods<M: mlua::UserDataMethods<Ntfy>>(methods: &mut M) {
         methods.add_async_method(
             "send_notification",
             async |lua, this, notification: mlua::Value| {
@@ -108,6 +110,14 @@ impl Ntfy {
                 Ok(())
             },
         );
+    }
+
+    fn definitions() -> Option<String> {
+        Some(format!(
+            "---@async\n---@param notification {}\nfunction {}:send_notification(notification) end\n",
+            <Notification as Typed>::type_name(),
+            <Ntfy as Typed>::type_name(),
+        ))
     }
 }
 

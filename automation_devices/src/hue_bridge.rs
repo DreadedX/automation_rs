@@ -3,18 +3,21 @@ use std::net::SocketAddr;
 
 use async_trait::async_trait;
 use automation_lib::device::{Device, LuaDeviceCreate};
+use automation_lib::lua::traits::PartialUserData;
 use automation_macro::{Device, LuaDeviceConfig};
 use lua_typed::Typed;
 use mlua::LuaSerdeExt;
 use serde::{Deserialize, Serialize};
 use tracing::{error, trace, warn};
 
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Deserialize, Typed)]
 #[serde(rename_all = "snake_case")]
+#[typed(rename_all = "snake_case")]
 pub enum Flag {
     Presence,
     Darkness,
 }
+crate::register_type!(Flag);
 
 #[derive(Debug, Clone, Deserialize, Typed)]
 pub struct FlagIDs {
@@ -36,11 +39,35 @@ pub struct Config {
 crate::register_type!(Config);
 
 #[derive(Debug, Clone, Device)]
-#[device(add_methods = Self::add_methods)]
+#[device(extra_user_data = SetFlag)]
 pub struct HueBridge {
     config: Config,
 }
 crate::register_device!(HueBridge);
+
+struct SetFlag;
+impl PartialUserData<HueBridge> for SetFlag {
+    fn add_methods<M: mlua::UserDataMethods<HueBridge>>(methods: &mut M) {
+        methods.add_async_method(
+            "set_flag",
+            async |lua, this, (flag, value): (mlua::Value, bool)| {
+                let flag: Flag = lua.from_value(flag)?;
+
+                this.set_flag(flag, value).await;
+
+                Ok(())
+            },
+        );
+    }
+
+    fn definitions() -> Option<String> {
+        Some(format!(
+            "---@async\n---@param flag {}\n---@param value boolean\nfunction {}:set_flag(flag, value) end\n",
+            <Flag as Typed>::type_name(),
+            <HueBridge as Typed>::type_name(),
+        ))
+    }
+}
 
 #[derive(Debug, Serialize)]
 struct FlagMessage {
@@ -88,19 +115,6 @@ impl HueBridge {
                 error!(flag_id, "Error: {err}");
             }
         }
-    }
-
-    fn add_methods<M: mlua::UserDataMethods<Self>>(methods: &mut M) {
-        methods.add_async_method(
-            "set_flag",
-            async |lua, this, (flag, value): (mlua::Value, bool)| {
-                let flag: Flag = lua.from_value(flag)?;
-
-                this.set_flag(flag, value).await;
-
-                Ok(())
-            },
-        );
     }
 }
 
