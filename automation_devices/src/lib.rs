@@ -15,20 +15,7 @@ mod zigbee;
 
 use automation_lib::Module;
 use automation_lib::device::{Device, LuaDeviceCreate};
-use tracing::debug;
-
-macro_rules! register_device {
-    ($device:ty) => {
-        ::inventory::submit!(crate::RegisteredDevice::new(
-            <$device as ::lua_typed::Typed>::type_name,
-            ::mlua::Lua::create_proxy::<$device>
-        ));
-
-        crate::register_type!($device);
-    };
-}
-
-pub(crate) use register_device;
+use tracing::{debug, warn};
 
 type DeviceNameFn = fn() -> String;
 type RegisterDeviceFn = fn(lua: &mlua::Lua) -> mlua::Result<mlua::AnyUserData>;
@@ -55,6 +42,18 @@ impl RegisteredDevice {
     }
 }
 
+macro_rules! register_device {
+    ($device:ty) => {
+        ::inventory::submit!(crate::RegisteredDevice::new(
+            <$device as ::lua_typed::Typed>::type_name,
+            ::mlua::Lua::create_proxy::<$device>
+        ));
+
+        crate::register_type!($device);
+    };
+}
+pub(crate) use register_device;
+
 inventory::collect!(RegisteredDevice);
 
 pub fn create_module(lua: &mlua::Lua) -> mlua::Result<mlua::Table> {
@@ -71,7 +70,9 @@ pub fn create_module(lua: &mlua::Lua) -> mlua::Result<mlua::Table> {
     Ok(devices)
 }
 
-inventory::submit! {Module::new("automation:devices", create_module)}
+type RegisterTypeFn = fn() -> Option<String>;
+
+pub struct RegisteredType(RegisterTypeFn);
 
 macro_rules! register_type {
     ($ty:ty) => {
@@ -80,20 +81,25 @@ macro_rules! register_type {
         ));
     };
 }
-
 pub(crate) use register_type;
-
-type RegisterTypeFn = fn() -> Option<String>;
-
-pub struct RegisteredType(RegisterTypeFn);
 
 inventory::collect!(RegisteredType);
 
-pub fn generate_definitions() {
-    println!("---@meta\n\nlocal devices\n");
+fn generate_definitions() -> String {
+    let mut output = String::new();
+
+    output += "---@meta\n\nlocal devices\n\n";
     for ty in inventory::iter::<RegisteredType> {
-        let def = ty.0().unwrap();
-        println!("{def}");
+        if let Some(def) = ty.0() {
+            output += &(def + "\n");
+        } else {
+            // NOTE: Due to how this works the typed is erased, so we don't know the cause
+            warn!("Registered type is missing generate_full function");
+        }
     }
-    println!("return devices")
+    output += "return devices";
+
+    output
 }
+
+inventory::submit! {Module::new("automation:devices", create_module, Some(generate_definitions))}

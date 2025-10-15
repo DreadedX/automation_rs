@@ -29,4 +29,20 @@ fn create_module(lua: &mlua::Lua) -> mlua::Result<mlua::Table> {
     Ok(utils)
 }
 
-inventory::submit! {Module::new("automation:utils", create_module)}
+fn generate_definitions() -> String {
+    let mut output = String::new();
+
+    output += "---@meta\n\nlocal utils\n\n";
+
+    output += &Timeout::generate_full().expect("Timeout should have generate_full");
+    output += "\n";
+
+    output += "---@return string\nfunction utils.get_hostname() end\n\n";
+    output += "---@return integer\nfunction utils.get_epoch() end\n\n";
+
+    output += "return utils";
+
+    output
+}
+
+inventory::submit! {Module::new("automation:utils", create_module, Some(generate_definitions))}

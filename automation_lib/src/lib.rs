@@ -17,15 +17,25 @@ pub mod mqtt;
 pub mod schedule;
 
 type RegisterFn = fn(lua: &mlua::Lua) -> mlua::Result<mlua::Table>;
+type DefinitionsFn = fn() -> String;
 
 pub struct Module {
     name: &'static str,
     register_fn: RegisterFn,
+    definitions_fn: Option<DefinitionsFn>,
 }
 
 impl Module {
-    pub const fn new(name: &'static str, register_fn: RegisterFn) -> Self {
-        Self { name, register_fn }
+    pub const fn new(
+        name: &'static str,
+        register_fn: RegisterFn,
+        definitions_fn: Option<DefinitionsFn>,
+    ) -> Self {
+        Self {
+            name,
+            register_fn,
+            definitions_fn,
+        }
     }
 
     pub const fn get_name(&self) -> &'static str {
@@ -34,6 +44,10 @@ impl Module {
 
     pub fn register(&self, lua: &mlua::Lua) -> mlua::Result<mlua::Table> {
         (self.register_fn)(lua)
+    }
+
+    pub fn definitions(&self) -> Option<String> {
+        self.definitions_fn.map(|f| f())
     }
 }
 

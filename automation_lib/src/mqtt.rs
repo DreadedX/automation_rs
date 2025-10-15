@@ -132,4 +132,20 @@ fn create_module(lua: &mlua::Lua) -> mlua::Result<mlua::Table> {
     Ok(mqtt)
 }
 
-inventory::submit! {Module::new("automation:mqtt", create_module)}
+fn generate_definitions() -> String {
+    let mut output = String::new();
+
+    output += "---@meta\n\nlocal mqtt\n\n";
+
+    output += &MqttConfig::generate_full().expect("WrappedAsyncClient should have generate_full");
+    output += "\n";
+    output +=
+        &WrappedAsyncClient::generate_full().expect("WrappedAsyncClient should have generate_full");
+    output += "\n";
+
+    output += "return mqtt";
+
+    output
+}
+
+inventory::submit! {Module::new("automation:mqtt", create_module, Some(generate_definitions))}
