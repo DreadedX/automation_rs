@@ -2,17 +2,21 @@ local devices = require("automation:devices")
 local device_manager = require("automation:device_manager")
 local utils = require("automation:utils")
 local secrets = require("automation:secrets")
-local debug = require("automation:variables").debug or false
+local debug = require("automation:variables").debug and true or false
 
 print(_VERSION)
 
 local host = utils.get_hostname()
 print("Running @" .. host)
 
+--- @param topic string
+--- @return string
 local function mqtt_z2m(topic)
 	return "zigbee2mqtt/" .. topic
 end
 
+--- @param topic string
+--- @return string
 local function mqtt_automation(topic)
 	return "automation/" .. topic
 end
@@ -30,12 +34,19 @@ local mqtt_client = require("automation:mqtt").new(device_manager, {
 	tls = host == "zeus" or host == "hephaestus",
 })
 
+local ntfy_topic = secrets.ntfy_topic
+if ntfy_topic == nil then
+	error("Ntfy topic is not specified")
+end
 local ntfy = devices.Ntfy.new({
-	topic = secrets.ntfy_topic,
+	topic = ntfy_topic,
 })
 device_manager:add(ntfy)
 
+--- @type {[string]: number}
 local low_battery = {}
+--- @param device DeviceInterface
+--- @param battery number
 local function check_battery(device, battery)
 	local id = device:get_id()
 	if battery < 15 then
@@ -66,11 +77,13 @@ device_manager:schedule("0 0 21 */1 * *", function()
 	})
 end)
 
-local on_presence = {
-	add = function(self, f)
-		self[#self + 1] = f
-	end,
-}
+--- @class OnPresence
+--- @field [integer] fun(presence: boolean)
+local on_presence = {}
+--- @param f fun(presence: boolean)
+function on_presence:add(f)
+	self[#self + 1] = f
+end
 
 local presence_system = devices.Presence.new({
 	topic = mqtt_automation("presence/+/#"),
@@ -110,11 +123,13 @@ on_presence:add(function(presence)
 	})
 end)
 
-local window_sensors = {
-	add = function(self, f)
-		self[#self + 1] = f
-	end,
-}
+--- @class WindowSensor
+--- @field [integer] OpenCloseInterface
+local window_sensors = {}
+--- @param sensor OpenCloseInterface
+function window_sensors:add(sensor)
+	self[#self + 1] = sensor
+end
 on_presence:add(function(presence)
 	if not presence then
 		local open = {}
@@ -139,6 +154,7 @@ on_presence:add(function(presence)
 	end
 end)
 
+--- @param device OnOffInterface
 local function turn_off_when_away(device)
 	on_presence:add(function(presence)
 		if not presence then
@@ -147,11 +163,13 @@ local function turn_off_when_away(device)
 	end)
 end
 
-local on_light = {
-	add = function(self, f)
-		self[#self + 1] = f
-	end,
-}
+--- @class OnLight
+--- @field [integer] fun(light: boolean)
+local on_light = {}
+--- @param f fun(light: boolean)
+function on_light:add(f)
+	self[#self + 1] = f
+end
 device_manager:add(devices.LightSensor.new({
 	identifier = "living_light_sensor",
 	topic = mqtt_z2m("living/light"),
@@ -175,6 +193,9 @@ end)
 
 local hue_ip = "10.0.0.102"
 local hue_token = secrets.hue_token
+if hue_token == nil then
+	error("Hue token is not specified")
+end
 
 local hue_bridge = devices.HueBridge.new({
 	identifier = "hue_bridge",
@@ -287,6 +308,7 @@ device_manager:add(devices.IkeaRemote.new({
 	battery_callback = check_battery,
 }))
 
+--- @return fun(self: OnOffInterface, state: {state: boolean, power: number})
 local function kettle_timeout()
 	local timeout = utils.Timeout.new()
 
@@ -301,6 +323,7 @@ local function kettle_timeout()
 	end
 end
 
+--- @type OutletPower
 local kettle = devices.OutletPower.new({
 	outlet_type = "Kettle",
 	name = "Kettle",
@@ -312,6 +335,7 @@ local kettle = devices.OutletPower.new({
 turn_off_when_away(kettle)
 device_manager:add(kettle)
 
+--- @param on boolean
 local function set_kettle(_, on)
 	kettle:set_on(on)
 end
@@ -336,6 +360,8 @@ device_manager:add(devices.IkeaRemote.new({
 	battery_callback = check_battery,
 }))
 
+--- @param duration number
+--- @return fun(self: OnOffInterface, state: {state: boolean})
 local function off_timeout(duration)
 	local timeout = utils.Timeout.new()
 
@@ -455,60 +481,66 @@ device_manager:add(devices.HueSwitch.new({
 local hallway_light_automation = {
 	timeout = utils.Timeout.new(),
 	forced = false,
-	switch_callback = function(self)
-		return function(_, on)
+	trash = nil,
+	door = nil,
+}
+---@return fun(_, on: boolean)
+function hallway_light_automation:switch_callback()
+	return function(_, on)
+		self.timeout:cancel()
+		self.group.set_on(on)
+		self.forced = on
+	end
+end
+---@return fun(_, open: boolean)
+function hallway_light_automation:door_callback()
+	return function(_, open)
+		if open then
 			self.timeout:cancel()
-			self.group.set_on(on)
-			self.forced = on
-		end
-	end,
-	door_callback = function(self)
-		return function(_, open)
-			if open then
-				self.timeout:cancel()
 
-				self.group.set_on(true)
-			elseif not self.forced then
-				self.timeout:start(debug and 10 or 2 * 60, function()
-					if self.trash == nil or self.trash:open_percent() == 0 then
-						self.group.set_on(false)
-					end
-				end)
-			end
-		end
-	end,
-	trash_callback = function(self)
-		return function(_, open)
-			if open then
-				self.group.set_on(true)
-			else
-				if
-					not self.timeout:is_waiting()
-					and (self.door == nil or self.door:open_percent() == 0)
-					and not self.forced
-				then
+			self.group.set_on(true)
+		elseif not self.forced then
+			self.timeout:start(debug and 10 or 2 * 60, function()
+				if self.trash == nil or self.trash:open_percent() == 0 then
 					self.group.set_on(false)
 				end
-			end
+			end)
 		end
-	end,
-	light_callback = function(self)
-		return function(_, state)
+	end
+end
+---@return fun(_, open: boolean)
+function hallway_light_automation:trash_callback()
+	return function(_, open)
+		if open then
+			self.group.set_on(true)
+		else
 			if
-				state.on
-				and (self.trash == nil or self.trash:open_percent()) == 0
+				not self.timeout:is_waiting()
 				and (self.door == nil or self.door:open_percent() == 0)
+				and not self.forced
 			then
-				-- If the door and trash are not open, that means the light got turned on manually
-				self.timeout:cancel()
-				self.forced = true
-			elseif not state.on then
-				-- The light is never forced when it is off
-				self.forced = false
+				self.group.set_on(false)
 			end
 		end
-	end,
-}
+	end
+end
+---@return fun(_, state: { on: boolean })
+function hallway_light_automation:light_callback()
+	return function(_, state)
+		if
+			state.on
+			and (self.trash == nil or self.trash:open_percent()) == 0
+			and (self.door == nil or self.door:open_percent() == 0)
+		then
+			-- If the door and trash are not open, that means the light got turned on manually
+			self.timeout:cancel()
+			self.forced = true
+		elseif not state.on then
+			-- The light is never forced when it is off
+			self.forced = false
+		end
+	end
+end
 
 local hallway_storage = devices.LightBrightness.new({
 	name = "Storage",
@@ -540,6 +572,8 @@ hallway_light_automation.group = {
 	end,
 }
 
+---@param duration number
+---@return fun(_, open: boolean)
 local function presence(duration)
 	local timeout = utils.Timeout.new()
 
