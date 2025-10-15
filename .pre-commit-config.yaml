@@ -57,24 +57,12 @@ repos:
         files: (\.rs|Cargo.lock)$
         pass_filenames: false
 
-      - id: audit
-        name: audit
-        description: Audit packages
-        entry: cargo audit
-        args: ["--deny", "warnings"]
+      - id: generate_definitions
+        name: generate definitions
+        description: Generate lua definitions
+        entry: cargo run --bin generate_definitions
         language: system
-        pass_filenames: false
-        verbose: true
-        always_run: true
-
-      - id: udeps
-        name: unused
-        description: Check for unused crates
-        entry: cargo udeps
-        args: ["--workspace"]
-        language: system
-        types: [file]
-        files: (\.rs|Cargo.lock)$
+        types: [rust]
         pass_filenames: false
 
       - id: test
@@ -87,13 +75,25 @@ repos:
         files: (\.rs|Cargo.lock)$
         pass_filenames: false
 
-      - id: generate_definitions
-        name: generate definitions
-        description: Generate lua definitions
-        entry: cargo run --bin generate_definitions
+      - id: udeps
+        name: unused
+        description: Check for unused crates
+        entry: cargo udeps
+        args: ["--workspace"]
         language: system
-        types: [rust]
+        types: [file]
+        files: (\.rs|Cargo.lock)$
         pass_filenames: false
+
+      - id: audit
+        name: audit
+        description: Audit packages
+        entry: cargo audit
+        args: ["--deny", "warnings"]
+        language: system
+        pass_filenames: false
+        verbose: true
+        always_run: true
 
   - repo: https://github.com/hadolint/hadolint
     rev: v2.13.1
