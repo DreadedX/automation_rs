@@ -5,6 +5,7 @@ use std::sync::Arc;
 use futures::Future;
 use futures::future::join_all;
 use lua_typed::Typed;
+use mlua::FromLua;
 use tokio::sync::{RwLock, RwLockReadGuard};
 use tokio_cron_scheduler::{Job, JobScheduler};
 use tracing::{debug, instrument, trace};
@@ -14,7 +15,7 @@ use crate::event::{Event, EventChannel, OnMqtt};
 
 pub type DeviceMap = HashMap<String, Box<dyn Device>>;
 
-#[derive(Clone)]
+#[derive(Clone, FromLua)]
 pub struct DeviceManager {
     devices: Arc<RwLock<DeviceMap>>,
     event_channel: EventChannel,

@@ -1,11 +1,13 @@
 use std::ops::{Deref, DerefMut};
 
 use lua_typed::Typed;
-use mlua::FromLua;
+use mlua::{FromLua, LuaSerdeExt};
 use rumqttc::{AsyncClient, Event, EventLoop, Incoming};
 use tracing::{debug, warn};
 
+use crate::Module;
 use crate::config::MqttConfig;
+use crate::device_manager::DeviceManager;
 use crate::event::{self, EventChannel};
 
 #[derive(Debug, Clone, FromLua)]
@@ -39,9 +41,10 @@ impl Typed for WrappedAsyncClient {
         let type_name = Self::type_name();
 
         output += &format!("mqtt.{type_name} = {{}}\n");
+        output += &format!("---@param device_manager {}\n", DeviceManager::type_name());
         output += &format!("---@param config {}\n", MqttConfig::type_name());
         output += &format!("---@return {type_name}\n");
-        output += "function mqtt.new(config) end\n";
+        output += "function mqtt.new(device_manager, config) end\n";
 
         Some(output)
     }
@@ -108,3 +111,25 @@ pub fn start(mut eventloop: EventLoop, event_channel: &EventChannel) {
         }
     });
 }
+
+fn create_module(lua: &mlua::Lua) -> mlua::Result<mlua::Table> {
+    let mqtt = lua.create_table()?;
+    let mqtt_new = lua.create_function(
+        move |lua, (device_manager, config): (DeviceManager, mlua::Value)| {
+            let event_channel = device_manager.event_channel();
+            let config: MqttConfig = lua.from_value(config)?;
+
+            // Create a mqtt client
+            // TODO: When starting up, the devices are not yet created, this could lead to a device being out of sync
+            let (client, eventloop) = AsyncClient::new(config.into(), 100);
+            start(eventloop, &event_channel);
+
+            Ok(WrappedAsyncClient(client))
+        },
+    )?;
+    mqtt.set("new", mqtt_new)?;
+
+    Ok(mqtt)
+}
+
+inventory::submit! {Module::new("automation:mqtt", create_module)}

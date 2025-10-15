@@ -9,9 +9,8 @@ use std::path::Path;
 use std::process;
 
 use ::config::{Environment, File};
-use automation_lib::config::{FulfillmentConfig, MqttConfig};
+use automation_lib::config::FulfillmentConfig;
 use automation_lib::device_manager::DeviceManager;
-use automation_lib::mqtt::{self, WrappedAsyncClient};
 use axum::extract::{FromRef, State};
 use axum::http::StatusCode;
 use axum::routing::post;
@@ -19,7 +18,6 @@ use axum::{Json, Router};
 use config::Config;
 use google_home::{GoogleHome, Request, Response};
 use mlua::LuaSerdeExt;
-use rumqttc::AsyncClient;
 use tokio::net::TcpListener;
 use tracing::{debug, error, info, warn};
 use web::{ApiError, User};
@@ -137,21 +135,6 @@ async fn app() -> anyhow::Result<()> {
     lua.globals().set("print", print)?;
 
     automation_lib::load_modules(&lua)?;
-
-    let mqtt = lua.create_table()?;
-    let event_channel = device_manager.event_channel();
-    let mqtt_new = lua.create_function(move |lua, config: mlua::Value| {
-        let config: MqttConfig = lua.from_value(config)?;
-
-        // Create a mqtt client
-        // TODO: When starting up, the devices are not yet created, this could lead to a device being out of sync
-        let (client, eventloop) = AsyncClient::new(config.into(), 100);
-        mqtt::start(eventloop, &event_channel);
-
-        Ok(WrappedAsyncClient(client))
-    })?;
-    mqtt.set("new", mqtt_new)?;
-    lua.register_module("automation:mqtt", mqtt)?;
 
     lua.register_module("automation:device_manager", device_manager.clone())?;
 
