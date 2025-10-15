@@ -2,6 +2,7 @@ mod timeout;
 
 use std::time::{SystemTime, UNIX_EPOCH};
 
+use lua_typed::Typed;
 pub use timeout::Timeout;
 
 use crate::Module;
@@ -9,7 +10,7 @@ use crate::Module;
 fn create_module(lua: &mlua::Lua) -> mlua::Result<mlua::Table> {
     let utils = lua.create_table()?;
 
-    utils.set("Timeout", lua.create_proxy::<Timeout>()?)?;
+    utils.set(Timeout::type_name(), lua.create_proxy::<Timeout>()?)?;
 
     let get_hostname = lua.create_function(|_lua, ()| {
         hostname::get()
