@@ -5,6 +5,7 @@ use mlua::FromLua;
 use rumqttc::{AsyncClient, Event, EventLoop, Incoming};
 use tracing::{debug, warn};
 
+use crate::config::MqttConfig;
 use crate::event::{self, EventChannel};
 
 #[derive(Debug, Clone, FromLua)]
@@ -13,6 +14,36 @@ pub struct WrappedAsyncClient(pub AsyncClient);
 impl Typed for WrappedAsyncClient {
     fn type_name() -> String {
         "AsyncClient".into()
+    }
+
+    fn generate_header() -> Option<String> {
+        let type_name = Self::type_name();
+        Some(format!("---@class {type_name}\nlocal {type_name}\n"))
+    }
+
+    fn generate_members() -> Option<String> {
+        let mut output = String::new();
+
+        let type_name = Self::type_name();
+
+        output += &format!(
+            "---@async\n---@param topic string\n---@param message table?\nfunction {type_name}:send_message(topic, message) end\n"
+        );
+
+        Some(output)
+    }
+
+    fn generate_footer() -> Option<String> {
+        let mut output = String::new();
+
+        let type_name = Self::type_name();
+
+        output += &format!("mqtt.{type_name} = {{}}\n");
+        output += &format!("---@param config {}\n", MqttConfig::type_name());
+        output += &format!("---@return {type_name}\n");
+        output += "function mqtt.new(config) end\n";
+
+        Some(output)
     }
 }
 

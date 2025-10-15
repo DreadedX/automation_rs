@@ -10,6 +10,12 @@ pub struct ActionCallback<P> {
     _parameters: PhantomData<P>,
 }
 
+impl Typed for ActionCallback<()> {
+    fn type_name() -> String {
+        "fun() | fun()[]".into()
+    }
+}
+
 impl<A: Typed> Typed for ActionCallback<A> {
     fn type_name() -> String {
         let type_name = A::type_name();

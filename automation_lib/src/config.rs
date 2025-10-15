@@ -5,7 +5,7 @@ use lua_typed::Typed;
 use rumqttc::{MqttOptions, Transport};
 use serde::Deserialize;
 
-#[derive(Debug, Clone, Deserialize)]
+#[derive(Debug, Clone, Deserialize, Typed)]
 pub struct MqttConfig {
     pub host: String,
     pub port: u16,

@@ -1101,7 +1101,7 @@ dependencies = [
 [[package]]
 name = "lua_typed"
 version = "0.1.0"
-source = "git+https://git.huizinga.dev/Dreaded_X/lua_typed#d5d6fc1638bd108514899a792ee64335af50fc8b"
+source = "git+https://git.huizinga.dev/Dreaded_X/lua_typed#08f5c4533a93131e8eda6702c062fb841d14d4e1"
 dependencies = [
  "eui48",
  "lua_typed_macro",
@@ -1110,7 +1110,7 @@ dependencies = [
 [[package]]
 name = "lua_typed_macro"
 version = "0.1.0"
-source = "git+https://git.huizinga.dev/Dreaded_X/lua_typed#d5d6fc1638bd108514899a792ee64335af50fc8b"
+source = "git+https://git.huizinga.dev/Dreaded_X/lua_typed#08f5c4533a93131e8eda6702c062fb841d14d4e1"
 dependencies = [
  "convert_case",
  "itertools",

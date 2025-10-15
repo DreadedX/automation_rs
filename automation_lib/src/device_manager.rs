@@ -4,6 +4,7 @@ use std::sync::Arc;
 
 use futures::Future;
 use futures::future::join_all;
+use lua_typed::Typed;
 use tokio::sync::{RwLock, RwLockReadGuard};
 use tokio_cron_scheduler::{Job, JobScheduler};
 use tracing::{debug, instrument, trace};
@@ -140,5 +141,11 @@ impl mlua::UserData for DeviceManager {
         );
 
         methods.add_method("event_channel", |_lua, this, ()| Ok(this.event_channel()))
+    }
+}
+
+impl Typed for DeviceManager {
+    fn type_name() -> String {
+        "DeviceManager".into()
     }
 }
