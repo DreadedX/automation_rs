@@ -22,11 +22,11 @@ fn main() -> std::io::Result<()> {
 
             file.write_all(b"-- DO NOT MODIFY, FILE IS AUTOMATICALLY GENERATED\n")?;
             file.write_all(definitions.as_bytes())?;
+            file.write_all(b"\n")?;
         } else {
             warn!(name = module.get_name(), "No definitions");
         }
     }
 
     Ok(())
-    // automation_devices::generate_definitions()
 }

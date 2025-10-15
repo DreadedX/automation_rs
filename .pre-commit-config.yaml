@@ -87,6 +87,14 @@ repos:
         files: (\.rs|Cargo.lock)$
         pass_filenames: false
 
+      - id: generate_definitions
+        name: generate definitions
+        description: Generate lua definitions
+        entry: cargo run --bin generate_definitions
+        language: system
+        types: [rust]
+        pass_filenames: false
+
   - repo: https://github.com/hadolint/hadolint
     rev: v2.13.1
     hooks:
