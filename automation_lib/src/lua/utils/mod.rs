@@ -28,4 +28,4 @@ fn create_module(lua: &mlua::Lua) -> mlua::Result<mlua::Table> {
     Ok(utils)
 }
 
-inventory::submit! {Module::new("utils", create_module)}
+inventory::submit! {Module::new("automation:utils", create_module)}

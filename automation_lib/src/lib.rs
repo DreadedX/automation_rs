@@ -41,7 +41,7 @@ pub fn load_modules(lua: &mlua::Lua) -> mlua::Result<()> {
     for module in inventory::iter::<Module> {
         debug!(name = module.get_name(), "Loading module");
         let table = module.register(lua)?;
-        lua.register_module(&format!("automation:{}", module.get_name()), table)?;
+        lua.register_module(module.get_name(), table)?;
     }
 
     Ok(())

@@ -71,7 +71,7 @@ pub fn create_module(lua: &mlua::Lua) -> mlua::Result<mlua::Table> {
     Ok(devices)
 }
 
-inventory::submit! {Module::new("devices", create_module)}
+inventory::submit! {Module::new("automation:devices", create_module)}
 
 macro_rules! register_type {
     ($ty:ty) => {
