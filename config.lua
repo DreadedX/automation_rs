@@ -744,6 +744,7 @@ device_manager:schedule("0 0 20 * * *", function()
 	bedroom_air_filter:set_on(false)
 end)
 
+---@type Config
 return {
 	fulfillment = {
 		openid_url = "https://login.huizinga.dev/api/oidc",
