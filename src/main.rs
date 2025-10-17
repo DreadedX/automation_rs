@@ -9,19 +9,18 @@ use std::path::Path;
 use std::process;
 
 use ::config::{Environment, File};
-use automation_lib::config::FulfillmentConfig;
 use automation_lib::device_manager::DeviceManager;
 use axum::extract::{FromRef, State};
 use axum::http::StatusCode;
 use axum::routing::post;
 use axum::{Json, Router};
-use config::Config;
 use google_home::{GoogleHome, Request, Response};
 use mlua::LuaSerdeExt;
 use tokio::net::TcpListener;
 use tracing::{debug, error, info, warn};
 use web::{ApiError, User};
 
+use crate::config::{Config, Setup};
 use crate::secret::EnvironmentSecretFile;
 use crate::version::VERSION;
 
@@ -76,7 +75,7 @@ async fn app() -> anyhow::Result<()> {
 
     info!(version = VERSION, "automation_rs");
 
-    let config: Config = ::config::Config::builder()
+    let setup: Setup = ::config::Config::builder()
         .add_source(
             File::with_name(&format!("{}.toml", std::env!("CARGO_PKG_NAME"))).required(false),
         )
@@ -138,12 +137,12 @@ async fn app() -> anyhow::Result<()> {
 
     lua.register_module("automation:device_manager", device_manager.clone())?;
 
-    lua.register_module("automation:variables", lua.to_value(&config.variables)?)?;
-    lua.register_module("automation:secrets", lua.to_value(&config.secrets)?)?;
+    lua.register_module("automation:variables", lua.to_value(&setup.variables)?)?;
+    lua.register_module("automation:secrets", lua.to_value(&setup.secrets)?)?;
 
-    let entrypoint = Path::new(&config.entrypoint);
-    let fulfillment_config: mlua::Value = lua.load(entrypoint).eval_async().await?;
-    let fulfillment_config: FulfillmentConfig = lua.from_value(fulfillment_config)?;
+    let entrypoint = Path::new(&setup.entrypoint);
+    let config: mlua::Value = lua.load(entrypoint).eval_async().await?;
+    let config: Config = lua.from_value(config)?;
 
     // Create google home fulfillment route
     let fulfillment = Router::new().route("/google_home", post(fulfillment));
@@ -152,12 +151,12 @@ async fn app() -> anyhow::Result<()> {
     let app = Router::new()
         .nest("/fulfillment", fulfillment)
         .with_state(AppState {
-            openid_url: fulfillment_config.openid_url.clone(),
+            openid_url: config.fulfillment.openid_url.clone(),
             device_manager,
         });
 
     // Start the web server
-    let addr: SocketAddr = fulfillment_config.into();
+    let addr: SocketAddr = config.fulfillment.into();
     info!("Server started on http://{addr}");
     let listener = TcpListener::bind(addr).await?;
     axum::serve(listener, app).await?;

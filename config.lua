@@ -21,10 +21,6 @@ local function mqtt_automation(topic)
 	return "automation/" .. topic
 end
 
-local fulfillment = {
-	openid_url = "https://login.huizinga.dev/api/oidc",
-}
-
 local mqtt_client = require("automation:mqtt").new(device_manager, {
 	host = ((host == "zeus" or host == "hephaestus") and "olympus.lan.huizinga.dev") or "mosquitto",
 	port = 8883,
@@ -748,4 +744,8 @@ device_manager:schedule("0 0 20 * * *", function()
 	bedroom_air_filter:set_on(false)
 end)
 
-return fulfillment
+return {
+	fulfillment = {
+		openid_url = "https://login.huizinga.dev/api/oidc",
+	},
+}

@@ -1,4 +1,3 @@
-use std::net::{Ipv4Addr, SocketAddr};
 use std::time::Duration;
 
 use lua_typed::Typed;
@@ -28,29 +27,6 @@ impl From<MqttConfig> for MqttOptions {
 
         mqtt_options
     }
-}
-
-#[derive(Debug, Deserialize)]
-pub struct FulfillmentConfig {
-    pub openid_url: String,
-    #[serde(default = "default_fulfillment_ip")]
-    pub ip: Ipv4Addr,
-    #[serde(default = "default_fulfillment_port")]
-    pub port: u16,
-}
-
-impl From<FulfillmentConfig> for SocketAddr {
-    fn from(fulfillment: FulfillmentConfig) -> Self {
-        (fulfillment.ip, fulfillment.port).into()
-    }
-}
-
-fn default_fulfillment_ip() -> Ipv4Addr {
-    [0, 0, 0, 0].into()
-}
-
-fn default_fulfillment_port() -> u16 {
-    7878
 }
 
 #[derive(Debug, Clone, Deserialize, Typed)]
