@@ -13,7 +13,6 @@ pub mod helpers;
 pub mod lua;
 pub mod messages;
 pub mod mqtt;
-pub mod schedule;
 
 type RegisterFn = fn(lua: &mlua::Lua) -> mlua::Result<mlua::Table>;
 type DefinitionsFn = fn() -> String;

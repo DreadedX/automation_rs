@@ -57,7 +57,7 @@ local function check_battery(device, battery)
 		low_battery[id] = nil
 	end
 end
-device_manager:schedule("0 0 21 */1 * *", function()
+local function notify_low_battery()
 	-- Don't send notifications if there are now devices with low battery
 	if next(low_battery) == nil then
 		print("No devices with low battery")
@@ -76,7 +76,7 @@ device_manager:schedule("0 0 21 */1 * *", function()
 		tags = { "battery" },
 		priority = "default",
 	})
-end)
+end
 
 --- @class OnPresence
 --- @field [integer] fun(presence: boolean)
@@ -742,17 +742,19 @@ devs:add(devices.ContactSensor.new({
 	battery_callback = check_battery,
 }))
 
-device_manager:schedule("0 0 19 * * *", function()
-	bedroom_air_filter:set_on(true)
-end)
-device_manager:schedule("0 0 20 * * *", function()
-	bedroom_air_filter:set_on(false)
-end)
-
 ---@type Config
 return {
 	fulfillment = {
 		openid_url = "https://login.huizinga.dev/api/oidc",
 	},
 	devices = devs,
+	schedule = {
+		["0 0 19 * * *"] = function()
+			bedroom_air_filter:set_on(true)
+		end,
+		["0 0 20 * * *"] = function()
+			bedroom_air_filter:set_on(false)
+		end,
+		["0 0 21 */1 * *"] = notify_low_battery,
+	},
 }

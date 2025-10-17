@@ -6,6 +6,7 @@ use std::process;
 
 use ::config::{Environment, File};
 use automation::config::{Config, Setup};
+use automation::schedule::start_scheduler;
 use automation::secret::EnvironmentSecretFile;
 use automation::version::VERSION;
 use automation::web::{ApiError, User};
@@ -141,6 +142,8 @@ async fn app() -> anyhow::Result<()> {
     for device in config.devices {
         device_manager.add(device).await;
     }
+
+    start_scheduler(config.schedule).await?;
 
     // Create google home fulfillment route
     let fulfillment = Router::new().route("/google_home", post(fulfillment));

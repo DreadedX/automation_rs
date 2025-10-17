@@ -37,6 +37,9 @@ pub struct Config {
     #[device_config(from_lua, default)]
     #[typed(default)]
     pub devices: Vec<Box<dyn Device>>,
+    #[device_config(from_lua, default)]
+    #[typed(default)]
+    pub schedule: HashMap<String, mlua::Function>,
 }
 
 impl From<FulfillmentConfig> for SocketAddr {

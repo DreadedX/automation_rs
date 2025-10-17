@@ -1,13 +1,10 @@
 use std::collections::HashMap;
-use std::pin::Pin;
 use std::sync::Arc;
 
-use futures::Future;
 use futures::future::join_all;
 use lua_typed::Typed;
 use mlua::FromLua;
 use tokio::sync::{RwLock, RwLockReadGuard};
-use tokio_cron_scheduler::{Job, JobScheduler};
 use tracing::{debug, instrument, trace};
 
 use crate::device::Device;
@@ -19,7 +16,6 @@ pub type DeviceMap = HashMap<String, Box<dyn Device>>;
 pub struct DeviceManager {
     devices: Arc<RwLock<DeviceMap>>,
     event_channel: EventChannel,
-    scheduler: JobScheduler,
 }
 
 impl DeviceManager {
@@ -29,7 +25,6 @@ impl DeviceManager {
         let device_manager = Self {
             devices: Arc::new(RwLock::new(HashMap::new())),
             event_channel,
-            scheduler: JobScheduler::new().await.unwrap(),
         };
 
         tokio::spawn({
@@ -44,8 +39,6 @@ impl DeviceManager {
                 }
             }
         });
-
-        device_manager.scheduler.start().await.unwrap();
 
         device_manager
     }
@@ -104,42 +97,6 @@ impl mlua::UserData for DeviceManager {
 
             Ok(())
         });
-
-        methods.add_async_method(
-            "schedule",
-            async |lua, this, (schedule, f): (String, mlua::Function)| {
-                debug!("schedule = {schedule}");
-                // This creates a function, that returns the actual job we want to run
-                let create_job = {
-                    let lua = lua.clone();
-
-                    move |uuid: uuid::Uuid,
-                          _: tokio_cron_scheduler::JobScheduler|
-                          -> Pin<Box<dyn Future<Output = ()> + Send>> {
-                        let lua = lua.clone();
-
-                        // Create the actual function we want to run on a schedule
-                        let future = async move {
-                            let f: mlua::Function =
-                                lua.named_registry_value(uuid.to_string().as_str()).unwrap();
-                            f.call_async::<()>(()).await.unwrap();
-                        };
-
-                        Box::pin(future)
-                    }
-                };
-
-                let job = Job::new_async(schedule.as_str(), create_job).unwrap();
-
-                let uuid = this.scheduler.add(job).await.unwrap();
-
-                // Store the function in the registry
-                lua.set_named_registry_value(uuid.to_string().as_str(), f)
-                    .unwrap();
-
-                Ok(())
-            },
-        );
 
         methods.add_method("event_channel", |_lua, this, ()| Ok(this.event_channel()))
     }
