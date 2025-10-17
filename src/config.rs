@@ -1,6 +1,7 @@
 use std::collections::HashMap;
 use std::net::{Ipv4Addr, SocketAddr};
 
+use lua_typed::Typed;
 use serde::Deserialize;
 
 #[derive(Debug, Deserialize)]
@@ -17,16 +18,18 @@ fn default_entrypoint() -> String {
     "./config.lua".into()
 }
 
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Deserialize, Typed)]
 pub struct FulfillmentConfig {
     pub openid_url: String,
     #[serde(default = "default_fulfillment_ip")]
+    #[typed(default)]
     pub ip: Ipv4Addr,
     #[serde(default = "default_fulfillment_port")]
+    #[typed(default)]
     pub port: u16,
 }
 
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Deserialize, Typed)]
 pub struct Config {
     pub fulfillment: FulfillmentConfig,
 }

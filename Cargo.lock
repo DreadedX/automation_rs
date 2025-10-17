@@ -99,6 +99,7 @@ dependencies = [
  "git-version",
  "google_home",
  "inventory",
+ "lua_typed",
  "mlua",
  "reqwest",
  "rumqttc",
