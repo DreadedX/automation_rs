@@ -70,13 +70,35 @@ pub fn create_module(lua: &mlua::Lua) -> mlua::Result<mlua::Table> {
     Ok(devices)
 }
 
-type RegisterTypeFn = fn() -> Option<String>;
+type TypeNameFn = fn() -> String;
+type TypeDefinitionFn = fn() -> Option<String>;
 
-pub struct RegisteredType(RegisterTypeFn);
+pub struct RegisteredType {
+    name_fn: TypeNameFn,
+    definition_fn: TypeDefinitionFn,
+}
+
+impl RegisteredType {
+    pub const fn new(name_fn: TypeNameFn, definition_fn: TypeDefinitionFn) -> Self {
+        Self {
+            name_fn,
+            definition_fn,
+        }
+    }
+
+    pub fn get_name(&self) -> String {
+        (self.name_fn)()
+    }
+
+    pub fn register(&self) -> Option<String> {
+        (self.definition_fn)()
+    }
+}
 
 macro_rules! register_type {
     ($ty:ty) => {
-        ::inventory::submit!(crate::RegisteredType(
+        ::inventory::submit!(crate::RegisteredType::new(
+            <$ty as ::lua_typed::Typed>::type_name,
             <$ty as ::lua_typed::Typed>::generate_full
         ));
     };
@@ -88,9 +110,12 @@ inventory::collect!(RegisteredType);
 fn generate_definitions() -> String {
     let mut output = String::new();
 
+    let mut types: Vec<_> = inventory::iter::<RegisteredType>.into_iter().collect();
+    types.sort_by_key(|ty| ty.get_name());
+
     output += "---@meta\n\nlocal devices\n\n";
-    for ty in inventory::iter::<RegisteredType> {
-        if let Some(def) = ty.0() {
+    for ty in types {
+        if let Some(def) = (ty.definition_fn)() {
             output += &(def + "\n");
         } else {
             // NOTE: Due to how this works the typed is erased, so we don't know the cause
