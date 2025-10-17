@@ -1,14 +1,14 @@
 #![feature(iter_intersperse)]
-mod config;
-mod secret;
-mod version;
-mod web;
 
 use std::net::SocketAddr;
 use std::path::Path;
 use std::process;
 
 use ::config::{Environment, File};
+use automation::config::{Config, Setup};
+use automation::secret::EnvironmentSecretFile;
+use automation::version::VERSION;
+use automation::web::{ApiError, User};
 use automation_lib::device_manager::DeviceManager;
 use axum::extract::{FromRef, State};
 use axum::http::StatusCode;
@@ -18,11 +18,6 @@ use google_home::{GoogleHome, Request, Response};
 use mlua::LuaSerdeExt;
 use tokio::net::TcpListener;
 use tracing::{debug, error, info, warn};
-use web::{ApiError, User};
-
-use crate::config::{Config, Setup};
-use crate::secret::EnvironmentSecretFile;
-use crate::version::VERSION;
 
 // Force automation_devices to link so that it gets registered as a module
 extern crate automation_devices;
