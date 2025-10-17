@@ -70,6 +70,7 @@ anyhow = { workspace = true }
 async-trait = { workspace = true }
 automation_devices = { workspace = true }
 automation_lib = { workspace = true }
+automation_macro = { path = "./automation_macro" }
 axum = { workspace = true }
 config = { version = "0.15.15", default-features = false, features = [
   "async",

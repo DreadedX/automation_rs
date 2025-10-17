@@ -2,6 +2,7 @@ use std::fmt::Debug;
 
 use automation_cast::Cast;
 use dyn_clone::DynClone;
+use lua_typed::Typed;
 use mlua::ObjectLike;
 
 use crate::event::OnMqtt;
@@ -40,5 +41,11 @@ impl mlua::FromLua for Box<dyn Device> {
     }
 }
 impl mlua::UserData for Box<dyn Device> {}
+
+impl Typed for Box<dyn Device> {
+    fn type_name() -> String {
+        "DeviceInterface".into()
+    }
+}
 
 dyn_clone::clone_trait_object!(Device);

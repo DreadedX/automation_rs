@@ -9,4 +9,5 @@ local FulfillmentConfig
 
 ---@class Config
 ---@field fulfillment FulfillmentConfig
+---@field devices DeviceInterface[]?
 local Config

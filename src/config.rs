@@ -1,6 +1,8 @@
 use std::collections::HashMap;
 use std::net::{Ipv4Addr, SocketAddr};
 
+use automation_lib::device::Device;
+use automation_macro::LuaDeviceConfig;
 use lua_typed::Typed;
 use serde::Deserialize;
 
@@ -29,9 +31,12 @@ pub struct FulfillmentConfig {
     pub port: u16,
 }
 
-#[derive(Debug, Deserialize, Typed)]
+#[derive(Debug, LuaDeviceConfig, Typed)]
 pub struct Config {
     pub fulfillment: FulfillmentConfig,
+    #[device_config(from_lua, default)]
+    #[typed(default)]
+    pub devices: Vec<Box<dyn Device>>,
 }
 
 impl From<FulfillmentConfig> for SocketAddr {

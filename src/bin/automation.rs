@@ -136,8 +136,11 @@ async fn app() -> anyhow::Result<()> {
     lua.register_module("automation:secrets", lua.to_value(&setup.secrets)?)?;
 
     let entrypoint = Path::new(&setup.entrypoint);
-    let config: mlua::Value = lua.load(entrypoint).eval_async().await?;
-    let config: Config = lua.from_value(config)?;
+    let config: Config = lua.load(entrypoint).eval_async().await?;
+
+    for device in config.devices {
+        device_manager.add(device).await;
+    }
 
     // Create google home fulfillment route
     let fulfillment = Router::new().route("/google_home", post(fulfillment));

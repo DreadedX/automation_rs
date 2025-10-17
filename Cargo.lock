@@ -94,6 +94,7 @@ dependencies = [
  "async-trait",
  "automation_devices",
  "automation_lib",
+ "automation_macro",
  "axum",
  "config",
  "git-version",
