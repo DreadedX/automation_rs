@@ -1,14 +1,40 @@
 use std::ops::{Deref, DerefMut};
+use std::time::Duration;
 
+use automation_macro::LuaDeviceConfig;
 use lua_typed::Typed;
-use mlua::{FromLua, LuaSerdeExt};
-use rumqttc::{AsyncClient, Event, EventLoop, Incoming};
+use mlua::FromLua;
+use rumqttc::{AsyncClient, Event, Incoming, MqttOptions, Transport};
+use serde::Deserialize;
 use tracing::{debug, warn};
 
-use crate::Module;
-use crate::config::MqttConfig;
-use crate::device_manager::DeviceManager;
 use crate::event::{self, EventChannel};
+
+#[derive(Debug, Clone, LuaDeviceConfig, Deserialize, Typed)]
+pub struct MqttConfig {
+    pub host: String,
+    pub port: u16,
+    pub client_name: String,
+    pub username: String,
+    pub password: String,
+    #[serde(default)]
+    #[typed(default)]
+    pub tls: bool,
+}
+
+impl From<MqttConfig> for MqttOptions {
+    fn from(value: MqttConfig) -> Self {
+        let mut mqtt_options = MqttOptions::new(value.client_name, value.host, value.port);
+        mqtt_options.set_credentials(value.username, value.password);
+        mqtt_options.set_keep_alive(Duration::from_secs(5));
+
+        if value.tls {
+            mqtt_options.set_transport(Transport::tls_with_default_config());
+        }
+
+        mqtt_options
+    }
+}
 
 #[derive(Debug, Clone, FromLua)]
 pub struct WrappedAsyncClient(pub AsyncClient);
@@ -31,20 +57,6 @@ impl Typed for WrappedAsyncClient {
         output += &format!(
             "---@async\n---@param topic string\n---@param message table?\nfunction {type_name}:send_message(topic, message) end\n"
         );
-
-        Some(output)
-    }
-
-    fn generate_footer() -> Option<String> {
-        let mut output = String::new();
-
-        let type_name = Self::type_name();
-
-        output += &format!("mqtt.{type_name} = {{}}\n");
-        output += &format!("---@param device_manager {}\n", DeviceManager::type_name());
-        output += &format!("---@param config {}\n", MqttConfig::type_name());
-        output += &format!("---@return {type_name}\n");
-        output += "function mqtt.new(device_manager, config) end\n";
 
         Some(output)
     }
@@ -90,8 +102,9 @@ impl mlua::UserData for WrappedAsyncClient {
     }
 }
 
-pub fn start(mut eventloop: EventLoop, event_channel: &EventChannel) {
+pub fn start(config: MqttConfig, event_channel: &EventChannel) -> WrappedAsyncClient {
     let tx = event_channel.get_tx();
+    let (client, mut eventloop) = AsyncClient::new(config.into(), 100);
 
     tokio::spawn(async move {
         debug!("Listening for MQTT events");
@@ -110,42 +123,6 @@ pub fn start(mut eventloop: EventLoop, event_channel: &EventChannel) {
             }
         }
     });
+
+    WrappedAsyncClient(client)
 }
-
-fn create_module(lua: &mlua::Lua) -> mlua::Result<mlua::Table> {
-    let mqtt = lua.create_table()?;
-    let mqtt_new = lua.create_function(
-        move |lua, (device_manager, config): (DeviceManager, mlua::Value)| {
-            let event_channel = device_manager.event_channel();
-            let config: MqttConfig = lua.from_value(config)?;
-
-            // Create a mqtt client
-            // TODO: When starting up, the devices are not yet created, this could lead to a device being out of sync
-            let (client, eventloop) = AsyncClient::new(config.into(), 100);
-            start(eventloop, &event_channel);
-
-            Ok(WrappedAsyncClient(client))
-        },
-    )?;
-    mqtt.set("new", mqtt_new)?;
-
-    Ok(mqtt)
-}
-
-fn generate_definitions() -> String {
-    let mut output = String::new();
-
-    output += "---@meta\n\nlocal mqtt\n\n";
-
-    output += &MqttConfig::generate_full().expect("WrappedAsyncClient should have generate_full");
-    output += "\n";
-    output +=
-        &WrappedAsyncClient::generate_full().expect("WrappedAsyncClient should have generate_full");
-    output += "\n";
-
-    output += "return mqtt";
-
-    output
-}
-
-inventory::submit! {Module::new("automation:mqtt", create_module, Some(generate_definitions))}

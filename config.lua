@@ -1,5 +1,4 @@
 local devices = require("automation:devices")
-local device_manager = require("automation:device_manager")
 local utils = require("automation:utils")
 local secrets = require("automation:secrets")
 local debug = require("automation:variables").debug and true or false
@@ -734,22 +733,22 @@ local function create_devs(mqtt_client)
 	return devs
 end
 
--- TODO: Pass the mqtt config to the output config, instead of constructing the client here
-local mqtt_client = require("automation:mqtt").new(device_manager, {
+--- @type MqttConfig
+local mqtt_config = {
 	host = ((host == "zeus" or host == "hephaestus") and "olympus.lan.huizinga.dev") or "mosquitto",
 	port = 8883,
 	client_name = "automation-" .. host,
 	username = "mqtt",
 	password = secrets.mqtt_password,
 	tls = host == "zeus" or host == "hephaestus",
-})
+}
 
 ---@type Config
 return {
 	fulfillment = {
 		openid_url = "https://login.huizinga.dev/api/oidc",
 	},
-	mqtt = mqtt_client,
+	mqtt = mqtt_config,
 	devices = {
 		create_devs,
 		ntfy,

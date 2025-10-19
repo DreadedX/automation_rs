@@ -3,6 +3,7 @@ use std::io::Write;
 
 use automation::config::{Config, Devices, FulfillmentConfig};
 use automation_lib::Module;
+use automation_lib::mqtt::{MqttConfig, WrappedAsyncClient};
 use lua_typed::Typed;
 use tracing::{info, warn};
 
@@ -35,6 +36,11 @@ fn config_definitions() -> String {
     output += &Config::generate_full().expect("Config should have a definition");
     output += "\n";
     output += &Devices::generate_full().expect("Devices should have a definition");
+    output += "\n";
+    output += &MqttConfig::generate_full().expect("MqttConfig should have a definition");
+    output += "\n";
+    output +=
+        &WrappedAsyncClient::generate_full().expect("WrappedAsyncClient should have a definition");
 
     output
 }

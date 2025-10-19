@@ -3,7 +3,7 @@ use std::net::{Ipv4Addr, SocketAddr};
 
 use automation_lib::action_callback::ActionCallback;
 use automation_lib::device::Device;
-use automation_lib::mqtt::WrappedAsyncClient;
+use automation_lib::mqtt::{MqttConfig, WrappedAsyncClient};
 use automation_macro::LuaDeviceConfig;
 use lua_typed::Typed;
 use mlua::FromLua;
@@ -105,7 +105,7 @@ pub struct Config {
     #[device_config(from_lua, default)]
     pub devices: Option<Devices>,
     #[device_config(from_lua)]
-    pub mqtt: WrappedAsyncClient,
+    pub mqtt: MqttConfig,
     #[device_config(from_lua, default)]
     #[typed(default)]
     pub schedule: HashMap<String, ActionCallback<()>>,

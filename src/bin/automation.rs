@@ -11,6 +11,7 @@ use automation::secret::EnvironmentSecretFile;
 use automation::version::VERSION;
 use automation::web::{ApiError, User};
 use automation_lib::device_manager::DeviceManager;
+use automation_lib::mqtt;
 use axum::extract::{FromRef, State};
 use axum::http::StatusCode;
 use axum::routing::post;
@@ -139,8 +140,10 @@ async fn app() -> anyhow::Result<()> {
     let entrypoint = Path::new(&setup.entrypoint);
     let config: Config = lua.load(entrypoint).eval_async().await?;
 
+    let mqtt_client = mqtt::start(config.mqtt, &device_manager.event_channel());
+
     if let Some(devices) = config.devices {
-        for device in devices.get(&lua, &config.mqtt).await? {
+        for device in devices.get(&lua, &mqtt_client).await? {
             device_manager.add(device).await;
         }
     }
