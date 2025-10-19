@@ -10,5 +10,5 @@ local FulfillmentConfig
 ---@class Config
 ---@field fulfillment FulfillmentConfig
 ---@field devices DeviceInterface[]?
----@field schedule table<string, function>?
+---@field schedule table<string, fun() | fun()[]>?
 local Config

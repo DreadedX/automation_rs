@@ -1,10 +1,11 @@
 use std::collections::HashMap;
 use std::pin::Pin;
 
+use automation_lib::action_callback::ActionCallback;
 use tokio_cron_scheduler::{Job, JobScheduler, JobSchedulerError};
 
 pub async fn start_scheduler(
-    schedule: HashMap<String, mlua::Function>,
+    schedule: HashMap<String, ActionCallback<()>>,
 ) -> Result<(), JobSchedulerError> {
     let scheduler = JobScheduler::new().await?;
 
@@ -14,7 +15,7 @@ pub async fn start_scheduler(
                 let f = f.clone();
 
                 Box::pin(async move {
-                    f.call_async::<()>(()).await.unwrap();
+                    f.call(()).await;
                 })
             }
         };

@@ -1,6 +1,7 @@
 use std::collections::HashMap;
 use std::net::{Ipv4Addr, SocketAddr};
 
+use automation_lib::action_callback::ActionCallback;
 use automation_lib::device::Device;
 use automation_macro::LuaDeviceConfig;
 use lua_typed::Typed;
@@ -39,7 +40,7 @@ pub struct Config {
     pub devices: Vec<Box<dyn Device>>,
     #[device_config(from_lua, default)]
     #[typed(default)]
-    pub schedule: HashMap<String, mlua::Function>,
+    pub schedule: HashMap<String, ActionCallback<()>>,
 }
 
 impl From<FulfillmentConfig> for SocketAddr {
