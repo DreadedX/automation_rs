@@ -20,7 +20,7 @@ pub struct Setup {
 }
 
 fn default_entrypoint() -> String {
-    "./config.lua".into()
+    "./config/config.lua".into()
 }
 
 #[derive(Debug, Deserialize, Typed)]
