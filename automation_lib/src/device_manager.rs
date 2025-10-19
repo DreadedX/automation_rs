@@ -2,8 +2,6 @@ use std::collections::HashMap;
 use std::sync::Arc;
 
 use futures::future::join_all;
-use lua_typed::Typed;
-use mlua::FromLua;
 use tokio::sync::{RwLock, RwLockReadGuard};
 use tracing::{debug, instrument, trace};
 
@@ -12,7 +10,7 @@ use crate::event::{Event, EventChannel, OnMqtt};
 
 pub type DeviceMap = HashMap<String, Box<dyn Device>>;
 
-#[derive(Clone, FromLua)]
+#[derive(Clone)]
 pub struct DeviceManager {
     devices: Arc<RwLock<DeviceMap>>,
     event_channel: EventChannel,
@@ -87,23 +85,5 @@ impl DeviceManager {
                 join_all(iter).await;
             }
         }
-    }
-}
-
-impl mlua::UserData for DeviceManager {
-    fn add_methods<M: mlua::UserDataMethods<Self>>(methods: &mut M) {
-        methods.add_async_method("add", async |_lua, this, device: Box<dyn Device>| {
-            this.add(device).await;
-
-            Ok(())
-        });
-
-        methods.add_method("event_channel", |_lua, this, ()| Ok(this.event_channel()))
-    }
-}
-
-impl Typed for DeviceManager {
-    fn type_name() -> String {
-        "DeviceManager".into()
     }
 }

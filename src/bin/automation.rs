@@ -132,8 +132,6 @@ async fn app() -> anyhow::Result<()> {
 
     automation_lib::load_modules(&lua)?;
 
-    lua.register_module("automation:device_manager", device_manager.clone())?;
-
     lua.register_module("automation:variables", lua.to_value(&setup.variables)?)?;
     lua.register_module("automation:secrets", lua.to_value(&setup.secrets)?)?;
 
