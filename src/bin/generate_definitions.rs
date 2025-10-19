@@ -1,7 +1,7 @@
 use std::fs::{self, File};
 use std::io::Write;
 
-use automation::config::{Config, FulfillmentConfig};
+use automation::config::{Config, Devices, FulfillmentConfig};
 use automation_lib::Module;
 use lua_typed::Typed;
 use tracing::{info, warn};
@@ -33,6 +33,8 @@ fn config_definitions() -> String {
         &FulfillmentConfig::generate_full().expect("FulfillmentConfig should have a definition");
     output += "\n";
     output += &Config::generate_full().expect("Config should have a definition");
+    output += "\n";
+    output += &Devices::generate_full().expect("Devices should have a definition");
 
     output
 }

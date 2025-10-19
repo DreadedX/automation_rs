@@ -742,11 +742,15 @@ devs:add(devices.ContactSensor.new({
 	battery_callback = check_battery,
 }))
 
+-- HACK: If the devices config contains a function it will call it so we have to remove it
+devs.add = nil
+
 ---@type Config
 return {
 	fulfillment = {
 		openid_url = "https://login.huizinga.dev/api/oidc",
 	},
+	mqtt = mqtt_client,
 	devices = devs,
 	schedule = {
 		["0 0 19 * * *"] = function()

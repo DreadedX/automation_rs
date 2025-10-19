@@ -139,8 +139,10 @@ async fn app() -> anyhow::Result<()> {
     let entrypoint = Path::new(&setup.entrypoint);
     let config: Config = lua.load(entrypoint).eval_async().await?;
 
-    for device in config.devices {
-        device_manager.add(device).await;
+    if let Some(devices) = config.devices {
+        for device in devices.get(&lua, &config.mqtt).await? {
+            device_manager.add(device).await;
+        }
     }
 
     start_scheduler(config.schedule).await?;

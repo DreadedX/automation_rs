@@ -9,6 +9,9 @@ local FulfillmentConfig
 
 ---@class Config
 ---@field fulfillment FulfillmentConfig
----@field devices DeviceInterface[]?
+---@field devices Devices?
+---@field mqtt AsyncClient
 ---@field schedule table<string, fun() | fun()[]>?
 local Config
+
+---@alias Devices (DeviceInterface | fun(client: AsyncClient): Devices)[]
