@@ -27,7 +27,7 @@ impl mlua::FromLua for Box<dyn Device> {
     fn from_lua(value: mlua::Value, _lua: &mlua::Lua) -> mlua::Result<Self> {
         match value {
             mlua::Value::UserData(ud) => {
-                let ud = if ud.is::<Box<dyn Device>>() {
+                let ud = if ud.is::<Self>() {
                     ud
                 } else {
                     ud.call_method::<_>("__box", ())?
@@ -36,7 +36,10 @@ impl mlua::FromLua for Box<dyn Device> {
                 let b = ud.borrow::<Self>()?.clone();
                 Ok(b)
             }
-            _ => Err(mlua::Error::RuntimeError("Expected user data".into())),
+            _ => Err(mlua::Error::runtime(format!(
+                "Expected user data, instead found: {}",
+                value.type_name()
+            ))),
         }
     }
 }
