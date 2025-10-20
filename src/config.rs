@@ -35,10 +35,10 @@ pub struct FulfillmentConfig {
 }
 
 #[derive(Debug, Default)]
-pub struct Devices(mlua::Value);
+pub struct Modules(mlua::Value);
 
-impl Devices {
-    pub async fn get(
+impl Modules {
+    pub async fn setup(
         self,
         lua: &mlua::Lua,
         client: &WrappedAsyncClient,
@@ -60,17 +60,22 @@ impl Devices {
             };
 
             for pair in table.pairs() {
-                let (_, value): (mlua::Value, _) = pair?;
+                let (name, value): (String, _) = pair?;
 
                 match value {
-                    mlua::Value::UserData(_) => devices.push(Box::from_lua(value, lua)?),
-                    mlua::Value::Function(f) => {
-                        queue.push_back(f.call_async(client.clone()).await?);
+                    mlua::Value::Table(table) => queue.push_back(table),
+                    mlua::Value::UserData(_)
+                        if let Ok(device) = Box::from_lua(value.clone(), lua) =>
+                    {
+                        devices.push(device);
                     }
-                    _ => Err(mlua::Error::runtime(format!(
-                        "Expected a device, table, or function, instead found: {}",
-                        value.type_name()
-                    )))?,
+                    mlua::Value::Function(f) if name == "setup" => {
+                        let value: mlua::Value = f.call_async(client.clone()).await?;
+                        if let Some(table) = value.as_table() {
+                            queue.push_back(table.clone());
+                        }
+                    }
+                    _ => {}
                 }
             }
         }
@@ -79,22 +84,26 @@ impl Devices {
     }
 }
 
-impl FromLua for Devices {
+impl FromLua for Modules {
     fn from_lua(value: mlua::Value, _lua: &mlua::Lua) -> mlua::Result<Self> {
-        Ok(Devices(value))
+        Ok(Modules(value))
     }
 }
 
-impl Typed for Devices {
+impl Typed for Modules {
     fn type_name() -> String {
-        "Devices".into()
+        "Modules".into()
     }
 
     fn generate_header() -> Option<String> {
+        let type_name = Self::type_name();
+        let client_type = WrappedAsyncClient::type_name();
+
         Some(format!(
-            "---@alias {} (DeviceInterface | fun(client: {}): Devices)[]\n",
-            <Self as Typed>::type_name(),
-            <WrappedAsyncClient as Typed>::type_name()
+            r#"---@alias SetupFunction fun(mqtt_client: {client_type}): SetupTable?
+---@alias SetupTable (DeviceInterface | {{ setup: SetupFunction? }} | SetupTable)[]
+---@alias {type_name} SetupFunction | SetupTable
+"#,
         ))
     }
 }
@@ -103,7 +112,7 @@ impl Typed for Devices {
 pub struct Config {
     pub fulfillment: FulfillmentConfig,
     #[device_config(from_lua, default)]
-    pub devices: Option<Devices>,
+    pub modules: Option<Modules>,
     #[device_config(from_lua)]
     pub mqtt: MqttConfig,
     #[device_config(from_lua, default)]

@@ -312,6 +312,7 @@ local bedroom_air_filter = devices.AirFilter.new({
 	url = "http://10.0.0.103",
 })
 
+--- @type SetupFunction
 local function create_devs(mqtt_client)
 	on_presence:add(function(presence)
 		mqtt_client:send_message(mqtt_automation("debug") .. "/presence", {
@@ -749,8 +750,8 @@ return {
 		openid_url = "https://login.huizinga.dev/api/oidc",
 	},
 	mqtt = mqtt_config,
-	devices = {
-		create_devs,
+	modules = {
+		setup = create_devs,
 		ntfy,
 		hue_bridge,
 		kitchen_lights,
