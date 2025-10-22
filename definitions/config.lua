@@ -9,14 +9,16 @@ local FulfillmentConfig
 
 ---@class Config
 ---@field fulfillment FulfillmentConfig
----@field modules (Modules)?
+---@field modules (Module)[]
 ---@field mqtt MqttConfig
 ---@field schedule (table<string, fun() | fun()[]>)?
 local Config
 
----@alias SetupFunction fun(mqtt_client: AsyncClient): SetupTable?
----@alias SetupTable (DeviceInterface | { setup: SetupFunction? } | SetupTable)[]
----@alias Modules SetupFunction | SetupTable
+---@class Module
+---@field setup (fun(mqtt_client: AsyncClient): Module | DeviceInterface[] | nil)?
+---@field devices (DeviceInterface)[]?
+---@field [number] (Module)[]?
+local Module
 
 ---@class MqttConfig
 ---@field host string

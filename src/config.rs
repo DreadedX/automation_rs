@@ -34,85 +34,162 @@ pub struct FulfillmentConfig {
     pub port: u16,
 }
 
+#[derive(Debug)]
+pub struct SetupFunction(mlua::Function);
+
+impl Typed for SetupFunction {
+    fn type_name() -> String {
+        format!(
+            "fun(mqtt_client: {}): {} | DeviceInterface[] | nil",
+            WrappedAsyncClient::type_name(),
+            Module::type_name()
+        )
+    }
+}
+
+impl FromLua for SetupFunction {
+    fn from_lua(value: mlua::Value, lua: &mlua::Lua) -> mlua::Result<Self> {
+        Ok(Self(FromLua::from_lua(value, lua)?))
+    }
+}
+
 #[derive(Debug, Default)]
-pub struct Modules(mlua::Value);
+pub struct Module {
+    pub setup: Option<SetupFunction>,
+    pub devices: Vec<Box<dyn Device>>,
+    pub modules: Vec<Module>,
+}
 
-impl Modules {
-    pub async fn setup(
-        self,
-        lua: &mlua::Lua,
-        client: &WrappedAsyncClient,
-    ) -> mlua::Result<Vec<Box<dyn Device>>> {
-        let mut devices = Vec::new();
-        let initial_table = match self.0 {
-            mlua::Value::Table(table) => table,
-            mlua::Value::Function(f) => f.call_async(client.clone()).await?,
-            _ => Err(mlua::Error::runtime(format!(
-                "Expected table or function, instead found: {}",
-                self.0.type_name()
-            )))?,
-        };
+// TODO: Add option to typed to rename field
+impl Typed for Module {
+    fn type_name() -> String {
+        "Module".into()
+    }
 
-        let mut queue: VecDeque<mlua::Table> = [initial_table].into();
-        loop {
-            let Some(table) = queue.pop_front() else {
-                break;
-            };
+    fn generate_header() -> Option<String> {
+        Some(format!("---@class {}\n", Self::type_name()))
+    }
 
-            for pair in table.pairs() {
-                let (name, value): (String, _) = pair?;
+    fn generate_members() -> Option<String> {
+        Some(format!(
+            r#"---@field setup {}
+---@field devices {}?
+---@field [number] {}?
+"#,
+            Option::<SetupFunction>::type_name(),
+            Vec::<Box<dyn Device>>::type_name(),
+            Vec::<Module>::type_name(),
+        ))
+    }
 
-                match value {
-                    mlua::Value::Table(table) => queue.push_back(table),
-                    mlua::Value::UserData(_)
-                        if let Ok(device) = Box::from_lua(value.clone(), lua) =>
-                    {
-                        devices.push(device);
-                    }
-                    mlua::Value::Function(f) if name == "setup" => {
-                        let value: mlua::Value = f.call_async(client.clone()).await?;
-                        if let Some(table) = value.as_table() {
-                            queue.push_back(table.clone());
-                        }
-                    }
-                    _ => {}
-                }
-            }
+    fn generate_footer() -> Option<String> {
+        let type_name = <Self as Typed>::type_name();
+        Some(format!("local {type_name}\n"))
+    }
+}
+
+impl FromLua for Module {
+    fn from_lua(value: mlua::Value, _lua: &mlua::Lua) -> mlua::Result<Self> {
+        // When calling require it might return a result from the searcher indicating how the
+        // module was found, we want to ignore these entries.
+        // TODO: Find a better solution for this
+        if value.is_string() {
+            return Ok(Default::default());
         }
 
-        Ok(devices)
+        let mlua::Value::Table(table) = value else {
+            return Err(mlua::Error::runtime(format!(
+                "Expected module table, instead found: {}",
+                value.type_name()
+            )));
+        };
+
+        let setup = table.get("setup")?;
+
+        let devices = table.get("devices").unwrap_or_default();
+        let mut modules = Vec::new();
+
+        for module in table.sequence_values::<Module>() {
+            modules.push(module?);
+        }
+
+        Ok(Module {
+            setup,
+            devices,
+            modules,
+        })
+    }
+}
+
+#[derive(Debug, Default)]
+pub struct Modules(Vec<Module>);
+
+impl Typed for Modules {
+    fn type_name() -> String {
+        Vec::<Module>::type_name()
     }
 }
 
 impl FromLua for Modules {
-    fn from_lua(value: mlua::Value, _lua: &mlua::Lua) -> mlua::Result<Self> {
-        Ok(Modules(value))
+    fn from_lua(value: mlua::Value, lua: &mlua::Lua) -> mlua::Result<Self> {
+        Ok(Self(FromLua::from_lua(value, lua)?))
     }
 }
 
-impl Typed for Modules {
-    fn type_name() -> String {
-        "Modules".into()
-    }
+impl Modules {
+    pub async fn resolve(
+        self,
+        lua: &mlua::Lua,
+        client: &WrappedAsyncClient,
+    ) -> mlua::Result<Resolved> {
+        let mut modules: VecDeque<_> = self.0.into();
 
-    fn generate_header() -> Option<String> {
-        let type_name = Self::type_name();
-        let client_type = WrappedAsyncClient::type_name();
+        let mut devices = Vec::new();
 
-        Some(format!(
-            r#"---@alias SetupFunction fun(mqtt_client: {client_type}): SetupTable?
----@alias SetupTable (DeviceInterface | {{ setup: SetupFunction? }} | SetupTable)[]
----@alias {type_name} SetupFunction | SetupTable
-"#,
-        ))
+        loop {
+            let Some(module) = modules.pop_front() else {
+                break;
+            };
+
+            modules.extend(module.modules);
+
+            if let Some(setup) = module.setup {
+                let result: mlua::Value = setup.0.call_async(client.clone()).await?;
+
+                if result.is_nil() {
+                    // We ignore nil results
+                } else if let Ok(d) = <Vec<_> as FromLua>::from_lua(result.clone(), lua)
+                    && !d.is_empty()
+                {
+                    // This is a shortcut for the common pattern of setup functions that only
+                    // return devices
+                    devices.extend(d);
+                } else if let Ok(module) = FromLua::from_lua(result.clone(), lua) {
+                    modules.push_back(module);
+                } else {
+                    return Err(mlua::Error::runtime(
+                        "Setup function returned data in an unexpected format",
+                    ));
+                }
+            }
+
+            devices.extend(module.devices);
+        }
+
+        Ok(Resolved { devices })
     }
+}
+
+#[derive(Debug, Default)]
+pub struct Resolved {
+    pub devices: Vec<Box<dyn Device>>,
 }
 
 #[derive(Debug, LuaDeviceConfig, Typed)]
 pub struct Config {
     pub fulfillment: FulfillmentConfig,
     #[device_config(from_lua, default)]
-    pub modules: Option<Modules>,
+    pub modules: Modules,
     #[device_config(from_lua)]
     pub mqtt: MqttConfig,
     #[device_config(from_lua, default)]

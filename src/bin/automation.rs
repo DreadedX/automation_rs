@@ -140,10 +140,9 @@ async fn app() -> anyhow::Result<()> {
 
     let mqtt_client = mqtt::start(config.mqtt, &device_manager.event_channel());
 
-    if let Some(modules) = config.modules {
-        for device in modules.setup(&lua, &mqtt_client).await? {
-            device_manager.add(device).await;
-        }
+    let resolved = config.modules.resolve(&lua, &mqtt_client).await?;
+    for device in resolved.devices {
+        device_manager.add(device).await;
     }
 
     start_scheduler(config.schedule).await?;

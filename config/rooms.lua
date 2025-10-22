@@ -1,4 +1,4 @@
---- @type SetupTable
+--- @type Module
 return {
 	require("config.rooms.bathroom"),
 	require("config.rooms.bedroom"),
