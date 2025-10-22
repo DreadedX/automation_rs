@@ -21,5 +21,7 @@ RUN cargo auditable build --release
 
 FROM gcr.io/distroless/cc-debian12:nonroot AS runtime
 COPY --from=builder /app/target/release/automation /app/automation
+ENV AUTOMATION__ENTRYPOINT=/app/config/config.lua
+ENV LUA_PATH="/app/?.lua;;"
 COPY ./config /app/config
 CMD [ "/app/automation" ]
