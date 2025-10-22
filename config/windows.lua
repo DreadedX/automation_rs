@@ -1,6 +1,7 @@
 local ntfy = require("config.ntfy")
 local presence = require("config.presence")
 
+--- @class WindowsModule: Module
 local module = {}
 
 --- @class OnPresence

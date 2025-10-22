@@ -1,6 +1,7 @@
 local devices = require("automation:devices")
 local secrets = require("automation:secrets")
 
+--- @class NtfyModule: Module
 local module = {}
 
 local ntfy_topic = secrets.ntfy_topic
@@ -24,6 +25,7 @@ function module.setup()
 		topic = ntfy_topic,
 	})
 
+	--- @type Module
 	return {
 		ntfy,
 	}

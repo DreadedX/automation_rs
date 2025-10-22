@@ -5,9 +5,9 @@ local helper = require("config.helper")
 local presence = require("config.presence")
 local utils = require("automation:utils")
 
+--- @type Module
 local module = {}
 
---- @type SetupFunction
 function module.setup(mqtt_client)
 	local charger = devices.OutletOnOff.new({
 		name = "Charger",
@@ -57,6 +57,7 @@ function module.setup(mqtt_client)
 		battery_callback = battery.callback,
 	})
 
+	--- @type Module
 	return {
 		charger,
 		outlets,

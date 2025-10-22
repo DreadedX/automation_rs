@@ -2,6 +2,7 @@ local devices = require("automation:devices")
 local helper = require("config.helper")
 local ntfy = require("config.ntfy")
 
+--- @class PresenceModule: Module
 local module = {}
 
 --- @class OnPresence
@@ -61,6 +62,7 @@ function module.setup(mqtt_client)
 		})
 	end)
 
+	--- @type Module
 	return {
 		presence,
 	}

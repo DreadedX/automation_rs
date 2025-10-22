@@ -1,6 +1,7 @@
 local debug = require("config.debug")
 local utils = require("automation:utils")
 
+--- @class HallwayAutomationModule: Module
 local module = {}
 
 local timeout = utils.Timeout.new()

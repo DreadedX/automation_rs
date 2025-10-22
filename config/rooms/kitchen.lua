@@ -4,6 +4,7 @@ local helper = require("config.helper")
 local hue_bridge = require("config.hue_bridge")
 local presence = require("config.presence")
 
+--- @class KitchenModule: Module
 local module = {}
 
 --- @type HueGroup?

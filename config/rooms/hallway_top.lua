@@ -3,9 +3,9 @@ local devices = require("automation:devices")
 local helper = require("config.helper")
 local hue_bridge = require("config.hue_bridge")
 
+--- @type Module
 local module = {}
 
---- @type SetupFunction
 function module.setup(mqtt_client)
 	local light = devices.HueGroup.new({
 		identifier = "hallway_top_light",
@@ -37,6 +37,7 @@ function module.setup(mqtt_client)
 		battery_callback = battery.callback,
 	})
 
+	--- @type Module
 	return {
 		light,
 		top_switch,

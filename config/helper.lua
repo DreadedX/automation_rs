@@ -1,5 +1,6 @@
 local utils = require("automation:utils")
 
+--- @class HelperModule: Module
 local module = {}
 
 --- @param topic string

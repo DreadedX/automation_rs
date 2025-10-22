@@ -1,6 +1,7 @@
 local devices = require("automation:devices")
 local helper = require("config.helper")
 
+--- @class LightModule: Module
 local module = {}
 
 --- @class OnPresence
@@ -34,6 +35,7 @@ function module.setup(mqtt_client)
 		callback = callback,
 	})
 
+	--- @type Module
 	return {
 		module.device,
 	}

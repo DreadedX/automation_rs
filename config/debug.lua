@@ -4,6 +4,7 @@ local presence = require("config.presence")
 local utils = require("automation:utils")
 local variables = require("automation:variables")
 
+--- @class DebugModule: Module
 local module = {}
 
 if variables.debug == "true" then

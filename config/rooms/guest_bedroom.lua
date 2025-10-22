@@ -4,9 +4,9 @@ local helper = require("config.helper")
 local presence = require("config.presence")
 local windows = require("config.windows")
 
+--- @type Module
 local module = {}
 
---- @type SetupFunction
 function module.setup(mqtt_client)
 	local light = devices.LightOnOff.new({
 		name = "Light",
@@ -25,6 +25,7 @@ function module.setup(mqtt_client)
 	})
 	windows.add(window)
 
+	--- @type Module
 	return {
 		light,
 		window,

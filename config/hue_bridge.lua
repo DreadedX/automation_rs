@@ -3,6 +3,7 @@ local light = require("config.light")
 local presence = require("config.presence")
 local secrets = require("automation:secrets")
 
+--- @class HueBridgeModule: Module
 local module = {}
 
 module.ip = "10.0.0.102"

@@ -8,9 +8,9 @@ local presence = require("config.presence")
 local utils = require("automation:utils")
 local windows = require("config.windows")
 
+--- @type Module
 local module = {}
 
---- @type SetupFunction
 function module.setup(mqtt_client)
 	local main_light = devices.HueGroup.new({
 		identifier = "hallway_main_light",
@@ -97,6 +97,7 @@ function module.setup(mqtt_client)
 	windows.add(frontdoor)
 	hallway_automation.set_door(frontdoor)
 
+	--- @type Module
 	return {
 		main_light,
 		storage_light,

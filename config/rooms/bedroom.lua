@@ -4,12 +4,12 @@ local helper = require("config.helper")
 local hue_bridge = require("config.hue_bridge")
 local windows = require("config.windows")
 
+--- @type Module
 local module = {}
 
 --- @type AirFilter?
 local air_filter = nil
 
---- @type SetupFunction
 function module.setup(mqtt_client)
 	local lights = devices.HueGroup.new({
 		identifier = "bedroom_lights",
@@ -55,6 +55,7 @@ function module.setup(mqtt_client)
 	})
 	windows.add(window)
 
+	--- @type Module
 	return {
 		devices = {
 			lights,

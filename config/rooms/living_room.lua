@@ -5,9 +5,9 @@ local hue_bridge = require("config.hue_bridge")
 local presence = require("config.presence")
 local windows = require("config.windows")
 
+--- @type Module
 local module = {}
 
---- @type SetupFunction
 function module.setup(mqtt_client)
 	local lights = devices.HueGroup.new({
 		identifier = "living_lights",
@@ -109,6 +109,7 @@ function module.setup(mqtt_client)
 	})
 	windows.add(window)
 
+	--- @type Module
 	return {
 		lights,
 		lights_relax,

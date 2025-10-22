@@ -3,9 +3,9 @@ local devices = require("automation:devices")
 local helper = require("config.helper")
 local ntfy = require("config.ntfy")
 
+--- @type Module
 local module = {}
 
---- @type SetupFunction
 function module.setup(mqtt_client)
 	local light = devices.LightOnOff.new({
 		name = "Light",
@@ -30,6 +30,7 @@ function module.setup(mqtt_client)
 		end,
 	})
 
+	--- @type Module
 	return {
 		light,
 		washer,

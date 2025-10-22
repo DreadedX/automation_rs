@@ -1,5 +1,6 @@
 local ntfy = require("config.ntfy")
 
+--- @class BatteryModule: Module
 local module = {}
 
 --- @type {[string]: number}
@@ -17,7 +18,7 @@ function module.callback(device, battery)
 	end
 end
 
-function module.notify_low_battery()
+local function notify_low_battery()
 	-- Don't send notifications if there are now devices with low battery
 	if next(low_battery) == nil then
 		print("No devices with low battery")
@@ -38,8 +39,9 @@ function module.notify_low_battery()
 	})
 end
 
+--- @type Schedule
 module.schedule = {
-	["0 0 21 */1 * *"] = module.notify_low_battery,
+	["0 0 21 */1 * *"] = notify_low_battery,
 }
 
 return module

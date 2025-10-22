@@ -3,9 +3,9 @@ local devices = require("automation:devices")
 local helper = require("config.helper")
 local presence = require("config.presence")
 
+--- @type Module
 local module = {}
 
---- @type SetupFunction
 function module.setup(mqtt_client)
 	local light = devices.LightBrightness.new({
 		name = "Light",
@@ -31,6 +31,7 @@ function module.setup(mqtt_client)
 		battery_callback = battery.callback,
 	})
 
+	--- @type Module
 	return {
 		light,
 		door,
