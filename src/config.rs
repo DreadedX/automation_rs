@@ -1,5 +1,6 @@
 use std::collections::{HashMap, VecDeque};
 use std::net::{Ipv4Addr, SocketAddr};
+use std::ops::Deref;
 
 use automation_lib::action_callback::ActionCallback;
 use automation_lib::device::Device;
@@ -60,6 +61,14 @@ impl FromLua for SetupFunction {
     }
 }
 
+impl Deref for SetupFunction {
+    type Target = mlua::Function;
+
+    fn deref(&self) -> &Self::Target {
+        &self.0
+    }
+}
+
 #[derive(Debug, Default)]
 pub struct Schedule(HashMap<String, ActionCallback<()>>);
 
@@ -80,6 +89,16 @@ impl Typed for Schedule {
 impl FromLua for Schedule {
     fn from_lua(value: mlua::Value, lua: &mlua::Lua) -> mlua::Result<Self> {
         Ok(Self(FromLua::from_lua(value, lua)?))
+    }
+}
+
+impl IntoIterator for Schedule {
+    type Item = <HashMap<String, ActionCallback<()>> as IntoIterator>::Item;
+
+    type IntoIter = <HashMap<String, ActionCallback<()>> as IntoIterator>::IntoIter;
+
+    fn into_iter(self) -> Self::IntoIter {
+        self.0.into_iter()
     }
 }
 
@@ -189,7 +208,7 @@ impl Modules {
             modules.extend(module.modules);
 
             if let Some(setup) = module.setup {
-                let result: mlua::Value = setup.0.call_async(client.clone()).await?;
+                let result: mlua::Value = setup.call_async(client.clone()).await?;
 
                 if result.is_nil() {
                     // We ignore nil results
@@ -209,7 +228,7 @@ impl Modules {
             }
 
             devices.extend(module.devices);
-            for (cron, f) in module.schedule.0 {
+            for (cron, f) in module.schedule {
                 scheduler.add_job(cron, f);
             }
         }
