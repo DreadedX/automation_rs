@@ -1,12 +1,8 @@
 use std::fs::{self, File};
 use std::io::Write;
 
-use automation::config::{
-    Config, FulfillmentConfig, Module as ConfigModule, Schedule, SetupFunction,
-};
+use automation::config::generate_definitions;
 use automation_lib::Module;
-use automation_lib::mqtt::{MqttConfig, WrappedAsyncClient};
-use lua_typed::Typed;
 use tracing::{info, warn};
 
 extern crate automation_devices;
@@ -29,28 +25,6 @@ fn write_definitions(filename: &str, definitions: &str) -> std::io::Result<()> {
     Ok(())
 }
 
-fn config_definitions() -> String {
-    let mut output = "---@meta\n\n".to_string();
-
-    output +=
-        &FulfillmentConfig::generate_full().expect("FulfillmentConfig should have a definition");
-    output += "\n";
-    output += &Config::generate_full().expect("Config should have a definition");
-    output += "\n";
-    output += &SetupFunction::generate_full().expect("SetupFunction should have a definition");
-    output += "\n";
-    output += &Schedule::generate_full().expect("Schedule should have a definition");
-    output += "\n";
-    output += &ConfigModule::generate_full().expect("Module should have a definition");
-    output += "\n";
-    output += &MqttConfig::generate_full().expect("MqttConfig should have a definition");
-    output += "\n";
-    output +=
-        &WrappedAsyncClient::generate_full().expect("WrappedAsyncClient should have a definition");
-
-    output
-}
-
 fn main() -> std::io::Result<()> {
     tracing_subscriber::fmt::init();
 
@@ -65,7 +39,7 @@ fn main() -> std::io::Result<()> {
         }
     }
 
-    write_definitions("config.lua", &config_definitions())?;
+    write_definitions("config.lua", &generate_definitions())?;
 
     Ok(())
 }

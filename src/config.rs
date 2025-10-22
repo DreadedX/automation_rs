@@ -38,7 +38,7 @@ pub struct FulfillmentConfig {
 }
 
 #[derive(Debug)]
-pub struct SetupFunction(mlua::Function);
+struct SetupFunction(mlua::Function);
 
 impl Typed for SetupFunction {
     fn type_name() -> String {
@@ -70,7 +70,7 @@ impl Deref for SetupFunction {
 }
 
 #[derive(Debug, Default)]
-pub struct Schedule(HashMap<String, ActionCallback<()>>);
+struct Schedule(HashMap<String, ActionCallback<()>>);
 
 impl Typed for Schedule {
     fn type_name() -> String {
@@ -103,11 +103,11 @@ impl IntoIterator for Schedule {
 }
 
 #[derive(Debug, Default)]
-pub struct Module {
-    pub setup: Option<SetupFunction>,
-    pub devices: Vec<Box<dyn Device>>,
-    pub schedule: Schedule,
-    pub modules: Vec<Module>,
+struct Module {
+    setup: Option<SetupFunction>,
+    devices: Vec<Box<dyn Device>>,
+    schedule: Schedule,
+    modules: Vec<Module>,
 }
 
 // TODO: Add option to typed to rename field
@@ -263,4 +263,26 @@ fn default_fulfillment_ip() -> Ipv4Addr {
 
 fn default_fulfillment_port() -> u16 {
     7878
+}
+
+pub fn generate_definitions() -> String {
+    let mut output = "---@meta\n\n".to_string();
+
+    output +=
+        &FulfillmentConfig::generate_full().expect("FulfillmentConfig should have a definition");
+    output += "\n";
+    output += &Config::generate_full().expect("Config should have a definition");
+    output += "\n";
+    output += &SetupFunction::generate_full().expect("SetupFunction should have a definition");
+    output += "\n";
+    output += &Schedule::generate_full().expect("Schedule should have a definition");
+    output += "\n";
+    output += &Module::generate_full().expect("Module should have a definition");
+    output += "\n";
+    output += &MqttConfig::generate_full().expect("MqttConfig should have a definition");
+    output += "\n";
+    output +=
+        &WrappedAsyncClient::generate_full().expect("WrappedAsyncClient should have a definition");
+
+    output
 }
