@@ -555,7 +555,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "778e2ac28f6c47af28e4907f13ffd1e1ddbd400980a9abd7c8df189bf578a5ad"
 dependencies = [
  "libc",
- "windows-sys 0.59.0",
+ "windows-sys 0.52.0",
 ]
 
 [[package]]
@@ -1163,17 +1163,16 @@ dependencies = [
 [[package]]
 name = "lua_typed"
 version = "0.1.0"
-source = "git+https://git.huizinga.dev/Dreaded_X/lua_typed#f6a684291432aae2ef7109712882e7e3ed758d08"
+source = "git+https://git.huizinga.dev/Dreaded_X/lua_typed#3d29c9dd143737c8bffe4bacae8e701de3c6ee10"
 dependencies = [
  "eui48",
  "lua_typed_macro",
- "mlua",
 ]
 
 [[package]]
 name = "lua_typed_macro"
 version = "0.1.0"
-source = "git+https://git.huizinga.dev/Dreaded_X/lua_typed#f6a684291432aae2ef7109712882e7e3ed758d08"
+source = "git+https://git.huizinga.dev/Dreaded_X/lua_typed#3d29c9dd143737c8bffe4bacae8e701de3c6ee10"
 dependencies = [
  "convert_case",
  "itertools",
@@ -1568,7 +1567,7 @@ dependencies = [
  "once_cell",
  "socket2",
  "tracing",
- "windows-sys 0.59.0",
+ "windows-sys 0.52.0",
 ]
 
 [[package]]
@@ -1745,7 +1744,7 @@ dependencies = [
  "errno",
  "libc",
  "linux-raw-sys",
- "windows-sys 0.59.0",
+ "windows-sys 0.52.0",
 ]
 
 [[package]]

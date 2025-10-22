@@ -3,15 +3,15 @@
 
 ---@class FulfillmentConfig
 ---@field openid_url string
----@field ip string?
----@field port integer?
+---@field ip (string)?
+---@field port (integer)?
 local FulfillmentConfig
 
 ---@class Config
 ---@field fulfillment FulfillmentConfig
----@field modules Modules?
+---@field modules (Modules)?
 ---@field mqtt MqttConfig
----@field schedule table<string, fun() | fun()[]>?
+---@field schedule (table<string, fun() | fun()[]>)?
 local Config
 
 ---@alias SetupFunction fun(mqtt_client: AsyncClient): SetupTable?
@@ -24,7 +24,7 @@ local Config
 ---@field client_name string
 ---@field username string
 ---@field password string
----@field tls boolean?
+---@field tls (boolean)?
 local MqttConfig
 
 ---@class AsyncClient

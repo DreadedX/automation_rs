@@ -6,9 +6,9 @@ local devices
 ---@class Action
 ---@field action
 ---| "broadcast"
----@field extras table<string, string>?
+---@field extras (table<string, string>)?
 ---@field label string
----@field clear boolean?
+---@field clear (boolean)?
 local Action
 
 ---@class AirFilter: DeviceInterface, OnOffInterface
@@ -20,49 +20,49 @@ function devices.AirFilter.new(config) end
 
 ---@class AirFilterConfig
 ---@field name string
----@field room string?
+---@field room (string)?
 ---@field url string
 local AirFilterConfig
 
 ---@class ConfigLightLightStateBrightness
 ---@field name string
----@field room string?
+---@field room (string)?
 ---@field topic string
----@field callback fun(_: LightBrightness, _: LightStateBrightness) | fun(_: LightBrightness, _: LightStateBrightness)[]?
----@field client AsyncClient?
+---@field callback (fun(_: LightBrightness, _: LightStateBrightness) | fun(_: LightBrightness, _: LightStateBrightness)[])?
+---@field client (AsyncClient)?
 local ConfigLightLightStateBrightness
 
 ---@class ConfigLightLightStateColorTemperature
 ---@field name string
----@field room string?
+---@field room (string)?
 ---@field topic string
----@field callback fun(_: LightColorTemperature, _: LightStateColorTemperature) | fun(_: LightColorTemperature, _: LightStateColorTemperature)[]?
----@field client AsyncClient?
+---@field callback (fun(_: LightColorTemperature, _: LightStateColorTemperature) | fun(_: LightColorTemperature, _: LightStateColorTemperature)[])?
+---@field client (AsyncClient)?
 local ConfigLightLightStateColorTemperature
 
 ---@class ConfigLightLightStateOnOff
 ---@field name string
----@field room string?
+---@field room (string)?
 ---@field topic string
----@field callback fun(_: LightOnOff, _: LightStateOnOff) | fun(_: LightOnOff, _: LightStateOnOff)[]?
----@field client AsyncClient?
+---@field callback (fun(_: LightOnOff, _: LightStateOnOff) | fun(_: LightOnOff, _: LightStateOnOff)[])?
+---@field client (AsyncClient)?
 local ConfigLightLightStateOnOff
 
 ---@class ConfigOutletOutletStateOnOff
 ---@field name string
----@field room string?
+---@field room (string)?
 ---@field topic string
----@field outlet_type OutletType?
----@field callback fun(_: OutletOnOff, _: OutletStateOnOff) | fun(_: OutletOnOff, _: OutletStateOnOff)[]?
+---@field outlet_type (OutletType)?
+---@field callback (fun(_: OutletOnOff, _: OutletStateOnOff) | fun(_: OutletOnOff, _: OutletStateOnOff)[])?
 ---@field client AsyncClient
 local ConfigOutletOutletStateOnOff
 
 ---@class ConfigOutletOutletStatePower
 ---@field name string
----@field room string?
+---@field room (string)?
 ---@field topic string
----@field outlet_type OutletType?
----@field callback fun(_: OutletPower, _: OutletStatePower) | fun(_: OutletPower, _: OutletStatePower)[]?
+---@field outlet_type (OutletType)?
+---@field callback (fun(_: OutletPower, _: OutletStatePower) | fun(_: OutletPower, _: OutletStatePower)[])?
 ---@field client AsyncClient
 local ConfigOutletOutletStatePower
 
@@ -75,12 +75,12 @@ function devices.ContactSensor.new(config) end
 
 ---@class ContactSensorConfig
 ---@field name string
----@field room string?
+---@field room (string)?
 ---@field topic string
----@field sensor_type SensorType?
----@field callback fun(_: ContactSensor, _: boolean) | fun(_: ContactSensor, _: boolean)[]?
----@field battery_callback fun(_: ContactSensor, _: number) | fun(_: ContactSensor, _: number)[]?
----@field client AsyncClient?
+---@field sensor_type (SensorType)?
+---@field callback (fun(_: ContactSensor, _: boolean) | fun(_: ContactSensor, _: boolean)[])?
+---@field battery_callback (fun(_: ContactSensor, _: number) | fun(_: ContactSensor, _: number)[])?
+---@field client (AsyncClient)?
 local ContactSensorConfig
 
 ---@alias Flag
@@ -134,14 +134,14 @@ function devices.HueSwitch.new(config) end
 
 ---@class HueSwitchConfig
 ---@field name string
----@field room string?
+---@field room (string)?
 ---@field topic string
 ---@field client AsyncClient
----@field left_callback fun(_: HueSwitch) | fun(_: HueSwitch)[]?
----@field right_callback fun(_: HueSwitch) | fun(_: HueSwitch)[]?
----@field left_hold_callback fun(_: HueSwitch) | fun(_: HueSwitch)[]?
----@field right_hold_callback fun(_: HueSwitch) | fun(_: HueSwitch)[]?
----@field battery_callback fun(_: HueSwitch, _: number) | fun(_: HueSwitch, _: number)[]?
+---@field left_callback (fun(_: HueSwitch) | fun(_: HueSwitch)[])?
+---@field right_callback (fun(_: HueSwitch) | fun(_: HueSwitch)[])?
+---@field left_hold_callback (fun(_: HueSwitch) | fun(_: HueSwitch)[])?
+---@field right_hold_callback (fun(_: HueSwitch) | fun(_: HueSwitch)[])?
+---@field battery_callback (fun(_: HueSwitch, _: number) | fun(_: HueSwitch, _: number)[])?
 local HueSwitchConfig
 
 ---@class IkeaRemote: DeviceInterface
@@ -153,12 +153,12 @@ function devices.IkeaRemote.new(config) end
 
 ---@class IkeaRemoteConfig
 ---@field name string
----@field room string?
----@field single_button boolean?
+---@field room (string)?
+---@field single_button (boolean)?
 ---@field topic string
 ---@field client AsyncClient
----@field callback fun(_: IkeaRemote, _: boolean) | fun(_: IkeaRemote, _: boolean)[]?
----@field battery_callback fun(_: IkeaRemote, _: number) | fun(_: IkeaRemote, _: number)[]?
+---@field callback (fun(_: IkeaRemote, _: boolean) | fun(_: IkeaRemote, _: boolean)[])?
+---@field battery_callback (fun(_: IkeaRemote, _: number) | fun(_: IkeaRemote, _: number)[])?
 local IkeaRemoteConfig
 
 ---@class KasaOutlet: DeviceInterface, OnOffInterface
@@ -206,7 +206,7 @@ function devices.LightSensor.new(config) end
 ---@field topic string
 ---@field min integer
 ---@field max integer
----@field callback fun(_: LightSensor, _: boolean) | fun(_: LightSensor, _: boolean)[]?
+---@field callback (fun(_: LightSensor, _: boolean) | fun(_: LightSensor, _: boolean)[])?
 ---@field client AsyncClient
 local LightSensorConfig
 
@@ -227,10 +227,10 @@ local LightStateOnOff
 
 ---@class Notification
 ---@field title string
----@field message string?
----@field tags string[]?
----@field priority Priority?
----@field actions Action[]?
+---@field message (string)?
+---@field tags ((string)[])?
+---@field priority (Priority)?
+---@field actions ((Action)[])?
 local Notification
 
 ---@class Ntfy: DeviceInterface
@@ -244,7 +244,7 @@ function devices.Ntfy.new(config) end
 function Ntfy:send_notification(notification) end
 
 ---@class NtfyConfig
----@field url string?
+---@field url (string)?
 ---@field topic string
 local NtfyConfig
 
@@ -287,7 +287,7 @@ function Presence:overall_presence() end
 
 ---@class PresenceConfig
 ---@field topic string
----@field callback fun(_: Presence, _: boolean) | fun(_: Presence, _: boolean)[]?
+---@field callback (fun(_: Presence, _: boolean) | fun(_: Presence, _: boolean)[])?
 ---@field client AsyncClient
 local PresenceConfig
 
@@ -321,16 +321,16 @@ function devices.Washer.new(config) end
 ---@field identifier string
 ---@field topic string
 ---@field threshold number
----@field done_callback fun(_: Washer) | fun(_: Washer)[]?
+---@field done_callback (fun(_: Washer) | fun(_: Washer)[])?
 ---@field client AsyncClient
 local WasherConfig
 
 ---@class WolConfig
 ---@field name string
----@field room string?
+---@field room (string)?
 ---@field topic string
 ---@field mac_address string
----@field broadcast_ip string?
+---@field broadcast_ip (string)?
 ---@field client AsyncClient
 local WolConfig
 
