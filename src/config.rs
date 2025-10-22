@@ -41,11 +41,16 @@ pub struct SetupFunction(mlua::Function);
 
 impl Typed for SetupFunction {
     fn type_name() -> String {
-        format!(
-            "fun(mqtt_client: {}): {} | DeviceInterface[] | nil",
+        "SetupFunction".into()
+    }
+
+    fn generate_header() -> Option<String> {
+        Some(format!(
+            "---@alias {} fun(mqtt_client: {}): {} | DeviceInterface[] | nil\n",
+            Self::type_name(),
             WrappedAsyncClient::type_name(),
             Module::type_name()
-        )
+        ))
     }
 }
 
@@ -56,10 +61,33 @@ impl FromLua for SetupFunction {
 }
 
 #[derive(Debug, Default)]
+pub struct Schedule(HashMap<String, ActionCallback<()>>);
+
+impl Typed for Schedule {
+    fn type_name() -> String {
+        "Schedule".into()
+    }
+
+    fn generate_header() -> Option<String> {
+        Some(format!(
+            "---@alias {} {}\n",
+            Self::type_name(),
+            HashMap::<String, ActionCallback<()>>::type_name(),
+        ))
+    }
+}
+
+impl FromLua for Schedule {
+    fn from_lua(value: mlua::Value, lua: &mlua::Lua) -> mlua::Result<Self> {
+        Ok(Self(FromLua::from_lua(value, lua)?))
+    }
+}
+
+#[derive(Debug, Default)]
 pub struct Module {
     pub setup: Option<SetupFunction>,
     pub devices: Vec<Box<dyn Device>>,
-    pub schedule: HashMap<String, ActionCallback<()>>,
+    pub schedule: Schedule,
     pub modules: Vec<Module>,
 }
 
@@ -82,7 +110,7 @@ impl Typed for Module {
 "#,
             Option::<SetupFunction>::type_name(),
             Vec::<Box<dyn Device>>::type_name(),
-            HashMap::<String, ActionCallback<()>>::type_name(),
+            Schedule::type_name(),
             Vec::<Module>::type_name(),
         ))
     }
@@ -181,7 +209,7 @@ impl Modules {
             }
 
             devices.extend(module.devices);
-            for (cron, f) in module.schedule {
+            for (cron, f) in module.schedule.0 {
                 scheduler.add_job(cron, f);
             }
         }

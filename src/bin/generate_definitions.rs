@@ -1,7 +1,9 @@
 use std::fs::{self, File};
 use std::io::Write;
 
-use automation::config::{Config, FulfillmentConfig, Module as ConfigModule};
+use automation::config::{
+    Config, FulfillmentConfig, Module as ConfigModule, Schedule, SetupFunction,
+};
 use automation_lib::Module;
 use automation_lib::mqtt::{MqttConfig, WrappedAsyncClient};
 use lua_typed::Typed;
@@ -34,6 +36,10 @@ fn config_definitions() -> String {
         &FulfillmentConfig::generate_full().expect("FulfillmentConfig should have a definition");
     output += "\n";
     output += &Config::generate_full().expect("Config should have a definition");
+    output += "\n";
+    output += &SetupFunction::generate_full().expect("SetupFunction should have a definition");
+    output += "\n";
+    output += &Schedule::generate_full().expect("Schedule should have a definition");
     output += "\n";
     output += &ConfigModule::generate_full().expect("Module should have a definition");
     output += "\n";

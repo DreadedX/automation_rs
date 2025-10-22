@@ -13,10 +13,14 @@ local FulfillmentConfig
 ---@field mqtt MqttConfig
 local Config
 
+---@alias SetupFunction fun(mqtt_client: AsyncClient): Module | DeviceInterface[] | nil
+
+---@alias Schedule table<string, fun() | fun()[]>
+
 ---@class Module
----@field setup (fun(mqtt_client: AsyncClient): Module | DeviceInterface[] | nil)?
+---@field setup (SetupFunction)?
 ---@field devices (DeviceInterface)[]?
----@field schedule table<string, fun() | fun()[]>?
+---@field schedule Schedule?
 ---@field [number] (Module)[]?
 local Module
 
