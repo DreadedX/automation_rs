@@ -11,12 +11,12 @@ local FulfillmentConfig
 ---@field fulfillment FulfillmentConfig
 ---@field modules (Module)[]
 ---@field mqtt MqttConfig
----@field schedule (table<string, fun() | fun()[]>)?
 local Config
 
 ---@class Module
 ---@field setup (fun(mqtt_client: AsyncClient): Module | DeviceInterface[] | nil)?
 ---@field devices (DeviceInterface)[]?
+---@field schedule table<string, fun() | fun()[]>?
 ---@field [number] (Module)[]?
 local Module
 

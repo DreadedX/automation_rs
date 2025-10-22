@@ -29,14 +29,4 @@ return {
 		require("config.rooms"),
 		require("config.windows"),
 	},
-	-- TODO: Make this also part of the modules
-	schedule = {
-		["0 0 19 * * *"] = function()
-			require("config.rooms.bedroom").set_airfilter_on(true)
-		end,
-		["0 0 20 * * *"] = function()
-			require("config.rooms.bedroom").set_airfilter_on(false)
-		end,
-		["0 0 21 */1 * *"] = require("config.battery").notify_low_battery,
-	},
 }

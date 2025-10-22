@@ -9,6 +9,8 @@ use lua_typed::Typed;
 use mlua::FromLua;
 use serde::Deserialize;
 
+use crate::schedule::Scheduler;
+
 #[derive(Debug, Deserialize)]
 pub struct Setup {
     #[serde(default = "default_entrypoint")]
@@ -57,6 +59,7 @@ impl FromLua for SetupFunction {
 pub struct Module {
     pub setup: Option<SetupFunction>,
     pub devices: Vec<Box<dyn Device>>,
+    pub schedule: HashMap<String, ActionCallback<()>>,
     pub modules: Vec<Module>,
 }
 
@@ -74,10 +77,12 @@ impl Typed for Module {
         Some(format!(
             r#"---@field setup {}
 ---@field devices {}?
+---@field schedule {}?
 ---@field [number] {}?
 "#,
             Option::<SetupFunction>::type_name(),
             Vec::<Box<dyn Device>>::type_name(),
+            HashMap::<String, ActionCallback<()>>::type_name(),
             Vec::<Module>::type_name(),
         ))
     }
@@ -105,8 +110,9 @@ impl FromLua for Module {
         };
 
         let setup = table.get("setup")?;
-
         let devices = table.get("devices").unwrap_or_default();
+        let schedule = table.get("schedule").unwrap_or_default();
+
         let mut modules = Vec::new();
 
         for module in table.sequence_values::<Module>() {
@@ -116,6 +122,7 @@ impl FromLua for Module {
         Ok(Module {
             setup,
             devices,
+            schedule,
             modules,
         })
     }
@@ -142,10 +149,10 @@ impl Modules {
         lua: &mlua::Lua,
         client: &WrappedAsyncClient,
     ) -> mlua::Result<Resolved> {
-        let mut modules: VecDeque<_> = self.0.into();
-
         let mut devices = Vec::new();
+        let mut scheduler = Scheduler::default();
 
+        let mut modules: VecDeque<_> = self.0.into();
         loop {
             let Some(module) = modules.pop_front() else {
                 break;
@@ -174,15 +181,19 @@ impl Modules {
             }
 
             devices.extend(module.devices);
+            for (cron, f) in module.schedule {
+                scheduler.add_job(cron, f);
+            }
         }
 
-        Ok(Resolved { devices })
+        Ok(Resolved { devices, scheduler })
     }
 }
 
 #[derive(Debug, Default)]
 pub struct Resolved {
     pub devices: Vec<Box<dyn Device>>,
+    pub scheduler: Scheduler,
 }
 
 #[derive(Debug, LuaDeviceConfig, Typed)]
@@ -192,9 +203,6 @@ pub struct Config {
     pub modules: Modules,
     #[device_config(from_lua)]
     pub mqtt: MqttConfig,
-    #[device_config(from_lua, default)]
-    #[typed(default)]
-    pub schedule: HashMap<String, ActionCallback<()>>,
 }
 
 impl From<FulfillmentConfig> for SocketAddr {

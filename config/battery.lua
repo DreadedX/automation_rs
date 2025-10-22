@@ -38,4 +38,8 @@ function module.notify_low_battery()
 	})
 end
 
+module.schedule = {
+	["0 0 21 */1 * *"] = module.notify_low_battery,
+}
+
 return module

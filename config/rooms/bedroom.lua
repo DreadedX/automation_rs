@@ -56,19 +56,22 @@ function module.setup(mqtt_client)
 	windows.add(window)
 
 	return {
-		lights,
-		lights_relax,
-		air_filter,
-		switch,
-		window,
+		devices = {
+			lights,
+			lights_relax,
+			air_filter,
+			switch,
+			window,
+		},
+		schedule = {
+			["0 0 19 * * *"] = function()
+				air_filter:set_on(true)
+			end,
+			["0 0 20 * * *"] = function()
+				air_filter:set_on(false)
+			end,
+		},
 	}
-end
-
---- @param on boolean
-function module.set_airfilter_on(on)
-	if air_filter then
-		air_filter:set_on(on)
-	end
 end
 
 return module
