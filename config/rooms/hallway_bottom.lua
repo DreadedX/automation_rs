@@ -59,26 +59,21 @@ function module.setup(mqtt_client)
 	})
 	hallway_automation.set_trash(trash)
 
-	---@param duration number
-	---@return fun(_, open: boolean)
-	local function frontdoor_presence(duration)
-		local timeout = utils.Timeout.new()
+	local timeout = utils.Timeout.new()
+	local function frontdoor_presence(_, open)
+		if open then
+			timeout:cancel()
 
-		return function(_, open)
-			if open then
-				timeout:cancel()
-
-				if presence.overall_presence() then
-					mqtt_client:send_message(helper.mqtt_automation("presence/contact/frontdoor"), {
-						state = true,
-						updated = utils.get_epoch(),
-					})
-				end
-			else
-				timeout:start(duration, function()
-					mqtt_client:send_message(helper.mqtt_automation("presence/contact/frontdoor"), nil)
-				end)
+			if not presence.overall_presence() then
+				mqtt_client:send_message(helper.mqtt_automation("presence/contact/frontdoor"), {
+					state = true,
+					updated = utils.get_epoch(),
+				})
 			end
+		else
+			timeout:start(debug.debug_mode and 10 or 15 * 60, function()
+				mqtt_client:send_message(helper.mqtt_automation("presence/contact/frontdoor"), nil)
+			end)
 		end
 	end
 
@@ -89,7 +84,7 @@ function module.setup(mqtt_client)
 		topic = helper.mqtt_z2m("hallway/frontdoor"),
 		client = mqtt_client,
 		callback = {
-			frontdoor_presence(debug.debug_mode and 10 or 15 * 60),
+			frontdoor_presence,
 			hallway_automation.door_callback,
 		},
 		battery_callback = battery.callback,
