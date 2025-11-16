@@ -9,10 +9,10 @@ on:
 
 jobs:
     build:
-        uses: dreaded_x/workflows/.gitea/workflows/rust-kubernetes.yaml@22ee0c1788a8d2157db87d6a6f8dbe520fe48592
+        uses: dreaded_x/workflows/.gitea/workflows/docker-kubernetes.yaml@ef78704b98c72e4a6b8340f9bff7b085a7bdd95c
         secrets: inherit
         with:
-            upload_manifests: false
+            push_manifests: false
 
     deploy:
         name: Deploy container
@@ -37,7 +37,7 @@ jobs:
                     -e AUTOMATION__SECRETS__MQTT_PASSWORD=${{ secrets.MQTT_PASSWORD }} \
                     -e AUTOMATION__SECRETS__HUE_TOKEN=${{ secrets.HUE_TOKEN }} \
                     -e AUTOMATION__SECRETS__NTFY_TOPIC=${{ secrets.NTFY_TOPIC }} \
-                    git.huizinga.dev/dreaded_x/automation_rs@${{ needs.build.outputs.digest }}
+                    $(echo ${{ toJSON(needs.build.outputs.images) }} | jq .automation -r)
 
                   docker network connect web automation_rs
 
