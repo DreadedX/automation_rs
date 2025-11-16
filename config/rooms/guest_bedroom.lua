@@ -25,10 +25,18 @@ function module.setup(mqtt_client)
 	})
 	windows.add(window)
 
+	local printer = devices.OutletOnOff.new({
+		name = "3D Printer",
+		room = "Guest Room",
+		topic = helper.mqtt_z2m("guest/printer"),
+		client = mqtt_client,
+	})
+
 	--- @type Module
 	return {
 		light,
 		window,
+		printer,
 	}
 end
 
