@@ -3,6 +3,8 @@ ENV CARGO_REGISTRIES_CRATES_IO_PROTOCOL=sparse
 RUN cargo install cargo-chef --locked --version 0.1.71 && \
     cargo install cargo-auditable --locked --version 0.6.6
 WORKDIR /app
+COPY ./rust-toolchain.toml .
+RUN rustup toolchain install
 
 FROM base AS planner
 COPY . .
