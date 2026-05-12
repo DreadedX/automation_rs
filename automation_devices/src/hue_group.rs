@@ -2,6 +2,7 @@ use std::net::SocketAddr;
 
 use anyhow::Result;
 use async_trait::async_trait;
+use automation_lib::lua::traits::PartialUserData;
 use automation_macro::{Device, LuaDeviceConfig};
 use google_home::errors::ErrorCode;
 use google_home::traits::OnOff;
@@ -25,6 +26,7 @@ crate::register_type!(Config);
 
 #[derive(Debug, Clone, Device)]
 #[device(traits(OnOff))]
+#[device(extra_user_data = AllOn)]
 pub struct HueGroup {
     config: Config,
 }
@@ -122,6 +124,47 @@ impl OnOff for HueGroup {
     }
 }
 
+struct AllOn;
+impl PartialUserData<HueGroup> for AllOn {
+    fn add_methods<M: mlua::UserDataMethods<HueGroup>>(methods: &mut M) {
+        methods.add_async_method("all_on", async |_lua, this, ()| {
+            let res = reqwest::Client::new()
+                .get(this.url_get_state())
+                .send()
+                .await;
+
+            match res {
+                Ok(res) => {
+                    let status = res.status();
+                    if !status.is_success() {
+                        warn!(id = this.get_id(), "Status code is not success: {status}");
+                    }
+
+                    let on = match res.json::<message::Info>().await {
+                        Ok(info) => info.all_on(),
+                        Err(err) => {
+                            error!(id = this.get_id(), "Failed to parse message: {err}");
+                            return Ok(false);
+                        }
+                    };
+
+                    return Ok(on);
+                }
+                Err(err) => error!(id = this.get_id(), "Error: {err}"),
+            }
+
+            Ok(false)
+        });
+    }
+
+    fn definitions() -> Option<String> {
+        Some(format!(
+            "---@async\n---@return boolean\nfunction {}:all_on() end\n",
+            <HueGroup as Typed>::type_name(),
+        ))
+    }
+}
+
 mod message {
     use serde::{Deserialize, Serialize};
 
@@ -163,6 +206,10 @@ mod message {
     impl Info {
         pub fn any_on(&self) -> bool {
             self.state.any_on
+        }
+
+        pub fn all_on(&self) -> bool {
+            self.state.all_on
         }
     }
 }

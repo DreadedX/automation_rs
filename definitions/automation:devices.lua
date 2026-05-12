@@ -116,6 +116,9 @@ devices.HueGroup = {}
 ---@param config HueGroupConfig
 ---@return HueGroup
 function devices.HueGroup.new(config) end
+---@async
+---@return boolean
+function HueGroup:all_on() end
 
 ---@class HueGroupConfig
 ---@field identifier string
