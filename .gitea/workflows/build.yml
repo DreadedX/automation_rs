@@ -26,6 +26,10 @@ jobs:
                   docker stop automation_rs || true
                   docker rm automation_rs || true
 
+            - name: Login to registry
+              run: |
+                  docker login git.huizinga.dev -u ${{ gitea.actor }} -p ${{ secrets.REGISTRY_TOKEN }} \
+
             - name: Create container
               run: |
                   docker create \
