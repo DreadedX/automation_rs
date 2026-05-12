@@ -16,28 +16,28 @@ members = [
 
 [workspace.dependencies]
 air_filter_types = { git = "https://git.huizinga.dev/Dreaded_X/airfilter", tag = "v0.4.4" }
-anyhow = "1.0.99"
+anyhow = "1.0.102"
 async-trait = "0.1.89"
 automation_cast = { path = "./automation_cast" }
 automation_devices = { path = "./automation_devices" }
 automation_lib = { path = "./automation_lib" }
 automation_macro = { path = "./automation_macro" }
-axum = "0.8.4"
-bytes = "1.10.1"
+axum = "0.8.9"
+bytes = "1.11.1"
 dyn-clone = "1.0.20"
 eui48 = { version = "1.1.0", features = [
   "disp_hexstring",
   "serde",
 ], default-features = false }
-futures = "0.3.31"
+futures = "0.3.32"
 google_home = { path = "./google_home/google_home" }
 google_home_macro = { path = "./google_home/google_home_macro" }
-hostname = "0.4.1"
-inventory = "0.3.21"
+hostname = "0.4.2"
+inventory = "0.3.24"
 itertools = "0.14.0"
 json_value_merge = "2.0.1"
 lua_typed = { git = "https://git.huizinga.dev/Dreaded_X/lua_typed" }
-mlua = { version = "0.11.3", features = [
+mlua = { version = "0.11.6", features = [
   "lua54",
   "vendored",
   "macros",
@@ -45,23 +45,23 @@ mlua = { version = "0.11.3", features = [
   "async",
   "send",
 ] }
-proc-macro2 = "1.0.101"
-quote = "1.0.40"
-reqwest = { version = "0.12.23", features = [
+proc-macro2 = "1.0.106"
+quote = "1.0.45"
+reqwest = { version = "0.13.3", features = [
   "json",
-  "rustls-tls",
+  "rustls",
 ], default-features = false } # Use rustls, since the other packages also use rustls
-rumqttc = "0.24.0"
-serde = { version = "1.0.219", features = ["derive"] }
-serde_json = "1.0.143"
+rumqttc = "0.25.1"
+serde = { version = "1.0.228", features = ["derive"] }
+serde_json = "1.0.149"
 serde_repr = "0.1.20"
-syn = { version = "2.0.106" }
-thiserror = "2.0.16"
+syn = { version = "2.0.117" }
+thiserror = "2.0.18"
 tokio = { version = "1", features = ["rt-multi-thread"] }
-tokio-cron-scheduler = "0.15.0"
-tracing = "0.1.41"
-tracing-subscriber = "0.3.20"
-wakey = "0.3.0"
+tokio-cron-scheduler = "0.15.1"
+tracing = "0.1.44"
+tracing-subscriber = "0.3.23"
+wakey = "0.4.1"
 
 [dependencies]
 anyhow = { workspace = true }
@@ -70,7 +70,7 @@ automation_devices = { workspace = true }
 automation_lib = { workspace = true }
 automation_macro = { path = "./automation_macro" }
 axum = { workspace = true }
-config = { version = "0.15.15", default-features = false, features = [
+config = { version = "0.15.22", default-features = false, features = [
   "async",
   "toml",
 ] }

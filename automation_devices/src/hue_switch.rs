@@ -122,15 +122,11 @@ impl OnMqtt for HueSwitch {
                     Action::LeftHold => self.config.left_hold_callback.call(self.clone()).await,
                     Action::RightHold => self.config.right_hold_callback.call(self.clone()).await,
                     // If there is no hold action, the switch will act like a normal release
-                    Action::RightHoldRelease => {
-                        if self.config.right_hold_callback.is_empty() {
-                            self.config.right_callback.call(self.clone()).await
-                        }
+                    Action::RightHoldRelease if self.config.right_hold_callback.is_empty() => {
+                        self.config.right_callback.call(self.clone()).await
                     }
-                    Action::LeftHoldRelease => {
-                        if self.config.left_hold_callback.is_empty() {
-                            self.config.left_callback.call(self.clone()).await
-                        }
+                    Action::LeftHoldRelease if self.config.left_hold_callback.is_empty() => {
+                        self.config.left_callback.call(self.clone()).await
                     }
                     _ => {}
                 }

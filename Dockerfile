@@ -1,9 +1,8 @@
-FROM rust:1.89 AS base
+FROM rust:1.95 AS base
 ENV CARGO_REGISTRIES_CRATES_IO_PROTOCOL=sparse
 RUN cargo install cargo-chef --locked --version 0.1.71 && \
     cargo install cargo-auditable --locked --version 0.6.6
 WORKDIR /app
-COPY ./rust-toolchain.toml .
 RUN rustup toolchain install
 
 FROM base AS planner
@@ -21,7 +20,7 @@ ARG RELEASE_VERSION
 ENV RELEASE_VERSION=${RELEASE_VERSION}
 RUN cargo auditable build --release
 
-FROM gcr.io/distroless/cc-debian12:nonroot AS runtime
+FROM gcr.io/distroless/cc-debian13:nonroot AS runtime
 COPY --from=builder /app/target/release/automation /app/automation
 ENV AUTOMATION__ENTRYPOINT=/app/config/config.lua
 ENV LUA_PATH="/app/?.lua;;"

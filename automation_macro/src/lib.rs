@@ -1,4 +1,3 @@
-#![feature(iter_intersperse)]
 #![feature(iterator_try_collect)]
 mod device;
 mod lua_device_config;
