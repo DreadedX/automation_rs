@@ -4,15 +4,35 @@ local helper = require("config.helper")
 local presence = require("config.presence")
 local windows = require("config.windows")
 
+local secrets = require("automation:secrets")
+
 --- @type Module
 local module = {}
 
 function module.setup(mqtt_client)
-	local light = devices.LightOnOff.new({
+	local light = nil
+
+	local bambu = devices.Bambu.new({
+		host = "thalia.huizinga.lan",
+		device_id = secrets.printer_device_id,
+		access_code = secrets.printer_access_code,
+		callbacks = {
+			connected = function(self)
+				if light ~= nil then
+					self:set_on(light:on())
+				end
+			end,
+		},
+	})
+
+	light = devices.LightOnOff.new({
 		name = "Light",
 		room = "Guest Room",
 		topic = helper.mqtt_z2m("guest/light"),
 		client = mqtt_client,
+		callback = function(_, state)
+			bambu:set_on(state.state)
+		end,
 	})
 	presence.turn_off_when_away(light)
 
@@ -37,6 +57,7 @@ function module.setup(mqtt_client)
 		light,
 		window,
 		printer,
+		bambu,
 	}
 end
 
