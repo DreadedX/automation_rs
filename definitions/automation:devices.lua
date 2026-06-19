@@ -24,6 +24,25 @@ function devices.AirFilter.new(config) end
 ---@field url string
 local AirFilterConfig
 
+---@class Bambu: DeviceInterface, OnOffInterface
+local Bambu
+devices.Bambu = {}
+---@param config BambuConfig
+---@return Bambu
+function devices.Bambu.new(config) end
+
+---@class BambuCallbacks
+---@field state (fun(_: Bambu) | fun(_: Bambu)[])?
+---@field connected (fun(_: Bambu) | fun(_: Bambu)[])?
+local BambuCallbacks
+
+---@class BambuConfig
+---@field host string
+---@field device_id string
+---@field access_code string
+---@field callbacks BambuCallbacks
+local BambuConfig
+
 ---@class ConfigLightLightStateBrightness
 ---@field name string
 ---@field room (string)?

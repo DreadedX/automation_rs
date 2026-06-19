@@ -1,5 +1,7 @@
+#![feature(debug_closure_helpers)]
 #![feature(iter_intersperse)]
 mod air_filter;
+mod bambu;
 mod contact_sensor;
 mod hue_bridge;
 mod hue_group;
@@ -13,12 +15,40 @@ mod wake_on_lan;
 mod washer;
 mod zigbee;
 
+use std::fmt;
+use std::ops::{Deref, DerefMut};
+
 use automation_lib::Module;
 use automation_lib::device::{Device, LuaDeviceCreate};
 use tracing::{debug, warn};
 
 type DeviceNameFn = fn() -> String;
 type RegisterDeviceFn = fn(lua: &mlua::Lua) -> mlua::Result<mlua::AnyUserData>;
+
+#[derive(Clone)]
+struct DebugWrap<T: Clone>(T);
+
+impl<T: Clone> DerefMut for DebugWrap<T> {
+    fn deref_mut(&mut self) -> &mut Self::Target {
+        &mut self.0
+    }
+}
+
+impl<T: Clone> Deref for DebugWrap<T> {
+    type Target = T;
+
+    fn deref(&self) -> &Self::Target {
+        &self.0
+    }
+}
+
+impl<T: Clone> fmt::Debug for DebugWrap<T> {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        f.debug_tuple("DebugWrap")
+            .field_with(|f| f.write_str(stringify!(T)))
+            .finish()
+    }
+}
 
 pub struct RegisteredDevice {
     name_fn: DeviceNameFn,

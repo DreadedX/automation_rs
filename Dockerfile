@@ -9,7 +9,7 @@ COPY . .
 RUN cargo chef prepare --recipe-path recipe.json
 
 FROM base AS builder
-RUN apk add --no-cache g++=15.2.0-r2 cmake=4.1.3-r0 make=4.4.1-r3
+RUN apk add --no-cache g++=15.2.0-r2 cmake=4.1.3-r0 make=4.4.1-r3 openssl-dev=3.5.7-r0 openssl-libs-static=3.5.7-r0
 # HACK: Now we can use unstable feature while on stable rust!
 ENV RUSTC_BOOTSTRAP=1
 COPY --from=planner /app/recipe.json recipe.json
