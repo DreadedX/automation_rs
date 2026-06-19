@@ -10,12 +10,12 @@ return {
 		openid_url = "https://login.huizinga.dev/api/oidc",
 	},
 	mqtt = {
-		host = ((host == "zeus" or host == "hephaestus") and "olympus.lan.huizinga.dev") or "mosquitto",
+		host = ((host == "zeus" or host == "hephaestus") and "olympus.huizinga.lan") or "mosquitto",
 		port = 8883,
 		client_name = "automation-" .. host,
 		username = "mqtt",
 		password = secrets.mqtt_password,
-		tls = host == "zeus" or host == "hephaestus",
+		tls = false,
 	},
 	modules = {
 		require("config.battery"),
