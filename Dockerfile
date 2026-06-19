@@ -1,5 +1,4 @@
-FROM rust:1.95 AS base
-ENV CARGO_REGISTRIES_CRATES_IO_PROTOCOL=sparse
+FROM rust:1.95-alpine AS base
 RUN cargo install cargo-chef --locked --version 0.1.71 && \
     cargo install cargo-auditable --locked --version 0.6.6
 WORKDIR /app
@@ -10,6 +9,7 @@ COPY . .
 RUN cargo chef prepare --recipe-path recipe.json
 
 FROM base AS builder
+RUN apk add --no-cache g++=15.2.0-r2 cmake=4.1.3-r0 make=4.4.1-r3
 # HACK: Now we can use unstable feature while on stable rust!
 ENV RUSTC_BOOTSTRAP=1
 COPY --from=planner /app/recipe.json recipe.json
@@ -20,7 +20,8 @@ ARG RELEASE_VERSION
 ENV RELEASE_VERSION=${RELEASE_VERSION}
 RUN cargo auditable build --release
 
-FROM gcr.io/distroless/cc-debian13:nonroot AS runtime
+
+FROM gcr.io/distroless/static-debian13:nonroot AS runtime
 COPY --from=builder /app/target/release/automation /app/automation
 ENV AUTOMATION__ENTRYPOINT=/app/config/config.lua
 ENV LUA_PATH="/app/?.lua;;"

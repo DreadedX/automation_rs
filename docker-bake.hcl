@@ -5,7 +5,9 @@ group "default" {
 	targets = ["automation"]
 }
 
-target "docker-metadata-action" {}
+target "docker-metadata-action" {
+	tags = []
+}
 
 target "automation" {
 	inherits = ["docker-metadata-action"]
