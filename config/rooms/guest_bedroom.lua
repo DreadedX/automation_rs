@@ -13,7 +13,7 @@ function module.setup(mqtt_client)
 	local light = nil
 
 	local bambu = devices.Bambu.new({
-		host = "thalia.huizinga.lan",
+		host = "10.0.0.108",
 		device_id = secrets.printer_device_id,
 		access_code = secrets.printer_access_code,
 		callbacks = {
