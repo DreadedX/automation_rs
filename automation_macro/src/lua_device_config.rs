@@ -182,7 +182,7 @@ fn field_from_lua(field: &Field) -> TokenStream {
 		.iter()
 		.filter_map(|arg| match arg {
 			Argument::Flatten { .. } => Some(quote! {
-				mlua::LuaSerdeExt::from_value_with(lua, value.clone(), mlua::DeserializeOptions::new().deny_unsupported_types(false))?
+				mlua::LuaSerdeExt::from_value_with(lua, value.clone(), mlua::serde::DeserializeOptions::new().deny_unsupported_types(false))?
 			}),
 			Argument::FromLua { .. } => Some(quote! {
 				if table.contains_key(#table_name)? {
