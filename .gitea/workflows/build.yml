@@ -9,7 +9,7 @@ on:
 
 jobs:
     build:
-        uses: dreaded_x/workflows/.gitea/workflows/docker-kubernetes.yaml@ef78704b98c72e4a6b8340f9bff7b085a7bdd95c
+        uses: infra/workflows/.gitea/workflows/docker.yaml@2bb37b698effa4fba36040d668cfa95d4abc568e
         secrets: inherit
         with:
             push_manifests: false
