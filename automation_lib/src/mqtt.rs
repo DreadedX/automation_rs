@@ -1,10 +1,9 @@
 use std::ops::{Deref, DerefMut};
-use std::time::Duration;
 
 use automation_macro::LuaDeviceConfig;
 use lua_typed::Typed;
 use mlua::FromLua;
-use rumqttc::{AsyncClient, Event, Incoming, MqttOptions, Transport};
+use rumqttc::{AsyncClient, Event, Incoming, MqttOptions, PublishOptions, Transport};
 use serde::Deserialize;
 use tracing::{debug, warn};
 
@@ -24,9 +23,9 @@ pub struct MqttConfig {
 
 impl From<MqttConfig> for MqttOptions {
     fn from(value: MqttConfig) -> Self {
-        let mut mqtt_options = MqttOptions::new(value.client_name, value.host, value.port);
+        let mut mqtt_options = MqttOptions::new(value.client_name, (value.host, value.port));
         mqtt_options.set_credentials(value.username, value.password);
-        mqtt_options.set_keep_alive(Duration::from_secs(5));
+        mqtt_options.set_keep_alive(5);
 
         if value.tls {
             mqtt_options.set_transport(Transport::tls_with_default_config());
@@ -92,7 +91,7 @@ impl mlua::UserData for WrappedAsyncClient {
                 debug!("message = {message}");
 
                 this.0
-                    .publish(topic, rumqttc::QoS::AtLeastOnce, true, message)
+                    .publish(topic, message, PublishOptions::at_least_once().retained())
                     .await
                     .unwrap();
 
@@ -104,7 +103,7 @@ impl mlua::UserData for WrappedAsyncClient {
 
 pub fn start(config: MqttConfig, event_channel: &EventChannel) -> WrappedAsyncClient {
     let tx = event_channel.get_tx();
-    let (client, mut eventloop) = AsyncClient::new(config.into(), 100);
+    let (client, mut eventloop) = AsyncClient::builder(config.into()).capacity(100).build();
 
     tokio::spawn(async move {
         debug!("Listening for MQTT events");

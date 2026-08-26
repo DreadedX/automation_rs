@@ -15,7 +15,7 @@ hostname = { workspace = true }
 inventory = { workspace = true }
 lua_typed = { workspace = true }
 mlua = { workspace = true }
-rumqttc = { workspace = true }
+rumqttc-next = { workspace = true }
 serde = { workspace = true }
 serde_json = { workspace = true }
 thiserror = { workspace = true }

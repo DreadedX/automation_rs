@@ -98,7 +98,10 @@ impl LuaDeviceCreate for HueSwitch {
 impl OnMqtt for HueSwitch {
     async fn on_mqtt(&self, message: Publish) {
         // Check if the message is from the device itself or from a remote
-        if matches(&message.topic, &self.config.mqtt.topic) {
+        if matches(
+            str::from_utf8(&message.topic).expect("Topic should be valid"),
+            &self.config.mqtt.topic,
+        ) {
             let message = match serde_json::from_slice::<State>(&message.payload) {
                 Ok(message) => message,
                 Err(err) => {

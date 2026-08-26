@@ -105,7 +105,10 @@ impl Device for Presence {
 #[async_trait]
 impl OnMqtt for Presence {
     async fn on_mqtt(&self, message: Publish) {
-        if !rumqttc::matches(&message.topic, &self.config.mqtt.topic) {
+        if !rumqttc::matches(
+            str::from_utf8(&message.topic).expect("Topic should be valid"),
+            &self.config.mqtt.topic,
+        ) {
             return;
         }
 
@@ -116,7 +119,9 @@ impl OnMqtt for Presence {
             .find('+')
             .or(self.config.mqtt.topic.find('#'))
             .expect("Presence::create fails if it does not contain wildcards");
-        let device_name = message.topic[offset..].into();
+        let device_name: String = str::from_utf8(&message.topic[offset..])
+            .expect("Topic should be valid")
+            .into();
 
         if message.payload.is_empty() {
             // Remove the device from the map

@@ -1,3 +1,4 @@
+use core::str;
 use std::fmt::Debug;
 use std::ops::Deref;
 use std::sync::Arc;
@@ -16,7 +17,7 @@ use google_home::errors::ErrorCode;
 use google_home::traits::{Brightness, Color, ColorSetting, ColorTemperatureRange, OnOff};
 use google_home::types::Type;
 use lua_typed::Typed;
-use rumqttc::{Publish, matches};
+use rumqttc::{Publish, PublishOptions, matches};
 use serde::{Deserialize, Serialize};
 use serde_json::json;
 use tokio::sync::{RwLock, RwLockReadGuard, RwLockWriteGuard};
@@ -177,7 +178,10 @@ where
 impl OnMqtt for LightOnOff {
     async fn on_mqtt(&self, message: Publish) {
         // Check if the message is from the device itself or from a remote
-        if matches(&message.topic, &self.config.mqtt.topic) {
+        if matches(
+            str::from_utf8(&message.topic).expect("Topic should be valid"),
+            &self.config.mqtt.topic,
+        ) {
             let state = match serde_json::from_slice::<StateOnOff>(&message.payload) {
                 Ok(state) => state,
                 Err(err) => {
@@ -210,7 +214,10 @@ impl OnMqtt for LightOnOff {
 impl OnMqtt for LightBrightness {
     async fn on_mqtt(&self, message: Publish) {
         // Check if the message is from the deviec itself or from a remote
-        if matches(&message.topic, &self.config.mqtt.topic) {
+        if matches(
+            str::from_utf8(&message.topic).expect("Topic should be valid"),
+            &self.config.mqtt.topic,
+        ) {
             let state = match serde_json::from_slice::<StateBrightness>(&message.payload) {
                 Ok(state) => state,
                 Err(err) => {
@@ -249,7 +256,10 @@ impl OnMqtt for LightBrightness {
 impl OnMqtt for LightColorTemperature {
     async fn on_mqtt(&self, message: Publish) {
         // Check if the message is from the deviec itself or from a remote
-        if matches(&message.topic, &self.config.mqtt.topic) {
+        if matches(
+            str::from_utf8(&message.topic).expect("Topic should be valid"),
+            &self.config.mqtt.topic,
+        ) {
             let state = match serde_json::from_slice::<StateColorTemperature>(&message.payload) {
                 Ok(state) => state,
                 Err(err) => {
@@ -342,9 +352,8 @@ where
             .client
             .publish(
                 &topic,
-                rumqttc::QoS::AtLeastOnce,
-                false,
                 serde_json::to_string(&message).unwrap(),
+                PublishOptions::at_least_once(),
             )
             .await
             .map_err(|err| warn!("Failed to update state on {topic}: {err}"))
@@ -386,9 +395,8 @@ where
             .client
             .publish(
                 &topic,
-                rumqttc::QoS::AtLeastOnce,
-                false,
                 serde_json::to_string(&message).unwrap(),
+                PublishOptions::at_least_once(),
             )
             .await
             .map_err(|err| warn!("Failed to update state on {topic}: {err}"))
@@ -434,9 +442,8 @@ where
             .client
             .publish(
                 &topic,
-                rumqttc::QoS::AtLeastOnce,
-                false,
                 serde_json::to_string(&message).unwrap(),
+                PublishOptions::at_least_once(),
             )
             .await
             .map_err(|err| warn!("Failed to update state on {topic}: {err}"))
